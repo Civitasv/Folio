@@ -21,3 +21,9 @@ Folio is local-first. Never introduce mandatory accounts, cloud storage, telemet
 
 ## Delivery
 Each feature PR links its spec, describes tests and evidence, includes a risk/rollback note and records deferred issues. No fabricated screenshots or CI status.
+
+## Testing and merge policy
+- Every changed executable production module must have automated tests. Target 100% statements, branches, functions and lines for owned TypeScript domain/platform/UI code; no lowering thresholds or blanket coverage exclusions to game the gate.
+- Rust core requires unit/integration tests and coverage reporting; native Tauri bootstrap and generated code are reported separately, not falsely represented as covered.
+- Include regression tests for bug fixes and meaningful negative cases; coverage does not prove correctness.
+- After review and required checks pass, use GitHub auto-merge (squash preferred). Never merge red, draft, or unreviewed PRs. Repository rulesets must require CI checks and prevent bypass.
