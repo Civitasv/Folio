@@ -26,3 +26,6 @@ PDF import, document parsing, SQLite persistence, translation, model calls, auth
 
 ## Risks and review
 Platform adapter semantics may diverge between browser and desktop; review contract boundaries before F01. Desktop bundle validation requires OS-specific runners in a later feature. PR must report actual test evidence and deferred items.
+
+## Testing amendment
+F00 adds Vitest + V8 coverage and Testing Library. Enforce 100% statements/branches/functions/lines for owned shared TypeScript modules. Rust tests run in CI; native coverage reporting and full desktop smoke testing remain explicit follow-up gates. Coverage is a measured scope, not a claim of 100% of all application behavior. GitHub auto-merge is permitted only after required checks, review and draft conversion.
