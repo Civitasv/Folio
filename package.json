@@ -1,0 +1,1 @@
+{"name":"folio","private":true,"version":"0.0.0","packageManager":"pnpm@9.15.9","scripts":{"dev":"pnpm --filter @folio/web dev","build":"pnpm --filter @folio/web build","check":"pnpm -r --if-present typecheck && pnpm -r --if-present test && pnpm build","desktop":"pnpm --filter @folio/desktop tauri dev"},"devDependencies":{"typescript":"^5.8.3"}}
