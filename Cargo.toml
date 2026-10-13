@@ -1,0 +1,3 @@
+[workspace]
+members = ["crates/folio-core", "apps/desktop/src-tauri"]
+resolver = "2"
