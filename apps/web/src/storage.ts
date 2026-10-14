@@ -61,6 +61,13 @@ export const browserPlatform = {
       req.onerror = () => reject(req.error);
     });
   },
+  async deletePdf(id: string): Promise<void> {
+    return transact('readwrite', (store, resolve, reject) => {
+      const req = store.delete(id);
+      req.onsuccess = () => resolve(undefined);
+      req.onerror = () => reject(req.error);
+    });
+  },
   async setProgress(id: string, page: number): Promise<void> {
     return transact('readwrite', (store, resolve, reject) => {
       const req = store.get(id);
