@@ -288,5 +288,5 @@ it('updates the PDF library and reader only after explicit DOI OA import',async(
  fireEvent.click(screen.getByText('Import open-access PDF'));
  await waitFor(()=>expect(platform.importOpenPdf).toHaveBeenCalledOnce());
  expect(await screen.findByTitle('PDF document')).toBeTruthy();
- expect(screen.getByRole('button',{name:'OA paper'})).toBeTruthy();
+ expect(screen.getAllByRole('button',{name:'OA paper'})).toHaveLength(2);
 });
