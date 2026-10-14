@@ -1,7 +1,8 @@
 import type { EpubAnchor } from './epub';
+import type { DoiMetadata } from './doi';
 export interface DocumentSummary {
   id: string; title: string; progress: number;
-  kind?: 'pdf' | 'epub'; creators?: string[];
+  kind?: 'pdf' | 'epub' | 'reference'; creators?: string[]; doi?: string;
 }
 export interface ReaderPlatform {
   listDocuments(): Promise<DocumentSummary[]>;
@@ -10,6 +11,8 @@ export interface ReaderPlatform {
   deletePdf(id: string): Promise<void>;
   setProgress(id: string, page: number): Promise<void>;
 }
+export { normalizeDoi, doiUrl, safePublicHttps } from './doi';
+export type { DoiMetadata } from './doi';
 export { preflightPdf, MAX_PDF_BYTES } from './pdf';
 export type { PdfImportError, PdfPreflight } from './pdf';
 export { preflightEpub, MAX_EPUB_BYTES, normalizeEpubAnchor } from './epub';

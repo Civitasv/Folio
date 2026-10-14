@@ -105,7 +105,7 @@ it('reports library load, import, reader, save and delete failures', async () =>
   fireEvent.click(screen.getByText('Save page'));
   expect(await screen.findByRole('alert')).toHaveProperty('textContent','Could not save reading position.');
   fireEvent.click(screen.getByRole('button',{name:'Delete Paper'}));
-  expect(await screen.findByRole('alert')).toHaveProperty('textContent','Unable to delete the local PDF.');
+  expect(await screen.findByRole('alert')).toHaveProperty('textContent','Unable to delete the local document.');
   vi.spyOn(platform,'importPdf').mockRejectedValueOnce(new Error('quota'));
   fireEvent.change(screen.getByLabelText('Import PDF file'),{target:{files:[file('second.pdf')]}});
   expect(await screen.findByRole('alert')).toHaveProperty('textContent','PDF import failed. Check available browser storage.');
@@ -238,4 +238,33 @@ it('closes and reopens an EPUB without invoking the PDF viewer',async()=>{
  fireEvent.click(screen.getByRole('button',{name:'Ebook'}));
  expect(await screen.findByTitle('EPUB chapter')).toBeTruthy();
  expect(platform.readPdf).not.toHaveBeenCalled();
+});
+
+it('adds DOI acquisition without a request on boot; saves, searches, opens and deletes a reference',async()=>{
+ const base=fixture(),doi='10.1234/example';
+ const metadata={doi,title:'DOI Work',creators:['Alice'],landingUrl:'https://doi.org/'+doi,source:'Crossref' as const};
+ const reference={id:'doi:'+doi,doi,title:'DOI Work',progress:0,kind:'reference' as const,creators:['Alice']};
+ const platform={...base.platform,
+  resolveDoi:vi.fn(async()=>metadata),saveReference:vi.fn(async()=>{base.rows.set(reference.id,reference);return reference;}),
+  readReference:vi.fn(async()=>({metadata})),importOpenPdf:vi.fn(async()=>{throw Error('no OA');})
+ };
+ vi.spyOn(window,'confirm').mockReturnValue(true);
+ const view=render(<App platform={platform}/>);
+ await screen.findByText('Your library is empty. Import a PDF to begin.');
+ expect(platform.resolveDoi).not.toHaveBeenCalled();
+ fireEvent.change(screen.getByLabelText('DOI'),{target:{value:doi}});
+ fireEvent.click(screen.getByText('Resolve DOI'));
+ expect(await screen.findByText('DOI Work')).toBeTruthy();
+ fireEvent.click(screen.getByText('Save metadata-only reference'));
+ await waitFor(()=>expect(screen.getByRole('button',{name:'DOI Work'})).toBeTruthy());
+ fireEvent.change(screen.getByLabelText('Search titles'),{target:{value:doi}});
+ expect(screen.getByRole('button',{name:'DOI Work'})).toBeTruthy();
+ fireEvent.click(screen.getByRole('button',{name:'DOI Work'}));
+ expect(await screen.findByText('Saved DOI reference')).toBeTruthy();
+ expect(platform.readPdf).not.toHaveBeenCalled();
+ fireEvent.click(screen.getByText('Close reference'));
+ await screen.findByText('Find by DOI');
+ fireEvent.click(screen.getByRole('button',{name:'Delete DOI Work'}));
+ expect(await screen.findByText('DOI reference deleted from the local library.')).toBeTruthy();
+ view.unmount();
 });

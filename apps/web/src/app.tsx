@@ -1,9 +1,10 @@
 import React from 'react';
 import { MAX_PDF_BYTES, preflightPdf, type ReaderPlatform, type DocumentSummary } from '@folio/core';
-import { universalPlatform, type EpubReaderPlatform } from '@folio/platform';
+import { universalPlatform, type EpubReaderPlatform, type DoiPlatform } from '@folio/platform';
+import { DoiPanel } from './doi-panel';
 import { EpubReader } from './epub-reader';
 
-export function App({ platform = universalPlatform }: { platform?: ReaderPlatform & Partial<EpubReaderPlatform> }) {
+export function App({ platform = universalPlatform }: { platform?: ReaderPlatform & Partial<EpubReaderPlatform> & Partial<DoiPlatform> }) {
   const [documents, setDocuments] = React.useState<DocumentSummary[]>([]);
   const [active, setActive] = React.useState<DocumentSummary | null>(null);
   const [reader, setReader] = React.useState<{ id: string; url: string } | null>(null);
@@ -19,7 +20,7 @@ export function App({ platform = universalPlatform }: { platform?: ReaderPlatfor
     return () => { mounted = false; };
   }, [platform]);
   React.useEffect(() => {
-    if (!active || active.kind === 'epub') { setReader(null); return; }
+    if (!active || active.kind === 'epub' || active.kind === 'reference') { setReader(null); return; }
     let disposed = false;
     let objectUrl: string | undefined;
     setReader(null);
@@ -70,8 +71,8 @@ export function App({ platform = universalPlatform }: { platform?: ReaderPlatfor
       await platform.deletePdf(doc.id);
       if (active?.id === doc.id) { setActive(null); setReader(null); }
       setDocuments(await platform.listDocuments());
-      setNotice(doc.kind === 'epub' ? 'EPUB deleted from the local library.' : 'PDF deleted from the local library.');
-    } catch { setError('Unable to delete the local PDF.'); }
+      setNotice(doc.kind === 'reference' ? 'DOI reference deleted from the local library.' : doc.kind === 'epub' ? 'EPUB deleted from the local library.' : 'PDF deleted from the local library.');
+    } catch { setError('Unable to delete the local document.'); }
   }
   async function savePage(doc: DocumentSummary) {
     const value = Number(page);
@@ -83,7 +84,7 @@ export function App({ platform = universalPlatform }: { platform?: ReaderPlatfor
       setError(''); setNotice('Reading position saved.');
     } catch { setError('Could not save reading position.'); }
   }
-  const filtered = documents.filter(doc => (doc.title + ' ' + (doc.creators??[]).join(' ')).toLocaleLowerCase().includes(query.toLocaleLowerCase()));
+  const filtered = documents.filter(doc => (doc.title + ' ' + (doc.creators??[]).join(' ') + ' ' + (doc.doi??'')).toLocaleLowerCase().includes(query.toLocaleLowerCase()));
   return <main style={{maxWidth:960,margin:'64px auto',padding:24,fontFamily:'Georgia,serif',color:'#1f1f1f'}}>
     <h1 style={{fontSize:56,marginBottom:0}}>Folio.</h1><p style={{color:'#9c7a5b'}}>A quieter way to read.</p>
     <section aria-label="Import PDF" onDragOver={event => event.preventDefault()} onDrop={event => {
@@ -93,16 +94,20 @@ export function App({ platform = universalPlatform }: { platform?: ReaderPlatfor
         onChange={event => { const file = event.target.files?.[0]; if (file) void importFile(file); event.target.value=''; }}/></label>
       <p>Or drop a PDF or EPUB here. Files remain in this browser's local storage (up to 100 MiB per file).</p>
     </section>
+    {platform.resolveDoi && platform.saveReference && platform.readReference && platform.importOpenPdf && <DoiPanel
+      platform={platform as DoiPlatform} referenceId={active?.kind==='reference' ? active.id : undefined}
+      onSaved={async () => { setDocuments(await platform.listDocuments()); }}
+      onImported={async doc => { setDocuments(await platform.listDocuments()); setActive(doc); setPage(String(doc.progress)); }}/>}
     {busy && <p role="status">Importing locally…</p>}
     {error && <p role="alert">{error}</p>}
     {notice && <p role="status">{notice}</p>}
     <hr style={{border:'none',borderTop:'1px solid #ddd',margin:'40px 0'}}/>
     <h2>My Library</h2><label>Search titles <input aria-label="Search titles" value={query} onChange={event => setQuery(event.target.value)}/></label>
     {filtered.length ? <ul>{filtered.map(doc => <li key={doc.id}>
-      <button onClick={() => open(doc)}>{doc.title}</button> — {doc.kind==='epub' ? 'EPUB chapter ' : 'saved page '}{doc.progress}{doc.creators?.length ? ' — '+doc.creators.join(', ') : ''}
+      <button onClick={() => open(doc)}>{doc.title}</button> — {doc.kind==='reference' ? 'DOI reference' : doc.kind==='epub' ? 'EPUB chapter '+doc.progress : 'saved page '+doc.progress}{doc.creators?.length ? ' — '+doc.creators.join(', ') : ''}
       <button aria-label={'Delete '+doc.title} onClick={() => void remove(doc)}>Delete</button>
     </li>)}</ul> : <p>{query ? 'No matching documents.' : 'Your library is empty. Import a PDF to begin.'}</p>}
-    {active && (active.kind==='epub' && platform.importEpub && platform.readEpub && platform.setEpubLocation && platform.setEpubPreferences ? <section aria-label="EPUB book"><h2>Reading: {active.title}</h2><button onClick={() => setActive(null)}>Close</button><EpubReader doc={active} platform={platform as EpubReaderPlatform} onRefresh={async () => setDocuments(await platform.listDocuments())}/></section> : <section aria-label="PDF reader"><h2>Reading: {active.title}</h2>
+    {active && (active.kind==='reference' ? <section aria-label="Reference selected"><button onClick={() => setActive(null)}>Close reference</button></section> : active.kind==='epub' && platform.importEpub && platform.readEpub && platform.setEpubLocation && platform.setEpubPreferences ? <section aria-label="EPUB book"><h2>Reading: {active.title}</h2><button onClick={() => setActive(null)}>Close</button><EpubReader doc={active} platform={platform as EpubReaderPlatform} onRefresh={async () => setDocuments(await platform.listDocuments())}/></section> : <section aria-label="PDF reader"><h2>Reading: {active.title}</h2>
       <button onClick={() => setActive(null)}>Close</button>
       <label> Page <input aria-label="Saved page" inputMode="numeric" type="number" min="1" step="1" value={page}
         onChange={event => setPage(event.target.value)}/></label>
