@@ -13,7 +13,7 @@ export function zipFixture(entries: Array<[string,string|Uint8Array,Uint8Array?]
     const name=enc.encode(path),data=typeof value==='string'?enc.encode(value):value,at=local.length,hash=crc(data),payload=compressed??data,method=compressed?8:0;
     w32(local,0x04034b50);w16(local,20);w16(local,0x800);w16(local,method);
     w16(local,0);w16(local,0);w32(local,hash);w32(local,payload.length);w32(local,data.length);
-    w16(local,name.length);w16(local,0);local.push(...name,...payload);
+    w16(local,name.length);w16(local,0);local.push(...name);for(const value of payload)local.push(value);
     w32(central,0x02014b50);w16(central,20);w16(central,20);w16(central,0x800);
     w16(central,method);w16(central,0);w16(central,0);w32(central,hash);
     w32(central,payload.length);w32(central,data.length);w16(central,name.length);w16(central,0);w16(central,0);
