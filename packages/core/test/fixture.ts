@@ -7,16 +7,16 @@ function crc(data: Uint8Array): number {
 }
 function w16(a:number[],n:number){a.push(n&255,(n>>>8)&255);}
 function w32(a:number[],n:number){w16(a,n);w16(a,n>>>16);}
-export function zipFixture(entries: Array<[string,string|Uint8Array]>): Uint8Array {
+export function zipFixture(entries: Array<[string,string|Uint8Array,Uint8Array?]>): Uint8Array {
   const local:number[] = [], central:number[]=[];
-  for(const [path,value] of entries){
-    const name=enc.encode(path),data=typeof value==='string'?enc.encode(value):value,at=local.length,hash=crc(data);
-    w32(local,0x04034b50);w16(local,20);w16(local,0x800);w16(local,0);
-    w16(local,0);w16(local,0);w32(local,hash);w32(local,data.length);w32(local,data.length);
-    w16(local,name.length);w16(local,0);local.push(...name,...data);
+  for(const [path,value,compressed] of entries){
+    const name=enc.encode(path),data=typeof value==='string'?enc.encode(value):value,at=local.length,hash=crc(data),payload=compressed??data,method=compressed?8:0;
+    w32(local,0x04034b50);w16(local,20);w16(local,0x800);w16(local,method);
+    w16(local,0);w16(local,0);w32(local,hash);w32(local,payload.length);w32(local,data.length);
+    w16(local,name.length);w16(local,0);local.push(...name,...payload);
     w32(central,0x02014b50);w16(central,20);w16(central,20);w16(central,0x800);
-    w16(central,0);w16(central,0);w16(central,0);w32(central,hash);
-    w32(central,data.length);w32(central,data.length);w16(central,name.length);w16(central,0);w16(central,0);
+    w16(central,method);w16(central,0);w16(central,0);w32(central,hash);
+    w32(central,payload.length);w32(central,data.length);w16(central,name.length);w16(central,0);w16(central,0);
     w16(central,0);w16(central,0);w32(central,0);w32(central,at);central.push(...name);
   }
   const result=[...local,...central],centralAt=local.length;

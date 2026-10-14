@@ -75,8 +75,11 @@ export function openEpubArchive(bytes: Uint8Array): EpubArchive {
     if (next > centralAt + centralLength || flags & 1 || flags & 0x40 || (method !== 0 && method !== 8) ||
         size > MAX_ENTRY || (compressed === 0 && size !== 0) ||
         (compressed > 0 && size / compressed > MAX_RATIO)) fail('unsafe archive entry');
-    const path = safeArchivePath(utf8.decode(bytes.subarray(offset + 46, offset + 46 + nameLength)));
+    const rawPath = utf8.decode(bytes.subarray(offset + 46, offset + 46 + nameLength));
+    const directory = rawPath.endsWith('/');
+    const path = safeArchivePath(directory ? rawPath.slice(0,-1) : rawPath);
     if (entries.has(path)) fail('duplicate archive path');
+    if (directory && (compressed !== 0 || size !== 0)) fail('nonempty archive directory');
     if (localAt + 30 > centralAt || u32(v, localAt) !== 0x04034b50 ||
         u16(v, localAt + 6) !== flags || u16(v, localAt + 8) !== method) fail('local header mismatch');
     const localNameLength = u16(v, localAt + 26), localExtra = u16(v, localAt + 28);
@@ -86,7 +89,7 @@ export function openEpubArchive(bytes: Uint8Array): EpubArchive {
     if (!(flags & 8) && (u32(v, localAt + 14) !== crc || u32(v, localAt + 18) !== compressed || u32(v, localAt + 22) !== size)) fail('local size or CRC mismatch');
     total += size;
     if (total > MAX_TOTAL) fail('archive output limit');
-    entries.set(path, { path, method, compressed, size, crc, offset: dataAt, flags });
+    if (!directory) entries.set(path, { path, method, compressed, size, crc, offset: dataAt, flags });
     offset = next;
   }
   if (offset !== centralAt + centralLength || !entries.has('mimetype') || !entries.has('META-INF/container.xml') ||

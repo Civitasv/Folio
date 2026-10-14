@@ -183,3 +183,17 @@ it('reports unsupported EPUB platform and EPUB import failures',async()=>{
   fireEvent.change(screen.getByLabelText('Import PDF file'),{target:{files:[file('Book.epub')]}});
   expect(await screen.findByRole('alert')).toHaveProperty('textContent','EPUB import failed. The file may be invalid, unsupported or exceed local storage.');
 });
+
+it('rejects oversized EPUB before reading and recognizes an existing import',async()=>{
+ const base=fixture([{id:'epub:sha256:a',title:'Example',progress:2,kind:'epub',creators:['Alice']}]);
+ const x={...base.platform,importEpub:vi.fn(async()=>base.rows.get('epub:sha256:a')!)};
+ render(<App platform={x}/>);
+ await screen.findByRole('button',{name:'Example'});
+ const large=file('large.epub');
+ Object.defineProperty(large,'size',{value:MAX_PDF_BYTES+1});
+ fireEvent.change(screen.getByLabelText('Import PDF file'),{target:{files:[large]}});
+ expect(await screen.findByRole('alert')).toHaveProperty('textContent','EPUB import rejected: too_large');
+ fireEvent.change(screen.getByLabelText('Import PDF file'),{target:{files:[file('Example.epub')]}});
+ expect(await screen.findByText('This EPUB is already in your library.')).toBeTruthy();
+ expect(x.importEpub).toHaveBeenCalledTimes(1);
+});

@@ -19,6 +19,7 @@ function escapeHtml(value: string): string {
   return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
+const dropped = new Set(['script','style','iframe','object','embed','form','input','button','video','audio','svg','math','link','meta']);
 const tags = new Set(['p','div','section','article','header','footer','blockquote','pre','code','em','strong','b','i','u','s','sup','sub','br','hr','h1','h2','h3','h4','h5','h6','ol','ul','li','dl','dt','dd','span','small','figure','figcaption','table','thead','tbody','tfoot','tr','th','td','img']);
 const images = new Map([['image/png','image/png'],['image/jpeg','image/jpeg'],['image/gif','image/gif'],['image/webp','image/webp']]);
 function base64(data: Uint8Array): string {
@@ -31,6 +32,7 @@ function contentNodes(body: Element, chapter: string, assets: Map<string,string>
     if (node.nodeType === 3) return escapeHtml(node.textContent ?? '');
     if (node.nodeType !== 1) return '';
     const el = node as Element, tag = el.localName.toLowerCase();
+    if (dropped.has(tag)) return '';
     if (!tags.has(tag)) return Array.from(el.childNodes).map(walk).join('');
     if (tag === 'img') {
       const src = el.getAttribute('src') ?? '';

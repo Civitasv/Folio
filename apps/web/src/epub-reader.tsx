@@ -18,24 +18,22 @@ export function EpubReader({doc,platform,onRefresh}:{doc:DocumentSummary;platfor
     void platform.readEpub(doc.id).then(book=>{if(live)setSaved(book);}).catch(()=>{if(live)setError('Unable to open EPUB.');});
     return ()=>{live=false;};
   },[doc.id,platform]);
-  async function navigate(index:number) {
-    if(!saved || index<0 || index>=saved.book.chapters.length)return;
+  async function navigate(current: SavedEpub,index:number) {
     setBusy(true);setError('');
     try{
       const anchor={kind:'epub' as const,spineIndex:index,cfi:chapterCfi(index)};
       await platform.setEpubLocation(doc.id,anchor);
-      setSaved({...saved,anchor});
+      setSaved({...current,anchor});
       await onRefresh();
     }catch{setError('Unable to save EPUB reading position.');}
     finally{setBusy(false);}
   }
-  async function prefs(fontSize:number,theme:EpubTheme){
-    if(!saved)return;
+  async function prefs(current:SavedEpub,fontSize:number,theme:EpubTheme){
     setBusy(true);setError('');
     try{
       const preferences={fontSize,theme};
       await platform.setEpubPreferences(doc.id,preferences);
-      setSaved({...saved,preferences});
+      setSaved({...current,preferences});
     }catch{setError('Unable to save reader appearance.');}
     finally{setBusy(false);}
   }
@@ -48,27 +46,27 @@ export function EpubReader({doc,platform,onRefresh}:{doc:DocumentSummary;platfor
   function tocButtons(items:EpubTocItem[]):React.ReactNode {
     return items.map((item,i)=>{
       const dest=chapters.findIndex(part=>part.href===item.href);
-      return <li key={item.href+item.label+i}>{dest>=0?<button disabled={busy} onClick={()=>void navigate(dest)}>{item.label}</button>:<span>{item.label}</span>}
+      return <li key={item.href+item.label+i}>{dest>=0?<button disabled={busy} onClick={()=>void navigate(saved,dest)}>{item.label}</button>:<span>{item.label}</span>}
         {item.children.length>0&&<ul>{tocButtons(item.children)}</ul>}</li>;
     });
   }
   return <section aria-label="EPUB reader">
     <h3>{saved.book.metadata.title || doc.title}</h3>
     <p>{saved.book.metadata.creators.join(', ')}</p>
-    <nav aria-label="EPUB chapters"><button disabled={busy||index===0} onClick={()=>void navigate(index-1)}>Previous chapter</button>
+    <nav aria-label="EPUB chapters"><button disabled={busy||index===0} onClick={()=>void navigate(saved,index-1)}>Previous chapter</button>
       <span> Chapter {index+1} of {saved.book.chapters.length} </span>
-      <button disabled={busy||index===saved.book.chapters.length-1} onClick={()=>void navigate(index+1)}>Next chapter</button></nav>
+      <button disabled={busy||index===saved.book.chapters.length-1} onClick={()=>void navigate(saved,index+1)}>Next chapter</button></nav>
     <div><label>Font size <input aria-label="EPUB font size" type="range" min="14" max="26" step="1" disabled={busy}
-      value={saved.preferences.fontSize} onChange={event=>void prefs(Number(event.target.value),saved.preferences.theme)}/></label>
+      value={saved.preferences.fontSize} onChange={event=>void prefs(saved,Number(event.target.value),saved.preferences.theme)}/></label>
       <label> Theme <select aria-label="EPUB theme" disabled={busy} value={saved.preferences.theme}
-        onChange={event=>void prefs(saved.preferences.fontSize,event.target.value as EpubTheme)}>
+        onChange={event=>void prefs(saved,saved.preferences.fontSize,event.target.value as EpubTheme)}>
         <option value="light">Light</option><option value="sepia">Sepia</option><option value="dark">Dark</option></select></label></div>
     {error&&<p role="alert">{error}</p>}
     <iframe title="EPUB chapter" sandbox="" referrerPolicy="no-referrer" srcDoc={html}
       style={{width:'100%',height:'70vh',border:'1px solid #ddd'}} />
     <details><summary>Table of contents</summary>
       <ul>{saved.book.metadata.toc.length?tocButtons(saved.book.metadata.toc):saved.book.chapters.map((part,i)=><li key={part.id}>
-        <button disabled={busy} onClick={()=>void navigate(i)}>Chapter {i+1}</button></li>)}</ul></details>
+        <button disabled={busy} onClick={()=>void navigate(saved,i)}>Chapter {i+1}</button></li>)}</ul></details>
     <p>Reading position is saved locally by chapter; publication scripts, styles and remote resources are disabled.</p>
   </section>;
 }

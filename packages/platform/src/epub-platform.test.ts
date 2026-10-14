@@ -66,3 +66,12 @@ it('uses filename when OPF title is absent, and does not mistake PDF for EPUB',a
  const pdf=await f.pdf.importPdf('Paper.pdf',new Uint8Array([37,80,68,70,45]));
  await expect(f.epub.readEpub(pdf.id)).rejects.toThrow('EPUB not found');
 });
+
+it('uses untitled fallback for an EPUB without title and filename',async()=>{
+ const f=fixture();
+ const minimal=zipFixture([['mimetype',MIME],['META-INF/container.xml',CONTAINER],
+  ['OPS/package.opf',OPF.replace('<dc:title>Example Book</dc:title>','').replace('properties="nav"','')],
+  ['OPS/one.xhtml','<html xmlns="http://www.w3.org/1999/xhtml"><body>One</body></html>'],
+  ['OPS/two.xhtml','<html xmlns="http://www.w3.org/1999/xhtml"><body>Two</body></html>']]);
+ expect((await f.epub.importEpub(' ',minimal)).title).toBe('Untitled EPUB');
+});
