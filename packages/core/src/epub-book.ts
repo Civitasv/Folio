@@ -96,7 +96,7 @@ export async function parseEpub(bytes: Uint8Array): Promise<ParsedEpub> {
   const metadataNode = first(packageDoc,'metadata');
   const metadata: EpubMetadata = {
     title: metadataNode ? first(metadataNode,'title')?.textContent?.trim() || undefined : undefined,
-    creators: metadataNode ? all(metadataNode,'creator').map(x=>x.textContent?.trim()??'').filter(Boolean) : [],
+    creators: metadataNode ? all(metadataNode,'creator').map(x=>x.textContent!.trim()).filter(Boolean) : [],
     language: metadataNode ? first(metadataNode,'language')?.textContent?.trim() || undefined : undefined,
     spine, toc:[]
   };
