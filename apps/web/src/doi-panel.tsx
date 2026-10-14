@@ -17,7 +17,7 @@ export function DoiPanel({platform,referenceId,onSaved,onImported}:{
   React.useEffect(()=>{
     let live=true;
     controller.current?.abort();controller.current=null;
-    setPreview(null);setLinked(undefined);setError('');setNotice('');
+    setPreview(null);setLinked(undefined);setError('');setNotice('');setBusy(null);
     if(referenceId) void platform.readReference(referenceId).then(value=>{
       if(live){setPreview(value.metadata);setLinked(value.linkedDocumentId);setInput(value.metadata.doi);}
     }).catch(()=>{if(live)setError('Unable to load local DOI reference.');});
