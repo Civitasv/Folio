@@ -119,3 +119,37 @@ it('handles offline PDF and abandoned reference read after unmount',async()=>{
  const last=render(<DoiPanel {...f} referenceId={ref.id}/>);
  last.unmount();finish({metadata});
 });
+
+it('cancels a pending OA PDF import without reporting a successful download',async()=>{
+ const f=fixture();let finish!:(doc:typeof pdf)=>void;
+ vi.mocked(f.platform.importOpenPdf).mockImplementationOnce(()=>new Promise(resolve=>{finish=resolve;}));
+ render(<DoiPanel {...f}/>);
+ fireEvent.change(screen.getByLabelText('DOI'),{target:{value:doi}});
+ fireEvent.click(screen.getByText('Resolve DOI'));await screen.findByText('Example article');
+ fireEvent.click(screen.getByText('Import open-access PDF'));
+ await screen.findByText(/Importing open-access PDF/);
+ fireEvent.click(screen.getByText('Cancel request'));
+ await act(async()=>finish(pdf));
+ expect(await screen.findByRole('alert')).toHaveProperty('textContent','PDF import cancelled or timed out.');
+ expect(f.onImported).not.toHaveBeenCalled();
+});
+it('renders absent authors, missing publisher URL, and OA-only landing without pretending a PDF is accessible',async()=>{
+ const f=fixture();
+ vi.mocked(f.platform.readReference).mockResolvedValueOnce({metadata:{...metadata,creators:[],oa:{
+   source:'OpenAlex',landingUrl:'https://repo.example.org/a'}}});
+ render(<DoiPanel {...f} referenceId={ref.id}/>);
+ await screen.findByText('Example article');
+ expect(screen.getByText('Authors unavailable')).toBeTruthy();
+ expect(screen.getByRole('link',{name:'Open-access source'})).toBeTruthy();
+ expect(screen.queryByText('Import open-access PDF')).toBeNull();
+});
+it('suppresses untrusted publisher and OA URLs in locally reopened metadata',async()=>{
+ const f=fixture();
+ vi.mocked(f.platform.readReference).mockResolvedValueOnce({metadata:{...metadata,landingUrl:'http://127.0.0.1/a',
+ oa:{source:'OpenAlex',landingUrl:'http://localhost/a',pdfUrl:'http://127.0.0.1/a'}}});
+ render(<DoiPanel {...f} referenceId={ref.id}/>);
+ await screen.findByText('Example article');
+ expect(screen.queryByRole('link',{name:'Open DOI / publisher page'})).toBeNull();
+ expect(screen.queryByRole('link',{name:'Open-access source'})).toBeNull();
+ expect(screen.queryByText('Import open-access PDF')).toBeNull();
+});

@@ -47,12 +47,11 @@ export function DoiPanel({platform,referenceId,onSaved,onImported}:{
   async function saveUnresolved(){
     try {await save(unresolvedReference(input));} catch {setError('Invalid DOI.');}
   }
-  async function importPdf(){
-    if(!preview)return;
+  async function importPdf(metadata:DoiMetadata){
     const pending=new AbortController();controller.current=pending;setBusy('download');setError('');setNotice('');
     const timeout=window.setTimeout(()=>pending.abort(),30000);
     try {
-      const ref=await platform.saveReference(preview);
+      const ref=await platform.saveReference(metadata);
       await onSaved(ref);
       const pdf=await platform.importOpenPdf(ref.id,pending.signal);
       if(pending.signal.aborted) throw new Error('cancelled');
@@ -92,7 +91,7 @@ export function DoiPanel({platform,referenceId,onSaved,onImported}:{
       {!preview.oa&&<p>No verified open-access full-text link found. This reference can still be saved locally.</p>}
       {linked&&<p>Imported PDF: {linked}</p>}
       <button disabled={busy!==null} onClick={()=>void save(preview)}>Save metadata-only reference</button>
-      {oaPdf&&<button disabled={busy!==null} onClick={()=>void importPdf()}>Import open-access PDF</button>}
+      {oaPdf&&<button disabled={busy!==null} onClick={()=>void importPdf(preview)}>Import open-access PDF</button>}
     </article>}
   </section>;
 }

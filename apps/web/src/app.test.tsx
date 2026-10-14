@@ -268,3 +268,25 @@ it('adds DOI acquisition without a request on boot; saves, searches, opens and d
  expect(await screen.findByText('DOI reference deleted from the local library.')).toBeTruthy();
  view.unmount();
 });
+
+it('updates the PDF library and reader only after explicit DOI OA import',async()=>{
+ const base=fixture(),doi='10.1234/oa',bytes=new Uint8Array([37,80,68,70,45,49]);
+ const metadata={doi,title:'OA paper',creators:['Alice'],landingUrl:'https://doi.org/'+doi,source:'Crossref' as const,
+  oa:{source:'OpenAlex' as const,pdfUrl:'https://oa.example.org/a.pdf'}};
+ const ref={id:'doi:'+doi,doi,title:'OA paper',progress:0,kind:'reference' as const,creators:['Alice']};
+ const pdf={id:'sha256:oa',title:'OA paper',progress:1};
+ const platform={...base.platform,
+  resolveDoi:vi.fn(async()=>metadata),saveReference:vi.fn(async()=>{base.rows.set(ref.id,ref);return ref;}),
+  readReference:vi.fn(async()=>({metadata})),importOpenPdf:vi.fn(async()=>{base.rows.set(pdf.id,pdf);return pdf;}),
+  readPdf:vi.fn(async()=>bytes)
+ };
+ setupUrls();render(<App platform={platform}/>);
+ await screen.findByText('Your library is empty. Import a PDF to begin.');
+ fireEvent.change(screen.getByLabelText('DOI'),{target:{value:doi}});
+ fireEvent.click(screen.getByText('Resolve DOI'));
+ await screen.findByText('OA paper');
+ fireEvent.click(screen.getByText('Import open-access PDF'));
+ await waitFor(()=>expect(platform.importOpenPdf).toHaveBeenCalledOnce());
+ expect(await screen.findByTitle('PDF document')).toBeTruthy();
+ expect(screen.getByRole('button',{name:'OA paper'})).toBeTruthy();
+});

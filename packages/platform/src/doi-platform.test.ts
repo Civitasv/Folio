@@ -100,3 +100,9 @@ it('rejects streaming overflow, invalid signature and accepts octet stream PDF',
  const c=await octet.platform.saveReference(metadata);
  expect((await octet.platform.importOpenPdf(c.id,new AbortController().signal)).id).toBe('sha256:hash');
 });
+
+it('provides DOI title fallback when metadata has no title',async()=>{
+ const f=fixture(),m={...metadata,title:''};
+ const ref=await f.platform.saveReference(m);
+ expect(ref.title).toBe(doi);
+});

@@ -65,3 +65,22 @@ it('does not silently retry a cancelled Crossref lookup or ignore cancelled OA d
  });
  await expect(createDoiResolver(fetcher2).resolve(doi,later.signal)).rejects.toThrow('cancelled OA');
 });
+
+it('handles incomplete Crossref and DataCite metadata without manufacturing authors or dates',async()=>{
+ const minimal={message:{DOI:doi,title:['Minimal'],published:{},author:undefined,
+   publisher:'',language:'', 'container-title':[]}};
+ const value=await createDoiResolver(fake(ok(minimal),ok(datacite),ok({},404))).resolve(doi,new AbortController().signal);
+ expect(value).toEqual({doi,title:'Minimal',creators:[],containerTitle:undefined,publisher:undefined,year:undefined,
+   language:undefined,landingUrl:'https://doi.org/'+doi,source:'Crossref'});
+ const data={data:{attributes:{doi,titles:[{title:'Standalone'}]}}};
+ const result=await createDoiResolver(fake(ok({},404),ok(data),ok({},404))).resolve(doi,new AbortController().signal);
+ expect(result).toMatchObject({title:'Standalone',creators:[],year:undefined,containerTitle:undefined,
+   publisher:undefined,language:undefined});
+});
+it('rejects DataCite records without an array of titles and handles alternative Crossref date shape',async()=>{
+ const missing={data:{attributes:{doi,titles:{title:'wrong'}}}};
+ await expect(createDoiResolver(fake(ok({},404),ok(missing),ok({},404))).resolve(doi,new AbortController().signal)).rejects.toThrow('Missing title');
+ const date={message:{DOI:doi,title:'String title','container-title':'String venue',published:{'date-parts':null}}};
+ const value=await createDoiResolver(fake(ok(date),ok(datacite),ok({},404))).resolve(doi,new AbortController().signal);
+ expect(value).toMatchObject({title:'String title',containerTitle:'String venue',year:undefined});
+});

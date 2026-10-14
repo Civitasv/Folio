@@ -56,3 +56,11 @@ it('lists legacy EPUB rows with missing optional creators without leaking bytes'
  records.set('epub:old',{id:'epub:old',kind:'epub',title:'Old book',progress:1,fingerprint:'x',bytes:new Uint8Array([1])});
  expect(await platform.listDocuments()).toEqual([{id:'epub:old',kind:'epub',title:'Old book',progress:1,creators:[]}]);
 });
+
+it('lists incomplete legacy references without inventing author metadata',async()=>{
+ const {platform,records}=fixture();
+ records.set('doi:10.1234/old',{id:'doi:10.1234/old',kind:'reference',doi:'10.1234/old',
+   title:'Old reference',progress:0,fingerprint:'10.1234/old',bytes:new Uint8Array()});
+ expect(await platform.listDocuments()).toEqual([{id:'doi:10.1234/old',kind:'reference',
+   doi:'10.1234/old',title:'Old reference',progress:0,creators:[]}]);
+});
