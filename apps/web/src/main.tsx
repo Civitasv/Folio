@@ -35,6 +35,14 @@ function App() {
     } catch { setError('PDF import failed. Check available browser storage.'); }
   }
   async function open(doc: Entry) { setPage(Math.max(1, Math.round(doc.progress))); setError(''); setUrl(null); setActive(doc.id); }
+  async function remove(id: string) {
+    if (!window.confirm('Delete this PDF and its saved reading position from Folio?')) return;
+    try {
+      await browserPlatform.deletePdf(id);
+      if (active === id) { setActive(null); setUrl(null); }
+      setDocuments(await browserPlatform.listDocuments());
+    } catch { setError('Unable to delete the local PDF.'); }
+  }
   async function savePage(value: number) {
     if (!active) return;
     const next = Math.max(1, Math.floor(value) || 1);
@@ -47,7 +55,7 @@ function App() {
     <label>Import local PDF <input aria-label="Import PDF" type="file" accept=".pdf,application/pdf" onChange={e => { const file=e.target.files?.[0]; if(file) void importFile(file); e.target.value=''; }}/></label>
     {error && <p role="alert">{error}</p>}
     <hr style={{border:'none',borderTop:'1px solid #ddd',margin:'40px 0'}}/>
-    <h2>My Library</h2>{documents.length ? <ul>{documents.map(doc => <li key={doc.id}><button onClick={() => void open(doc)}>{doc.title}</button> — saved position {doc.progress}</li>)}</ul> : <p>Your library is empty. Import a PDF to begin.</p>}
+    <h2>My Library</h2>{documents.length ? <ul>{documents.map(doc => <li key={doc.id}><button onClick={() => void open(doc)}>{doc.title}</button> — saved position {doc.progress} <button aria-label={'Delete '+doc.title} onClick={() => void remove(doc.id)}>Delete</button></li>)}</ul> : <p>Your library is empty. Import a PDF to begin.</p>}
     {active && <section aria-label="PDF reader"><h2>Reading</h2><button onClick={() => setActive(null)}>Close</button><label> Saved page <input type="number" min="1" value={page} onChange={e => void savePage(Number(e.target.value))}/></label>{url ? <iframe title="PDF document" src={url+'#page='+page} style={{width:'100%',height:'75vh',border:'1px solid #ddd'}}/> : <p>Loading local PDF…</p>}<p>Browser preview uses the browser's built-in PDF viewer. Page position is manually saved; PDF.js navigation and native SQLite follow in subsequent slices.</p></section>}
   </main>;
 }
