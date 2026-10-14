@@ -38,7 +38,8 @@ export function createReaderPlatform(store: PdfStore, fingerprint: Fingerprint):
     },
     async readPdf(id) {
       const doc = await store.get(id);
-      if (!doc || doc.kind==='epub') throw new Error('PDF not found');
+      if (!doc) throw new Error('Document not found');
+      if (doc.kind==='epub') throw new Error('PDF not found');
       return new Uint8Array(doc.bytes);
     },
     async deletePdf(id) { await store.remove(id); },

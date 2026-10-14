@@ -169,7 +169,7 @@ it('imports EPUB through the shared picker and keeps PDF behavior intact', async
   expect(await screen.findByTitle('EPUB chapter')).toBeTruthy();
   expect(screen.queryByTitle('PDF document')).toBeNull();
   fireEvent.change(screen.getByLabelText('Search titles'),{target:{value:'Alice'}});
-  expect(screen.getByText('Example Book')).toBeTruthy();
+  expect(screen.getByRole('button',{name:'Example Book'})).toBeTruthy();
   fireEvent.click(screen.getByRole('button',{name:'Delete Example Book'}));
   expect(await screen.findByText('EPUB deleted from the local library.')).toBeTruthy();
 });
@@ -181,5 +181,5 @@ it('reports unsupported EPUB platform and EPUB import failures',async()=>{
   const x={...platform,importEpub:vi.fn(async()=>{throw Error('bad EPUB');})};
   cleanup();render(<App platform={x}/>);
   fireEvent.change(screen.getByLabelText('Import PDF file'),{target:{files:[file('Book.epub')]}});
-  expect(await screen.findByRole('alert')).toHaveProperty('textContent','EPUB import failed.');
+  expect(await screen.findByRole('alert')).toHaveProperty('textContent','EPUB import failed. The file may be invalid, unsupported or exceed local storage.');
 });
