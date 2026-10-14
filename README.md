@@ -1,11 +1,13 @@
 # Folio
 
-*A quieter way to read.* Local-first reading, with opt-in AI features specified separately.
+*A quieter way to read.* Local-first PDF/EPUB browser preview with AI planned as an opt-in feature.
 
 ## Development
 
-Run `pnpm install --frozen-lockfile`, then `pnpm dev` for the browser preview, `pnpm check` for TypeScript, tests, coverage and build, and `cargo test --workspace` for Rust. Desktop shell: `pnpm desktop`.
+Run `pnpm install --frozen-lockfile`, `pnpm dev` for the web preview, `pnpm check` for TypeScript/tests/coverage/build, and `cargo test --workspace` for Rust. Desktop shell: `pnpm desktop`.
 
-PR #3 implements a browser-only local PDF import preview: file picker or drag/drop, signature/size preflight, SHA-256 deduplication, IndexedDB, title search, confirmed deletion and an embedded browser PDF viewer with explicit page saving. Documents are not sent to a Folio service. Clearing browser site data deletes stored PDFs. For scope and limitations, see `docs/specs/F01a-pdf-import-foundation.md`.
+PDF: picker/drop, preflight, SHA-256 dedup, IndexedDB, title search, confirmed deletion, embedded browser PDF viewer and explicit saved page number.
 
-Native SQLite/managed files, PDF.js text/anchors, EPUB, DOI, translation and API/CLI providers are **not** implemented by this preview; see the F01 spec for planned vertical slices.
+EPUB (F01b): picker/drop, bounded validated ZIP/OPF extraction, title/creator/spine/TOC, sandboxed basic reflowable XHTML with local raster images and no scripts/external resources, chapter navigation, stored chapter-based CFI-like anchor, local font size/theme preferences. Unsupported: encrypted/DRM, ZIP64, fixed-layout and sophisticated original styling. Browser storage is origin-scoped; clearing site data removes stored copies.
+
+No Folio account, Folio-hosted server or upload. Native managed files/SQLite, PDF.js text/anchors, DOI, translation and API/CLI providers are distinct future slices. See `docs/specs/F01b-epub-import-reader.md`.

@@ -1,8 +1,9 @@
 import React from 'react';
 import { MAX_PDF_BYTES, preflightPdf, type ReaderPlatform, type DocumentSummary } from '@folio/core';
-import { browserPlatform } from '@folio/platform';
+import { universalPlatform, type EpubReaderPlatform } from '@folio/platform';
+import { EpubReader } from './epub-reader';
 
-export function App({ platform = browserPlatform }: { platform?: ReaderPlatform }) {
+export function App({ platform = universalPlatform }: { platform?: ReaderPlatform & Partial<EpubReaderPlatform> }) {
   const [documents, setDocuments] = React.useState<DocumentSummary[]>([]);
   const [active, setActive] = React.useState<DocumentSummary | null>(null);
   const [reader, setReader] = React.useState<{ id: string; url: string } | null>(null);
@@ -18,7 +19,7 @@ export function App({ platform = browserPlatform }: { platform?: ReaderPlatform 
     return () => { mounted = false; };
   }, [platform]);
   React.useEffect(() => {
-    if (!active) { setReader(null); return; }
+    if (!active || active.kind === 'epub') { setReader(null); return; }
     let disposed = false;
     let objectUrl: string | undefined;
     setReader(null);
@@ -31,10 +32,22 @@ export function App({ platform = browserPlatform }: { platform?: ReaderPlatform 
       disposed = true;
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [active?.id, platform]);
+  }, [active?.id, active?.kind, platform]);
   async function importFile(file: File) {
     setError(''); setNotice(''); setBusy(true);
+    const epub = /\.epub$/i.test(file.name) || file.type === 'application/epub+zip';
     try {
+      if (epub) {
+        if (file.size > MAX_PDF_BYTES) { setError('EPUB import rejected: too_large'); return; }
+        if (!platform.importEpub) { setError('EPUB import is unavailable on this platform.'); return; }
+        const data = new Uint8Array(await file.arrayBuffer());
+        const doc = await platform.importEpub(file.name, data);
+        const duplicate = documents.some(item => item.id === doc.id);
+        setDocuments(await platform.listDocuments());
+        setActive(doc);
+        setNotice(duplicate ? 'This EPUB is already in your library.' : 'EPUB imported locally.');
+        return;
+      }
       if (file.size > MAX_PDF_BYTES) { setError('PDF import rejected: too_large'); return; }
       const bytes = new Uint8Array(await file.arrayBuffer());
       const check = preflightPdf(bytes);
@@ -45,19 +58,19 @@ export function App({ platform = browserPlatform }: { platform?: ReaderPlatform 
       setPage(String(doc.progress));
       setActive(doc);
       setNotice(duplicate ? 'This PDF is already in your library.' : 'PDF imported locally.');
-    } catch { setError('PDF import failed. Check available browser storage.'); }
+    } catch { setError(epub ? 'EPUB import failed. The file may be invalid, unsupported or exceed local storage.' : 'PDF import failed. Check available browser storage.'); }
     finally { setBusy(false); }
   }
   function open(doc: DocumentSummary) {
     setError(''); setPage(String(doc.progress)); setActive(doc);
   }
   async function remove(doc: DocumentSummary) {
-    if (!window.confirm('Delete this PDF and its saved reading position from Folio?')) return;
+    if (!window.confirm('Delete this document and its saved reading position from Folio?')) return;
     try {
       await platform.deletePdf(doc.id);
       if (active?.id === doc.id) { setActive(null); setReader(null); }
       setDocuments(await platform.listDocuments());
-      setNotice('PDF deleted from the local library.');
+      setNotice(doc.kind === 'epub' ? 'EPUB deleted from the local library.' : 'PDF deleted from the local library.');
     } catch { setError('Unable to delete the local PDF.'); }
   }
   async function savePage(doc: DocumentSummary) {
@@ -70,15 +83,15 @@ export function App({ platform = browserPlatform }: { platform?: ReaderPlatform 
       setError(''); setNotice('Reading position saved.');
     } catch { setError('Could not save reading position.'); }
   }
-  const filtered = documents.filter(doc => doc.title.toLocaleLowerCase().includes(query.toLocaleLowerCase()));
+  const filtered = documents.filter(doc => (doc.title + ' ' + (doc.creators??[]).join(' ')).toLocaleLowerCase().includes(query.toLocaleLowerCase()));
   return <main style={{maxWidth:960,margin:'64px auto',padding:24,fontFamily:'Georgia,serif',color:'#1f1f1f'}}>
     <h1 style={{fontSize:56,marginBottom:0}}>Folio.</h1><p style={{color:'#9c7a5b'}}>A quieter way to read.</p>
     <section aria-label="Import PDF" onDragOver={event => event.preventDefault()} onDrop={event => {
       event.preventDefault(); const file = event.dataTransfer.files[0]; if (file) void importFile(file);
     }}>
-      <label>Import local PDF <input aria-label="Import PDF file" type="file" accept=".pdf,application/pdf" disabled={busy}
+      <label>Import local PDF or EPUB <input aria-label="Import PDF file" type="file" accept=".pdf,.epub,application/pdf,application/epub+zip" disabled={busy}
         onChange={event => { const file = event.target.files?.[0]; if (file) void importFile(file); event.target.value=''; }}/></label>
-      <p>Or drop a PDF here. Files remain in this browser's local storage (up to 100 MiB per file).</p>
+      <p>Or drop a PDF or EPUB here. Files remain in this browser's local storage (up to 100 MiB per file).</p>
     </section>
     {busy && <p role="status">Importing locally…</p>}
     {error && <p role="alert">{error}</p>}
@@ -86,10 +99,10 @@ export function App({ platform = browserPlatform }: { platform?: ReaderPlatform 
     <hr style={{border:'none',borderTop:'1px solid #ddd',margin:'40px 0'}}/>
     <h2>My Library</h2><label>Search titles <input aria-label="Search titles" value={query} onChange={event => setQuery(event.target.value)}/></label>
     {filtered.length ? <ul>{filtered.map(doc => <li key={doc.id}>
-      <button onClick={() => open(doc)}>{doc.title}</button> — saved page {doc.progress}
+      <button onClick={() => open(doc)}>{doc.title}</button> — {doc.kind==='epub' ? 'EPUB chapter ' : 'saved page '}{doc.progress}{doc.creators?.length ? ' — '+doc.creators.join(', ') : ''}
       <button aria-label={'Delete '+doc.title} onClick={() => void remove(doc)}>Delete</button>
-    </li>)}</ul> : <p>{query ? 'No matching PDFs.' : 'Your library is empty. Import a PDF to begin.'}</p>}
-    {active && <section aria-label="PDF reader"><h2>Reading: {active.title}</h2>
+    </li>)}</ul> : <p>{query ? 'No matching documents.' : 'Your library is empty. Import a PDF to begin.'}</p>}
+    {active && (active.kind==='epub' && platform.importEpub && platform.readEpub && platform.setEpubLocation && platform.setEpubPreferences ? <section aria-label="EPUB book"><h2>Reading: {active.title}</h2><button onClick={() => setActive(null)}>Close</button><EpubReader doc={active} platform={platform as EpubReaderPlatform} onRefresh={async () => setDocuments(await platform.listDocuments())}/></section> : <section aria-label="PDF reader"><h2>Reading: {active.title}</h2>
       <button onClick={() => setActive(null)}>Close</button>
       <label> Page <input aria-label="Saved page" inputMode="numeric" type="number" min="1" step="1" value={page}
         onChange={event => setPage(event.target.value)}/></label>
@@ -97,6 +110,6 @@ export function App({ platform = browserPlatform }: { platform?: ReaderPlatform 
       {reader?.id === active.id ? <iframe title="PDF document" src={reader.url+'#page='+active.progress}
         style={{width:'100%',height:'75vh',border:'1px solid #ddd'}}/> : <p>Loading local PDF…</p>}
       <p>Browser preview uses the browser PDF viewer; save the page manually. Native reader and automatic tracking follow in later slices.</p>
-    </section>}
+    </section>)}
   </main>;
 }

@@ -1,4 +1,8 @@
-export interface DocumentSummary { id: string; title: string; progress: number }
+import type { EpubAnchor } from './epub';
+export interface DocumentSummary {
+  id: string; title: string; progress: number;
+  kind?: 'pdf' | 'epub'; creators?: string[];
+}
 export interface ReaderPlatform {
   listDocuments(): Promise<DocumentSummary[]>;
   importPdf(title: string, bytes: Uint8Array): Promise<DocumentSummary>;
@@ -10,5 +14,9 @@ export { preflightPdf, MAX_PDF_BYTES } from './pdf';
 export type { PdfImportError, PdfPreflight } from './pdf';
 export { preflightEpub, MAX_EPUB_BYTES, normalizeEpubAnchor } from './epub';
 export type { EpubImportError, EpubPreflight, ReaderAnchor, PdfAnchor, EpubAnchor, EpubMetadata, EpubTocItem, EpubSpineItem } from './epub';
+export { openEpubArchive, safeArchivePath, resolveEpubPath } from './epub-archive';
+export type { EpubArchive } from './epub-archive';
+export { parseEpub, chapterCfi } from './epub-book';
+export type { ParsedEpub, EpubChapter } from './epub-book';
 export { decideImport, normalizeProgress } from './library';
 export type { LocalDocument, ImportDecision } from './library';

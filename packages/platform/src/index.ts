@@ -1,8 +1,9 @@
 import { preflightPdf, type DocumentSummary, type ReaderPlatform } from '@folio/core';
 import { createIndexedDbStore } from './indexeddb';
+import { createEpubPlatform } from './epub-platform';
 export { createIndexedDbStore } from './indexeddb';
-
-/** The storage interface is shared; only the browser implementation depends on IndexedDB. */
+export { createEpubPlatform } from './epub-platform';
+export type { EpubReaderPlatform, EpubPreferences, SavedEpub, EpubTheme } from './epub-platform';
 export type StoredPdf = DocumentSummary & { fingerprint: string; bytes: Uint8Array };
 export interface PdfStore {
   list(): Promise<StoredPdf[]>;
@@ -11,12 +12,14 @@ export interface PdfStore {
   remove(id: string): Promise<void>;
 }
 export type Fingerprint = (bytes: Uint8Array) => Promise<string>;
-
 export function createReaderPlatform(store: PdfStore, fingerprint: Fingerprint): ReaderPlatform {
   return {
     async listDocuments() {
       const docs = await store.list();
-      return docs.map(({ id, title, progress }) => ({ id, title, progress }));
+      return docs.map(doc => ({
+        id:doc.id,title:doc.title,progress:doc.progress,
+        ...(doc.kind==='epub' ? {kind:'epub' as const,creators:doc.creators??[]} : {})
+      }));
     },
     async importPdf(title, bytes) {
       const valid = preflightPdf(bytes);
@@ -34,21 +37,21 @@ export function createReaderPlatform(store: PdfStore, fingerprint: Fingerprint):
     },
     async readPdf(id) {
       const doc = await store.get(id);
-      if (!doc) throw new Error('Document not found');
+      if (!doc || doc.kind==='epub') throw new Error('PDF not found');
       return new Uint8Array(doc.bytes);
     },
     async deletePdf(id) { await store.remove(id); },
     async setProgress(id, page) {
       const doc = await store.get(id);
-      if (!doc) throw new Error('Document not found');
+      if (!doc || doc.kind==='epub') throw new Error('PDF not found');
       await store.put({ ...doc, progress: Number.isFinite(page) ? Math.max(1, Math.floor(page)) : 1 });
     }
   };
 }
-export const browserPlatform: ReaderPlatform = createReaderPlatform(
-  createIndexedDbStore({ open: (name, version) => indexedDB.open(name, version) }),
-  async bytes => {
-    const digest = await crypto.subtle.digest('SHA-256', new Uint8Array(bytes));
-    return Array.from(new Uint8Array(digest), value => value.toString(16).padStart(2, '0')).join('');
-  }
-);
+const browserStore = createIndexedDbStore({open:(name,version)=>indexedDB.open(name,version)});
+async function hash(bytes: Uint8Array): Promise<string> {
+  const digest = await crypto.subtle.digest('SHA-256', new Uint8Array(bytes));
+  return Array.from(new Uint8Array(digest), value => value.toString(16).padStart(2, '0')).join('');
+}
+export const browserPlatform: ReaderPlatform = createReaderPlatform(browserStore,hash);
+export const universalPlatform = {...browserPlatform,...createEpubPlatform(browserStore,hash)};

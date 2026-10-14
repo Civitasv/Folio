@@ -1,34 +1,27 @@
-# F01b — EPUB import, reflowable reader and common metadata
+# F01b — EPUB import and reflowable browser reader
 
-Status: **in progress**, first foundation increment in PR #4. Parent: F01 universal reading spec, after F01a (merged PR #3).
-Product: Folio — A quieter way to read.
+Status: implementation in Draft PR #4. Depends on F01a (#3, merged). No account, Folio server, upload or automatic external resource requests.
 
-## Outcome and boundaries
-A user imports a local EPUB, views editable best-effort title/author/language and spine/TOC, opens it offline in a reflowable and sandboxed reader, changes font size/theme, navigates chapters, and resumes at an EPUB CFI location. Local data remains on the device. F01b must not regress PDF import or conflate page numbers and EPUB CFI anchors.
+## Functional implementation
+- Import local EPUB using picker/drag-and-drop, verify OCF initial mimetype and full central directory and local headers, CRC, entry and aggregate size, compression ratio, encryption flags, duplicate names and path traversal.
+- EPUB parser reads META-INF/container.xml, OPF metadata/manifest/spine, EPUB3 nav or EPUB2 NCX TOC, reflowable XHTML and allowlisted local raster images. DTD/entities and encrypted/obfuscated books are rejected. ZIP64, fixed-layout, media overlays, remote and scripted resources are explicitly unsupported in this preview.
+- Original scripts, publisher styles, links, embedded content and external requests are discarded; a no-scripts sandboxed iframe uses strict CSP, data-only raster images and Folio-controlled font/theme. Text and basic semantic structure remain selectable.
+- Both formats share existing origin-local IndexedDB, hash identity and deletion. Legacy folio-preview v1 PDF records with no kind remain valid without a destructive schema migration; EPUB records have kind/creators, raw bytes, independent CFI-like chapter anchor and presentation preferences.
+- TOC, previous/next chapters, one-based chapter progress, persistent font size and light/sepia/dark mode. Chapter-granularity stable CFI-like markers generated from spine index; this is **not** full publisher CFI offset support. PDF still has separate one-based page progress.
+- Browser-safe fallback for unsupported/decompression errors. No silent network calls.
 
-## Implementation sequence
-1. **Foundation (this first commit):** dependency-free EPUB OCF initial-header preflight, explicit EPUB CFI/spine anchor types, negative/positive unit tests. Preflight is deliberately not a full ZIP parser and must never be described as safe extraction or valid EPUB proof.
-2. Safe EPUB archive adapter. Review renderer/parser libraries (epub.js and Readium Web as candidates), licensing, maintenance and sandbox model before adding one and regenerating a pinned pnpm lockfile. Validate central directory, container.xml, OPF, manifest, spine and nav/NCX, and reject corrupt/encrypted/DRM or unsupported archives with clear errors. Bound entry count, compressed/uncompressed bytes, compression ratio, nested/resource fetch, filename normalization and processing time; reject traversal, duplicate conflicting entries and script/external origin access.
-3. Unified document metadata and local persistence. Add discriminated document kind + progress/anchor to library and migrate existing folio-preview v1 PDF rows without deleting bytes; import copy, fingerprint/deduplication, deletion and local reopening. Extract title, creators, language and cover best effort. Never infer author from filename.
-4. Reflowable reader via a **format-specific** adapter; use isolated/sandboxed resource rendering with scripted publication content off, blocked unexpected external requests, and safe relative-resource resolution. Expose stable EPUB CFI/spine, TOC, font size, theme, keyboard navigation, loading/error/retry, and local restoration.
-5. Browser tests with valid EPUB fixtures, offline reload, sanitization, missing OPF, zip bomb, malformed paths/CFI, import/delete regression and PDF coexistence. Keep required owned TS statement/branch/function/line coverage at 100%. Native desktop storage/packaging is a separate gate; do not imply it exists.
+## Security and limits
+100 MiB compressed input; 2,000 entries; 32 MiB maximum extracted entry, 200 MiB aggregate declared output and 200:1 size ratio. Non-streaming raw EPUB input/parsed book is held in browser memory; test large inputs manually before release. DecompressionStream deflate-raw is required; unsupported browsers show a failure. All archive paths and OPF hrefs confined to archive root; ZIP64/multi-disk unsupported. No DRM circumvention.
+Passing OCF preflight alone never qualifies as a parseable book; full parse runs before import persistence and again on opening.
 
-## OCF preflight contract (foundation)
-- 100 MiB provisional compressed input cap (decompressed output and resource caps must be checked later).
-- The ZIP must start with a local-file-header signature; the first entry must be named `mimetype`, be stored/uncompressed, have no extra header/encryption/data descriptor and have exact `application/epub+zip` bytes, with matching declared sizes.
-- A valid leading header alone does **not** prove valid central directory, CRC, container.xml, safe filenames or parseable publication. Do not persist an EPUB as a usable book on preflight alone.
-- CFI normalization is a lightweight storage-shape guard, **not** EPUB CFI grammar validation or anchor resolution; the renderer must validate/resolve against the active publication.
+## Validation and release gates
+- CI: pnpm typecheck/test/build + full owned TypeScript statement/branch/function/line coverage at 100%; cargo check/test workspace.
+- Fixture tests: real central directory with correct CRC, invalid signatures, malformed archive, missing package/spine/chapters, archive limits, path traversal, XHTML sanitization, TOC and images, local PDF+EPUB migration coexistence, stored location/theme.
+- Browser smoke still required: reload offline, real-world EPUB3 and EPUB2 books, corrupt files, storage quota, navigation, zero-network-content policy and cross-browser compatibility. Record evidence in PR before marking ready.
+- Independent fresh-context review and all required green CI checks before merge; do not auto-merge draft/red/unreviewed PR.
 
-## Cross-format contracts
-- `ReaderAnchor = {kind:'pdf',page:number} | {kind:'epub',cfi:string,spineIndex:number}`.
-- Metadata shape: `EpubMetadata` with title, creators, language, spine and nested TOC; optional/missing data represented honestly.
-- Existing PDF preview schema (`progress` one-based page) remains compatible until an explicit, tested migration.
-- No server, account, silent network fetch, mandatory AI or publisher paywall bypass.
+## Rollback
+Revert PR #4; IDB folio-preview database/store remains v1 and old PDF bytes/progress are unchanged. EPUB rows remain inert if the feature is rolled back, not deleted automatically.
 
-## Initial acceptance and evidence
-- Unit tests for short/empty/oversized input, false ZIP/incorrect mimetype and all first-entry OCF fields; positive header fixture; PDF stays green.
-- Anchor tests for valid location, invalid CFI shape, out-of-range/negative/nonfinite spine index.
-- CI runs `pnpm check` and Rust check/test. This first increment does **not** close F01b as a completed EPUB reader.
-
-## Risk / rollback
-Treat EPUB archive and XHTML as untrusted input; enforce size/path/sandbox boundaries before enabling open/render. No changes to browser persistence or destructive migration in the foundation commit. Revert PR #4 to roll back. Follow-up commits must record smoke evidence and remaining unsupported EPUB variants.
+## Future slices
+Native managed files/SQLite; full EPUB CFI/within-chapter offsets, fixed-layout/ZIP64/DRM handling; PDF.js text and coordinate anchors; DOI, translation, API and CLI providers remain follow-up work.
