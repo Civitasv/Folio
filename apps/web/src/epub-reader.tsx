@@ -40,13 +40,14 @@ export function EpubReader({doc,platform,onRefresh}:{doc:DocumentSummary;platfor
     finally{setBusy(false);}
   }
   if(!saved)return <section aria-label="EPUB reader">{error ? <p role="alert">{error}</p> : <p>Loading EPUB…</p>}</section>;
+  const chapters=saved.book.chapters;
   const index=saved.anchor.spineIndex;
   const chapter=saved.book.chapters[index];
   const style=themes[saved.preferences.theme];
   const html='<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src &#39;none&#39;; img-src data:; style-src &#39;unsafe-inline&#39;; form-action &#39;none&#39;; base-uri &#39;none&#39;"><style>html{background:'+style.background+';color:'+style.color+';font-family:Georgia,serif;font-size:'+saved.preferences.fontSize+'px;line-height:1.7}body{max-width:45em;margin:2em auto;padding:0 1em}img{max-width:100%;height:auto}table{max-width:100%}</style></head><body>'+chapter.html+'</body></html>';
   function tocButtons(items:EpubTocItem[]):React.ReactNode {
     return items.map((item,i)=>{
-      const dest=saved.book.chapters.findIndex(part=>part.href===item.href);
+      const dest=chapters.findIndex(part=>part.href===item.href);
       return <li key={item.href+item.label+i}>{dest>=0?<button disabled={busy} onClick={()=>void navigate(dest)}>{item.label}</button>:<span>{item.label}</span>}
         {item.children.length>0&&<ul>{tocButtons(item.children)}</ul>}</li>;
     });
