@@ -29,7 +29,7 @@ function base64(data: Uint8Array): string {
 }
 function contentNodes(body: Element, chapter: string, assets: Map<string,string>): string {
   function walk(node: Node): string {
-    if (node.nodeType === 3) return escapeHtml(node.textContent ?? '');
+    if (node.nodeType === 3) return escapeHtml(node.textContent!);
     if (node.nodeType !== 1) return '';
     const el = node as Element, tag = el.localName.toLowerCase();
     if (dropped.has(tag)) return '';

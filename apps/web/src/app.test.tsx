@@ -219,3 +219,23 @@ it('supports actual drag/drop import and refreshes chapter progress through the 
  await waitFor(()=>expect(base.rows.get(doc.id)?.progress).toBe(2));
  expect(screen.getByText(/EPUB chapter 2/)).toBeTruthy();
 });
+
+it('closes and reopens an EPUB without invoking the PDF viewer',async()=>{
+ const base=fixture([{id:'epub:sha256:b',title:'Ebook',progress:1,kind:'epub',creators:['A']}]);
+ const platform={...base.platform,
+   readEpub:vi.fn(async()=>({book:{metadata:{title:'Ebook',creators:['A'],spine:[{id:'one',href:'one'}],toc:[]},
+     chapters:[{id:'one',href:'one',html:'<p>Hello</p>'}]},anchor:{kind:'epub' as const,spineIndex:0,cfi:'epubcfi(/6/2)'},
+     preferences:{fontSize:18,theme:'light' as const}})),
+   importEpub:vi.fn(async()=>base.rows.get('epub:sha256:b')!),
+   setEpubLocation:vi.fn(async()=>{}),setEpubPreferences:vi.fn(async()=>{})
+ };
+ render(<App platform={platform}/>);
+ await screen.findByRole('button',{name:'Ebook'});
+ fireEvent.click(screen.getByRole('button',{name:'Ebook'}));
+ expect(await screen.findByTitle('EPUB chapter')).toBeTruthy();
+ fireEvent.click(screen.getByRole('button',{name:'Close'}));
+ expect(screen.queryByTitle('EPUB chapter')).toBeNull();
+ fireEvent.click(screen.getByRole('button',{name:'Ebook'}));
+ expect(await screen.findByTitle('EPUB chapter')).toBeTruthy();
+ expect(platform.readPdf).not.toHaveBeenCalled();
+});

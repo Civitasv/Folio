@@ -80,3 +80,30 @@ it('preserves images only when correctly declared; handles duplicate image tags 
  expect(html).toContain('<strong>Text</strong>');
  expect(html).not.toContain('not-listed');
 });
+
+it('rejects malformed package XML and a container without rootfile',async()=>{
+ await expect(parseEpub(sample({container:'<container xmlns="urn:oasis:names:tc:opendocument:xmlns:container"/>'}))).rejects.toThrow('missing package rootfile');
+ await expect(parseEpub(sample({opf:'<package xmlns="http://www.idpf.org/2007/opf"><manifest>'}))).rejects.toThrow('malformed XML');
+});
+it('normalizes blank metadata, missing optional manifest attributes and NCX missing href',async()=>{
+ const blank=OPF.replace('<dc:title>Example Book</dc:title>','<dc:title/>')
+  .replace('<dc:creator>Alice</dc:creator>','<dc:creator/>')
+  .replace('<dc:language>en</dc:language>','<dc:language/>')
+  .replace('properties="nav"','')
+  .replace('media-type="image/png"','');
+ const withoutNav=await parseEpub(sample({opf:blank}));
+ expect(withoutNav.metadata.title).toBeUndefined();
+ expect(withoutNav.metadata.creators).toEqual([]);
+ expect(withoutNav.metadata.language).toBeUndefined();
+ const opf=OPF.replace('properties="nav"','').replace('<spine>','<spine toc="ncx">')
+  .replace('</manifest>','<item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/></manifest>');
+ const ncx='<ncx xmlns="http://www.daisy.org/z3986/2005/ncx/"><navMap><navPoint><navLabel><text>Unnamed</text></navLabel></navPoint><navPoint><navLabel><text>Empty</text></navLabel><content/></navPoint></navMap></ncx>';
+ const result=await parseEpub(sample({opf,more:[['OPS/toc.ncx',ncx]]}));
+ expect(result.metadata.toc).toEqual([{label:'Unnamed',href:'',children:[]},{label:'Empty',href:'',children:[]}]);
+});
+it('accepts a package resource with absent properties and an EPUB nav with no type and fallback NCX',async()=>{
+ const opf=OPF.replace('properties="nav"','').replace('<spine>','<spine toc="ncx">')
+ .replace('</manifest>','<item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/></manifest>');
+ const ncx='<ncx xmlns="http://www.daisy.org/z3986/2005/ncx/"><navMap><navPoint><navLabel><text>One</text></navLabel><content src="one.xhtml"/></navPoint></navMap></ncx>';
+ expect((await parseEpub(sample({opf,more:[['OPS/toc.ncx',ncx]]}))).metadata.toc[0].href).toBe('OPS/one.xhtml');
+});
