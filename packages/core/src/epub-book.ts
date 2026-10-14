@@ -49,7 +49,8 @@ function contentNodes(body: Element, chapter: string, assets: Map<string,string>
 }
 function navItems(list: Element, navPath: string, spine: EpubSpineItem[]): EpubTocItem[] {
   return Array.from(list.children).filter(el=>el.localName === 'li').map(li => {
-    const link = first(li,'a'), span = first(li,'span');
+    const link = Array.from(li.children).find(el => el.localName==='a');
+    const span = Array.from(li.children).find(el => el.localName==='span');
     const label = (link?.textContent ?? span?.textContent ?? '').trim() || 'Untitled';
     const href = link?.getAttribute('href') ?? '';
     let path = '';

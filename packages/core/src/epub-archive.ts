@@ -102,7 +102,8 @@ export function openEpubArchive(bytes: Uint8Array): EpubArchive {
     if (entry.method === 0) output = new Uint8Array(compressed);
     else {
       if (typeof DecompressionStream === 'undefined') fail('deflate-raw unavailable in this browser');
-      const stream = new Blob([new Uint8Array(compressed)]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
+      const source = new ReadableStream<Uint8Array>({start(controller) { controller.enqueue(new Uint8Array(compressed)); controller.close(); }});
+      const stream = source.pipeThrough(new DecompressionStream('deflate-raw'));
       const reader = stream.getReader(), chunks: Uint8Array[] = [];
       let length = 0;
       try {
