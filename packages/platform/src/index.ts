@@ -1,10 +1,11 @@
-import { preflightPdf, type DocumentSummary, type ReaderPlatform } from '@folio/core';
+import { preflightPdf, type DocumentSummary, type ReaderPlatform, type EpubAnchor } from '@folio/core';
 import { createIndexedDbStore } from './indexeddb';
 import { createEpubPlatform } from './epub-platform';
+import type { EpubPreferences } from './epub-platform';
 export { createIndexedDbStore } from './indexeddb';
 export { createEpubPlatform } from './epub-platform';
 export type { EpubReaderPlatform, EpubPreferences, SavedEpub, EpubTheme } from './epub-platform';
-export type StoredPdf = DocumentSummary & { fingerprint: string; bytes: Uint8Array };
+export type StoredPdf = DocumentSummary & { fingerprint: string; bytes: Uint8Array; anchor?: EpubAnchor; preferences?: EpubPreferences };
 export interface PdfStore {
   list(): Promise<StoredPdf[]>;
   get(id: string): Promise<StoredPdf | undefined>;
