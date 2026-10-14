@@ -17,11 +17,12 @@ async function transact<T>(mode: IDBTransactionMode, operation: (store: IDBObjec
   return new Promise<T>((resolve, reject) => {
     const tx = db.transaction(STORE, mode);
     let value: T;
-    let settled = false;
-    tx.oncomplete = () => { db.close(); if (!settled) resolve(value); };
+    let failure: unknown;
+    let hasFailure = false;
+    tx.oncomplete = () => { db.close(); if (hasFailure) reject(failure); else resolve(value); };
     tx.onerror = () => { db.close(); reject(tx.error); };
-    tx.onabort = () => { db.close(); reject(tx.error); };
-    operation(tx.objectStore(STORE), v => { value = v; settled = false; }, reject);
+    tx.onabort = () => { db.close(); reject(hasFailure ? failure : tx.error); };
+    operation(tx.objectStore(STORE), v => { value = v; }, error => { failure = error; hasFailure = true; try { tx.abort(); } catch { db.close(); reject(error); } });
   });
 }
 async function fingerprint(bytes: Uint8Array): Promise<string> {
@@ -67,7 +68,7 @@ export const browserPlatform = {
       req.onsuccess = () => {
         if (!req.result) { reject(new Error('Document not found')); return; }
         const doc = req.result as StoredPdf;
-        const put = store.put({...doc,progress:Math.max(1,Math.floor(page))});
+        const put = store.put({...doc,progress:Number.isFinite(page) ? Math.max(1,Math.floor(page)) : 1});
         put.onsuccess = () => resolve(undefined);
         put.onerror = () => reject(put.error);
       };
