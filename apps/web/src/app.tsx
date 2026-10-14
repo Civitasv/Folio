@@ -60,13 +60,12 @@ export function App({ platform = browserPlatform }: { platform?: ReaderPlatform 
       setNotice('PDF deleted from the local library.');
     } catch { setError('Unable to delete the local PDF.'); }
   }
-  async function savePage() {
-    if (!active) return;
+  async function savePage(doc: DocumentSummary) {
     const value = Number(page);
     if (!Number.isSafeInteger(value) || value < 1) { setError('Enter a valid page number (1 or greater).'); return; }
     try {
-      await platform.setProgress(active.id, value);
-      setActive({ ...active, progress: value });
+      await platform.setProgress(doc.id, value);
+      setActive({ ...doc, progress: value });
       setDocuments(await platform.listDocuments());
       setError(''); setNotice('Reading position saved.');
     } catch { setError('Could not save reading position.'); }
@@ -94,7 +93,7 @@ export function App({ platform = browserPlatform }: { platform?: ReaderPlatform 
       <button onClick={() => setActive(null)}>Close</button>
       <label> Page <input aria-label="Saved page" inputMode="numeric" type="number" min="1" step="1" value={page}
         onChange={event => setPage(event.target.value)}/></label>
-      <button onClick={() => void savePage()}>Save page</button>
+      <button onClick={() => void savePage(active)}>Save page</button>
       {reader?.id === active.id ? <iframe title="PDF document" src={reader.url+'#page='+active.progress}
         style={{width:'100%',height:'75vh',border:'1px solid #ddd'}}/> : <p>Loading local PDF…</p>}
       <p>Browser preview uses the browser PDF viewer; save the page manually. Native reader and automatic tracking follow in later slices.</p>
