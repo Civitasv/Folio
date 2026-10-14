@@ -37,7 +37,7 @@ it('renders local library, search, drag-and-drop empty guards and file input emp
   const {container}=render(<App platform={platform}/>);
   expect(await screen.findByText('Your library is empty. Import a PDF to begin.')).toBeTruthy();
   fireEvent.change(screen.getByLabelText('Search titles'),{target:{value:'none'}});
-  expect(screen.getByText('No matching PDFs.')).toBeTruthy();
+  expect(screen.getByText('No matching documents.')).toBeTruthy();
   fireEvent.dragOver(screen.getByRole('region',{name:'Import PDF'}));
   fireEvent.drop(screen.getByRole('region',{name:'Import PDF'}),{dataTransfer:{files:[]}});
   fireEvent.change(screen.getByLabelText('Import PDF file'),{target:{files:[]}});
@@ -151,4 +151,91 @@ it('ignores a document read that settles after the reader is closed', async () =
   fireEvent.click(screen.getByText('Close'));
   finish(valid);
   expect(screen.queryByTitle('PDF document')).toBeNull();
+});
+
+it('imports EPUB through the shared picker and keeps PDF behavior intact', async () => {
+  const base=fixture();
+  const epub={id:'epub:sha256:a',title:'Example Book',progress:1,kind:'epub' as const,creators:['Alice']};
+  const platform={...base.platform,
+    importEpub:vi.fn(async()=>{base.rows.set(epub.id,epub);return epub;}),
+    readEpub:vi.fn(async()=>({book:{metadata:{title:'Example Book',creators:['Alice'],spine:[{id:'a',href:'one'}],toc:[]},chapters:[{id:'a',href:'one',html:'<p>Hi</p>'}]},anchor:{kind:'epub' as const,spineIndex:0,cfi:'epubcfi(/6/2)'},preferences:{fontSize:18,theme:'light' as const}})),
+    setEpubLocation:vi.fn(async()=>{}),setEpubPreferences:vi.fn(async()=>{})
+  };
+  setupUrls();vi.spyOn(window,'confirm').mockReturnValue(true);
+  render(<App platform={platform}/>);
+  await screen.findByText('Your library is empty. Import a PDF to begin.');
+  fireEvent.change(screen.getByLabelText('Import PDF file'),{target:{files:[file('Example.epub')]}});
+  expect(await screen.findByText('EPUB imported locally.')).toBeTruthy();
+  expect(await screen.findByTitle('EPUB chapter')).toBeTruthy();
+  expect(screen.queryByTitle('PDF document')).toBeNull();
+  fireEvent.change(screen.getByLabelText('Search titles'),{target:{value:'Alice'}});
+  expect(screen.getByRole('button',{name:'Example Book'})).toBeTruthy();
+  fireEvent.click(screen.getByRole('button',{name:'Delete Example Book'}));
+  expect(await screen.findByText('EPUB deleted from the local library.')).toBeTruthy();
+});
+it('reports unsupported EPUB platform and EPUB import failures',async()=>{
+  const {platform}=fixture();render(<App platform={platform}/>);
+  await screen.findByText('Your library is empty. Import a PDF to begin.');
+  fireEvent.change(screen.getByLabelText('Import PDF file'),{target:{files:[file('Book.epub')]}});
+  expect(await screen.findByRole('alert')).toHaveProperty('textContent','EPUB import is unavailable on this platform.');
+  const x={...platform,importEpub:vi.fn(async()=>{throw Error('bad EPUB');})};
+  cleanup();render(<App platform={x}/>);
+  fireEvent.change(screen.getByLabelText('Import PDF file'),{target:{files:[file('Book.epub')]}});
+  expect(await screen.findByRole('alert')).toHaveProperty('textContent','EPUB import failed. The file may be invalid, unsupported or exceed local storage.');
+});
+
+it('rejects oversized EPUB before reading and recognizes an existing import',async()=>{
+ const base=fixture([{id:'epub:sha256:a',title:'Example',progress:2,kind:'epub',creators:['Alice']}]);
+ const x={...base.platform,importEpub:vi.fn(async()=>base.rows.get('epub:sha256:a')!)};
+ render(<App platform={x}/>);
+ await screen.findByRole('button',{name:'Example'});
+ const large=file('large.epub');
+ Object.defineProperty(large,'size',{value:MAX_PDF_BYTES+1});
+ fireEvent.change(screen.getByLabelText('Import PDF file'),{target:{files:[large]}});
+ expect(await screen.findByRole('alert')).toHaveProperty('textContent','EPUB import rejected: too_large');
+ fireEvent.change(screen.getByLabelText('Import PDF file'),{target:{files:[file('Example.epub')]}});
+ expect(await screen.findByText('This EPUB is already in your library.')).toBeTruthy();
+ expect(x.importEpub).toHaveBeenCalledTimes(1);
+});
+
+it('supports actual drag/drop import and refreshes chapter progress through the parent library',async()=>{
+ const base=fixture();
+ const doc={id:'epub:sha256:d',title:'Dropped',progress:1,kind:'epub' as const,creators:['Author']};
+ const state={...doc};
+ const platform={...base.platform,
+  importEpub:vi.fn(async()=>{base.rows.set(doc.id,{...state});return {...state};}),
+  readEpub:vi.fn(async()=>({book:{metadata:{title:'Dropped',creators:['Author'],spine:[{id:'one',href:'one'},{id:'two',href:'two'}],toc:[]},
+   chapters:[{id:'one',href:'one',html:'<p>one</p>'},{id:'two',href:'two',html:'<p>two</p>'}]},
+   anchor:{kind:'epub' as const,spineIndex:state.progress-1,cfi:'epubcfi(/6/2)'},preferences:{fontSize:18,theme:'light' as const}})),
+  setEpubLocation:vi.fn(async(_id:string,loc:{spineIndex:number})=>{state.progress=loc.spineIndex+1;base.rows.set(doc.id,{...state});}),
+  setEpubPreferences:vi.fn(async()=>{})
+ };
+ render(<App platform={platform}/>);
+ await screen.findByText('Your library is empty. Import a PDF to begin.');
+ fireEvent.drop(screen.getByRole('region',{name:'Import PDF'}),{dataTransfer:{files:[file('Dropped.epub')]}});
+ expect(await screen.findByText('EPUB imported locally.')).toBeTruthy();
+ expect(await screen.findByTitle('EPUB chapter')).toBeTruthy();
+ fireEvent.click(screen.getByText('Next chapter'));
+ await waitFor(()=>expect(base.rows.get(doc.id)?.progress).toBe(2));
+ expect(screen.getByText(/EPUB chapter 2/)).toBeTruthy();
+});
+
+it('closes and reopens an EPUB without invoking the PDF viewer',async()=>{
+ const base=fixture([{id:'epub:sha256:b',title:'Ebook',progress:1,kind:'epub',creators:['A']}]);
+ const platform={...base.platform,
+   readEpub:vi.fn(async()=>({book:{metadata:{title:'Ebook',creators:['A'],spine:[{id:'one',href:'one'}],toc:[]},
+     chapters:[{id:'one',href:'one',html:'<p>Hello</p>'}]},anchor:{kind:'epub' as const,spineIndex:0,cfi:'epubcfi(/6/2)'},
+     preferences:{fontSize:18,theme:'light' as const}})),
+   importEpub:vi.fn(async()=>base.rows.get('epub:sha256:b')!),
+   setEpubLocation:vi.fn(async()=>{}),setEpubPreferences:vi.fn(async()=>{})
+ };
+ render(<App platform={platform}/>);
+ await screen.findByRole('button',{name:'Ebook'});
+ fireEvent.click(screen.getByRole('button',{name:'Ebook'}));
+ expect(await screen.findByTitle('EPUB chapter')).toBeTruthy();
+ fireEvent.click(screen.getByRole('button',{name:'Close'}));
+ expect(screen.queryByTitle('EPUB chapter')).toBeNull();
+ fireEvent.click(screen.getByRole('button',{name:'Ebook'}));
+ expect(await screen.findByTitle('EPUB chapter')).toBeTruthy();
+ expect(platform.readPdf).not.toHaveBeenCalled();
 });

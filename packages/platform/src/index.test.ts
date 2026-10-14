@@ -50,3 +50,9 @@ it('reports missing documents for reading and progress', async () => {
   await expect(platform.readPdf('missing')).rejects.toThrow('Document not found');
   await expect(platform.setProgress('missing',2)).rejects.toThrow('Document not found');
 });
+
+it('lists legacy EPUB rows with missing optional creators without leaking bytes',async()=>{
+ const {platform,records}=fixture();
+ records.set('epub:old',{id:'epub:old',kind:'epub',title:'Old book',progress:1,fingerprint:'x',bytes:new Uint8Array([1])});
+ expect(await platform.listDocuments()).toEqual([{id:'epub:old',kind:'epub',title:'Old book',progress:1,creators:[]}]);
+});
