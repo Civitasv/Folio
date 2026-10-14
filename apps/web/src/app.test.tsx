@@ -51,13 +51,13 @@ it('imports, reopens, filters, saves position, closes and confirms deletion', as
   await screen.findByText('Your library is empty. Import a PDF to begin.');
   fireEvent.change(screen.getByLabelText('Import PDF file'),{target:{files:[file()]}});
   expect(await screen.findByText('PDF imported locally.')).toBeTruthy();
-  expect(await screen.findByTitle('PDF document')).toHaveProperty('src','blob:folio/#page=1');
+  expect(await screen.findByTitle('PDF document')).toHaveProperty('src','blob:folio#page=1');
   expect(screen.getByText('Paper')).toBeTruthy();
   fireEvent.change(screen.getByLabelText('Saved page'),{target:{value:'3'}});
   fireEvent.click(screen.getByText('Save page'));
   await waitFor(()=>expect(platform.setProgress).toHaveBeenCalledWith('sha256:a',3));
   expect(await screen.findByText('Reading position saved.')).toBeTruthy();
-  expect(screen.getByTitle('PDF document')).toHaveProperty('src','blob:folio/#page=3');
+  expect(screen.getByTitle('PDF document')).toHaveProperty('src','blob:folio#page=3');
   fireEvent.change(screen.getByLabelText('Search titles'),{target:{value:'pap'}});
   expect(screen.getByText('Paper')).toBeTruthy();
   fireEvent.click(screen.getByText('Close'));

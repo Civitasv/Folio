@@ -61,7 +61,7 @@ it('commits getAll/get/put/delete and opens a versioned managed store', async ()
   expect(fake.open).toHaveBeenCalledWith('folio-preview',1);
   expect(fake.createObjectStore).toHaveBeenCalledWith('documents',{keyPath:'id'});
   expect(fake.createObjectStore).toHaveBeenCalledTimes(1);
-  expect(fake.close).toHaveBeenCalledTimes(5);
+  expect(fake.close).toHaveBeenCalledTimes(6);
 });
 it.each([true,false])('propagates indexedDB open failures (error object: %s)', async withError => {
   const store = createIndexedDbStore(mockIndexedDb('open-error',withError).factory);
