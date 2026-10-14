@@ -31,7 +31,7 @@ it('saves one metadata-only DOI record, reopens offline, preserves legacy PDF an
  expect(f.rows.get(doc.id)?.bytes).toEqual(new Uint8Array());
  expect(await f.platform.saveReference({...metadata,title:'Renamed'})).toEqual({...doc,title:'Renamed'});
  expect(await f.pdf.listDocuments()).toEqual([existing,doc]);
- expect(await f.platform.readReference(doc.id)).toEqual({metadata,linkedDocumentId:undefined});
+ expect(await f.platform.readReference(doc.id)).toEqual({metadata:{...metadata,title:'Renamed'},linkedDocumentId:undefined});
  await expect(f.pdf.readPdf(doc.id)).rejects.toThrow('PDF not found');
  await expect(f.pdf.setProgress(doc.id,2)).rejects.toThrow('PDF not found');
  expect(await f.pdf.readPdf(existing.id)).toEqual(bytes);
