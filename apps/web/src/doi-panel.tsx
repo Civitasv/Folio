@@ -16,7 +16,6 @@ export function DoiPanel({platform,referenceId,onSaved,onImported}:{
   const controller=React.useRef<AbortController|null>(null);
   React.useEffect(()=>{
     let live=true;
-    controller.current?.abort();controller.current=null;
     setPreview(null);setLinked(undefined);setError('');setNotice('');setBusy(null);
     if(referenceId) void platform.readReference(referenceId).then(value=>{
       if(live){setPreview(value.metadata);setLinked(value.linkedDocumentId);setInput(value.metadata.doi);}
