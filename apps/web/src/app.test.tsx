@@ -197,3 +197,25 @@ it('rejects oversized EPUB before reading and recognizes an existing import',asy
  expect(await screen.findByText('This EPUB is already in your library.')).toBeTruthy();
  expect(x.importEpub).toHaveBeenCalledTimes(1);
 });
+
+it('supports actual drag/drop import and refreshes chapter progress through the parent library',async()=>{
+ const base=fixture();
+ const doc={id:'epub:sha256:d',title:'Dropped',progress:1,kind:'epub' as const,creators:['Author']};
+ const state={...doc};
+ const platform={...base.platform,
+  importEpub:vi.fn(async()=>{base.rows.set(doc.id,{...state});return {...state};}),
+  readEpub:vi.fn(async()=>({book:{metadata:{title:'Dropped',creators:['Author'],spine:[{id:'one',href:'one'},{id:'two',href:'two'}],toc:[]},
+   chapters:[{id:'one',href:'one',html:'<p>one</p>'},{id:'two',href:'two',html:'<p>two</p>'}]},
+   anchor:{kind:'epub' as const,spineIndex:state.progress-1,cfi:'epubcfi(/6/2)'},preferences:{fontSize:18,theme:'light' as const}})),
+  setEpubLocation:vi.fn(async(_id:string,loc:{spineIndex:number})=>{state.progress=loc.spineIndex+1;base.rows.set(doc.id,{...state});}),
+  setEpubPreferences:vi.fn(async()=>{})
+ };
+ render(<App platform={platform}/>);
+ await screen.findByText('Your library is empty. Import a PDF to begin.');
+ fireEvent.drop(screen.getByRole('region',{name:'Import PDF'}),{dataTransfer:{files:[file('Dropped.epub')]}});
+ expect(await screen.findByText('EPUB imported locally.')).toBeTruthy();
+ expect(await screen.findByTitle('EPUB chapter')).toBeTruthy();
+ fireEvent.click(screen.getByText('Next chapter'));
+ await waitFor(()=>expect(base.rows.get(doc.id)?.progress).toBe(2));
+ expect(screen.getByText(/EPUB chapter 2/)).toBeTruthy();
+});

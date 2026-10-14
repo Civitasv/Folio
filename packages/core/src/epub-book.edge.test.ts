@@ -50,3 +50,33 @@ it('handles missing optional metadata, empty nav and nonlinear spine',async()=>{
  expect(book.metadata.spine).toHaveLength(1);
  expect(book.metadata.toc).toEqual([]);
 });
+
+it('handles absent idref, optional metadata values and TOC labels without links',async()=>{
+ const bad=OPF.replace('idref="c1"','');
+ await expect(parseEpub(sample({opf:bad}))).rejects.toThrow('unsupported spine resource');
+ const metadata=OPF.replace('<dc:title>Example Book</dc:title>','').replace('<dc:creator>Alice</dc:creator>','')
+  .replace('<dc:language>en</dc:language>','');
+ const nav='<html xmlns="http://www.w3.org/1999/xhtml"><body><nav type="toc"><ol><li><span>Standalone</span></li><li/></ol></nav></body></html>';
+ const book=await parseEpub(sample({opf:metadata,nav}));
+ expect(book.metadata.title).toBeUndefined();
+ expect(book.metadata.creators).toEqual([]);
+ expect(book.metadata.language).toBeUndefined();
+ expect(book.metadata.toc).toEqual([{label:'Standalone',href:'',children:[]},{label:'Untitled',href:'',children:[]}]);
+});
+it('ignores nav with no TOC role, and detects missing/invalid EPUB2 NCX',async()=>{
+ const without=OPF.replace('properties="nav"','').replace('<spine>','<spine toc="ncx">')
+ .replace('</manifest>','<item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/></manifest>');
+ const noMap='<ncx xmlns="http://www.daisy.org/z3986/2005/ncx/"><navMapless/></ncx>';
+ expect((await parseEpub(sample({opf:without,more:[['OPS/toc.ncx',noMap]]}))).metadata.toc).toEqual([]);
+ const noRole='<html xmlns="http://www.w3.org/1999/xhtml"><body><nav><ol><li><a href="one.xhtml">X</a></li></ol></nav></body></html>';
+ expect((await parseEpub(sample({nav:noRole}))).metadata.toc).toEqual([]);
+});
+it('preserves images only when correctly declared; handles duplicate image tags and HTML escaping',async()=>{
+ const chapter='<html xmlns="http://www.w3.org/1999/xhtml"><body><p>Say &quot;hi&quot; and &apos;bye&apos;</p><img src="pic.png"/><img src="pic.png" alt="same"/><img src="not-listed.svg"/><unknown><strong>Text</strong></unknown></body></html>';
+ const html=(await parseEpub(sample({chapter}))).chapters[0].html;
+ expect(html.match(/data:image\/png/g)?.length).toBe(2);
+ expect(html).toContain('&quot;hi&quot;');
+ expect(html).toContain('&#39;bye&#39;');
+ expect(html).toContain('<strong>Text</strong>');
+ expect(html).not.toContain('not-listed');
+});

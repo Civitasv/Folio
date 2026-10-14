@@ -71,6 +71,8 @@ it('fallback metadata and TOC and ignores an unmounted asynchronous load',async(
  await screen.findByTitle('EPUB chapter');
  expect(screen.getByText('Chapter 1')).toBeTruthy();
  expect(screen.getByText('Book')).toBeTruthy();
+ fireEvent.click(screen.getByText('Chapter 1'));
+ await waitFor(()=>expect(f.platform.setEpubLocation).toHaveBeenCalled());
  view.unmount();
  let finish!:(value:SavedEpub)=>void;
  vi.mocked(f.platform.readEpub).mockImplementationOnce(()=>new Promise(resolve=>{finish=resolve;}));

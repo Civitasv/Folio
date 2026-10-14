@@ -42,3 +42,20 @@ it('rejects unsafe flags, overlong entries, wrong local names and unsupported me
   expect(()=>openEpubArchive(copy)).toThrow();
  }
 });
+
+it('rejects divergent local and central names and aggregated declared expansion over 200 MiB',()=>{
+ const x=bookFixture(),at=central(x);
+ const changed=edit(x,v=>v.setUint8(at+46,'x'.charCodeAt(0)));
+ expect(()=>openEpubArchive(changed)).toThrow('local data mismatch');
+ const payload=new Uint8Array(160*1024),large=new Uint8Array([1]);
+ const entries:Array<[string,string|Uint8Array,Uint8Array?]>=[...common];
+ for(let i=0;i<7;i++)entries.push(['OPS/large-'+i,large,payload]);
+ const z=zipFixture(entries),v=new DataView(z.buffer);
+ let cursor=central(z);
+ for(let n=0;n<entries.length;n++){
+   const at=cursor,offset=v.getUint32(at+42,true);
+   if(n>=2){v.setUint32(at+24,31*1024*1024,true);v.setUint32(offset+22,31*1024*1024,true);}
+   cursor+=46+v.getUint16(at+28,true)+v.getUint16(at+30,true)+v.getUint16(at+32,true);
+ }
+ expect(()=>openEpubArchive(z)).toThrow('archive output limit');
+});
