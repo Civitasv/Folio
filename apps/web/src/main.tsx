@@ -1,7 +1,7 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { preflightPdf } from '@folio/core';
-import { browserPlatform } from '@folio/platform';
+import { browserPlatform } from './storage';
 
 type Entry = { id: string; title: string; progress: number };
 function App() {
