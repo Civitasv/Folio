@@ -28,7 +28,7 @@ it('stays offline until Resolve, shows verified sources and saves a reference',a
  fireEvent.change(screen.getByLabelText('DOI'),{target:{value:doi}});
  fireEvent.click(screen.getByText('Resolve DOI'));
  expect(await screen.findByText('Example article')).toBeTruthy();
- expect(screen.getByText(/Crossref/)).toBeTruthy();
+ expect(screen.getByText(/Source: Crossref/)).toBeTruthy();
  expect(screen.getByRole('link',{name:'Open DOI / publisher page'}).getAttribute('href')).toBe(doiUrl(doi));
  expect(screen.getByRole('link',{name:'Open reported OA PDF'}).getAttribute('rel')).toBe('noopener noreferrer');
  expect(screen.getByText(/Reported license: cc-by/)).toBeTruthy();
