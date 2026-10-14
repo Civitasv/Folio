@@ -8,5 +8,7 @@ export interface ReaderPlatform {
 }
 export { preflightPdf, MAX_PDF_BYTES } from './pdf';
 export type { PdfImportError, PdfPreflight } from './pdf';
+export { preflightEpub, MAX_EPUB_BYTES, normalizeEpubAnchor } from './epub';
+export type { EpubImportError, EpubPreflight, ReaderAnchor, PdfAnchor, EpubAnchor, EpubMetadata, EpubTocItem, EpubSpineItem } from './epub';
 export { decideImport, normalizeProgress } from './library';
 export type { LocalDocument, ImportDecision } from './library';
