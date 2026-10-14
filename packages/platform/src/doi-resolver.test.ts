@@ -20,6 +20,7 @@ it('resolves Crossref and an exact-DOI OpenAlex OA location using only fixed ser
    year:2024,language:'en',landingUrl:'https://doi.org/'+doi,source:'Crossref',
    oa:{pdfUrl:'https://oa.example.org/article.pdf',landingUrl:'https://oa.example.org/article',license:'cc-by',source:'OpenAlex'}});
  expect(fetcher).toHaveBeenCalledTimes(2);
+ expect(vi.mocked(fetcher).mock.calls[1][0]).toBe('https://api.openalex.org/works/doi:10.1234/example');
  expect(vi.mocked(fetcher).mock.calls[0][0]).toBe('https://api.crossref.org/works/10.1234%2Fexample');
  expect(vi.mocked(fetcher).mock.calls[0][1]).toMatchObject({credentials:'omit',redirect:'error',referrerPolicy:'no-referrer',signal:controller.signal});
 });

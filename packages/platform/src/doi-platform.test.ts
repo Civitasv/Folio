@@ -29,7 +29,7 @@ it('saves one metadata-only DOI record, reopens offline, preserves legacy PDF an
  const doc=await f.platform.saveReference(metadata);
  expect(doc).toEqual({id:'doi:'+doi,kind:'reference',doi,title:'Example',creators:['A'],progress:0});
  expect(f.rows.get(doc.id)?.bytes).toEqual(new Uint8Array());
- expect(await f.platform.saveReference({...metadata,title:'Renamed'})).toEqual(doc);
+ expect(await f.platform.saveReference({...metadata,title:'Renamed'})).toEqual({...doc,title:'Renamed'});
  expect(await f.pdf.listDocuments()).toEqual([existing,doc]);
  expect(await f.platform.readReference(doc.id)).toEqual({metadata,linkedDocumentId:undefined});
  await expect(f.pdf.readPdf(doc.id)).rejects.toThrow('PDF not found');
@@ -105,4 +105,21 @@ it('provides DOI title fallback when metadata has no title',async()=>{
  const f=fixture(),m={...metadata,title:''};
  const ref=await f.platform.saveReference(m);
  expect(ref.title).toBe(doi);
+});
+
+it('upgrades an unverified offline DOI in place and never downgrades verified metadata',async()=>{
+ const f=fixture(),first=await f.platform.saveReference(unresolvedReference(doi));
+ expect((await f.platform.readReference(first.id)).metadata.source).toBe('Unresolved');
+ const upgraded=await f.platform.saveReference(metadata);
+ expect(upgraded.id).toBe(first.id);
+ expect(upgraded.title).toBe('Example');
+ expect((await f.platform.readReference(first.id)).metadata.source).toBe('Crossref');
+ await f.platform.saveReference(unresolvedReference(doi));
+ expect((await f.platform.readReference(first.id)).metadata.source).toBe('Crossref');
+ expect(f.rows.size).toBe(1);
+});
+it('rejects a conflicting non-reference occupying the canonical DOI identity',async()=>{
+ const f=fixture();
+ f.rows.set('doi:'+doi,{id:'doi:'+doi,kind:'epub',title:'collision',fingerprint:'x',progress:1,bytes:new Uint8Array()});
+ await expect(f.platform.saveReference(metadata)).rejects.toThrow('Reference ID collision');
 });

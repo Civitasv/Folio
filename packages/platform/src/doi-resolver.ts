@@ -55,7 +55,7 @@ export function createDoiResolver(fetcher: MetadataFetch) {
         record=datacite(await getJson(fetcher,'https://api.datacite.org/dois/'+encoded,signal),doi);
       }
       try {
-        const oa=object(await getJson(fetcher,'https://api.openalex.org/works/'+encodeURIComponent(doiUrl(doi)),signal));
+        const oa=object(await getJson(fetcher,'https://api.openalex.org/works/doi:'+doi,signal));
         const location=object(oa.best_oa_location);
         if (normalizeDoi(text(oa.doi))===doi && object(oa.open_access).is_oa===true &&
             location.is_oa===true) {

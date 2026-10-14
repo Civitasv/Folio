@@ -25,7 +25,14 @@ export function createDoiPlatform(store: PdfStore, pdf: ReaderPlatform, resolver
       const doi=normalizeDoi(metadata.doi);
       if (metadata.doi !== doi || metadata.landingUrl !== doiUrl(doi)) throw new Error('Invalid reference provenance');
       const id='doi:'+doi, current=await store.get(id);
-      if (current) return {id,title:current.title,progress:0,kind:'reference',doi,creators:current.creators};
+      if (current) {
+        if(current.kind!=='reference') throw new Error('Reference ID collision');
+        if(metadata.source==='Unresolved') return {id,title:current.title,progress:0,kind:'reference',doi,creators:current.creators};
+        const updated:ReferenceRow={...current,kind:'reference',metadata:structuredClone(metadata),
+          title:metadata.title||doi,creators:[...metadata.creators]};
+        await store.put(updated);
+        return {id,title:updated.title,progress:0,kind:'reference',doi,creators:updated.creators};
+      }
       const doc:ReferenceRow={id,kind:'reference',doi,title:metadata.title||doi,creators:[...metadata.creators],
         progress:0,fingerprint:doi,bytes:new Uint8Array(),metadata:structuredClone(metadata)};
       await store.put(doc);
