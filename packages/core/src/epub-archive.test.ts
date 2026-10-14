@@ -55,6 +55,6 @@ it('verifies local metadata, CRC, entry limits, methods and data',async()=>{
  expect(v.getUint32(central,true)).toBe(0x02014b50);
  const corrupted=good();corrupted[30+'mimetype'.length]=0;
  expect(()=>openEpubArchive(corrupted)).toThrow();
- const crc=good(),pos=crc.indexOf(137); crc[pos]^=1;
+ const crc=good(),pos=crc.findIndex((value,i)=>value===137&&crc[i+1]===80&&crc[i+2]===78&&crc[i+3]===71); crc[pos]^=1;
  await expect(openEpubArchive(crc).get('OPS/pic.png')).rejects.toThrow('integrity mismatch');
 });
