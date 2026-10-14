@@ -123,3 +123,11 @@ it('rejects a conflicting non-reference occupying the canonical DOI identity',as
  f.rows.set('doi:'+doi,{id:'doi:'+doi,kind:'epub',title:'collision',fingerprint:'x',progress:1,bytes:new Uint8Array()});
  await expect(f.platform.saveReference(metadata)).rejects.toThrow('Reference ID collision');
 });
+
+it('falls back to DOI for an upgraded verified reference with a missing title',async()=>{
+ const f=fixture();
+ const old=await f.platform.saveReference(unresolvedReference(doi));
+ const updated=await f.platform.saveReference({...metadata,title:''});
+ expect(updated).toMatchObject({id:old.id,title:doi});
+ expect((await f.platform.readReference(old.id)).metadata.source).toBe('Crossref');
+});
