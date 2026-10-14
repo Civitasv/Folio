@@ -29,7 +29,7 @@ function crossref(raw: unknown, doi: string): DoiMetadata {
   if (!title) throw new Error('Missing title');
   const date=object(msg.published)['date-parts'];
   return {doi,title,creators:names(msg.author,'given'),containerTitle:firstText(msg['container-title'])||undefined,
-    publisher:text(msg.publisher)||undefined,year:year(Array.isArray(date) ? date[0]?.[0] : msg.published?.['date-parts']?.[0]?.[0]),
+    publisher:text(msg.publisher)||undefined,year:year(Array.isArray(date) ? date[0]?.[0] : undefined),
     language:text(msg.language)||undefined,landingUrl:doiUrl(doi),source:'Crossref'};
 }
 function datacite(raw: unknown, doi: string): DoiMetadata {

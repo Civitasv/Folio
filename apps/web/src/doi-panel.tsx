@@ -16,12 +16,12 @@ export function DoiPanel({platform,referenceId,onSaved,onImported}:{
   const controller=React.useRef<AbortController|null>(null);
   React.useEffect(()=>{
     let live=true;
-    controller.current?.abort();
+    controller.current?.abort();controller.current=null;
     setPreview(null);setLinked(undefined);setError('');setNotice('');
     if(referenceId) void platform.readReference(referenceId).then(value=>{
       if(live){setPreview(value.metadata);setLinked(value.linkedDocumentId);setInput(value.metadata.doi);}
     }).catch(()=>{if(live)setError('Unable to load local DOI reference.');});
-    return ()=>{live=false;controller.current?.abort();};
+    return ()=>{live=false;controller.current?.abort();controller.current=null;};
   },[platform,referenceId]);
   async function lookup(){
     setError('');setNotice('');setPreview(null);
@@ -33,8 +33,8 @@ export function DoiPanel({platform,referenceId,onSaved,onImported}:{
       if(pending.signal.aborted) throw new Error('cancelled');
       setPreview(result);
     } catch {
-      setError(pending.signal.aborted?'DOI lookup cancelled or timed out.':'DOI lookup failed. Retry or save this DOI without verified metadata.');
-    } finally {window.clearTimeout(timeout);controller.current=null;setBusy(null);}
+      if(controller.current===pending) setError(pending.signal.aborted?'DOI lookup cancelled or timed out.':'DOI lookup failed. Retry or save this DOI without verified metadata.');
+    } finally {window.clearTimeout(timeout);if(controller.current===pending){controller.current=null;setBusy(null);}}
   }
   async function save(metadata:DoiMetadata) {
     setError('');setNotice('');
@@ -59,7 +59,7 @@ export function DoiPanel({platform,referenceId,onSaved,onImported}:{
       setLinked(pdf.id);
       setNotice('Open-access PDF imported locally.');
     } catch {
-      setError(pending.signal.aborted?'PDF import cancelled or timed out.':
+      if(controller.current===pending) setError(pending.signal.aborted?'PDF import cancelled or timed out.':
         'PDF import failed (source unavailable, CORS, format or local storage). Open the source and import the file manually.');
     } finally {window.clearTimeout(timeout);controller.current=null;setBusy(null);}
   }

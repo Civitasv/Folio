@@ -95,7 +95,7 @@ export function App({ platform = universalPlatform }: { platform?: ReaderPlatfor
       <p>Or drop a PDF or EPUB here. Files remain in this browser's local storage (up to 100 MiB per file).</p>
     </section>
     {platform.resolveDoi && platform.saveReference && platform.readReference && platform.importOpenPdf && <DoiPanel
-      platform={platform as DoiPlatform} referenceId={active?.kind==='reference' ? active.id : undefined}
+      key={active?.kind==='reference' ? active.id : 'new'} platform={platform as DoiPlatform} referenceId={active?.kind==='reference' ? active.id : undefined}
       onSaved={async () => { setDocuments(await platform.listDocuments()); }}
       onImported={async doc => { setDocuments(await platform.listDocuments()); setActive(doc); setPage(String(doc.progress)); }}/>}
     {busy && <p role="status">Importing locally…</p>}

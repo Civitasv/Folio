@@ -153,3 +153,27 @@ it('suppresses untrusted publisher and OA URLs in locally reopened metadata',asy
  expect(screen.queryByRole('link',{name:'Open-access source'})).toBeNull();
  expect(screen.queryByText('Import open-access PDF')).toBeNull();
 });
+
+it('aborts an old lookup on reference switch and ignores a late successful response',async()=>{
+ const f=fixture();let finish!:(value:DoiMetadata)=>void;
+ vi.mocked(f.platform.resolveDoi).mockImplementationOnce(()=>new Promise(resolve=>{finish=resolve;}));
+ const view=render(<DoiPanel {...f}/>);
+ fireEvent.change(screen.getByLabelText('DOI'),{target:{value:doi}});
+ fireEvent.click(screen.getByText('Resolve DOI'));
+ expect(await screen.findByText(/Resolving DOI/)).toBeTruthy();
+ view.rerender(<DoiPanel {...f} referenceId={ref.id}/>);
+ expect(await screen.findByText('Saved DOI reference')).toBeTruthy();
+ await act(async()=>finish(metadata));
+ expect(screen.queryByRole('alert')).toBeNull();
+ expect(screen.getByText('Example article')).toBeTruthy();
+});
+it('aborts a pending download when the DOI component unmounts, without rendering a stale result',async()=>{
+ const f=fixture();let finish!:(value:typeof pdf)=>void;
+ vi.mocked(f.platform.importOpenPdf).mockImplementationOnce(()=>new Promise(resolve=>{finish=resolve;}));
+ const view=render(<DoiPanel {...f}/>);
+ fireEvent.change(screen.getByLabelText('DOI'),{target:{value:doi}});
+ fireEvent.click(screen.getByText('Resolve DOI'));await screen.findByText('Example article');
+ fireEvent.click(screen.getByText('Import open-access PDF'));await screen.findByText(/Importing open-access PDF/);
+ view.unmount();await act(async()=>finish(pdf));
+ expect(f.onImported).not.toHaveBeenCalled();
+});
