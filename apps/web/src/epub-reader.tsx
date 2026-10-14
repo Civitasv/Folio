@@ -38,7 +38,8 @@ export function EpubReader({doc,platform,onRefresh}:{doc:DocumentSummary;platfor
     finally{setBusy(false);}
   }
   if(!saved)return <section aria-label="EPUB reader">{error ? <p role="alert">{error}</p> : <p>Loading EPUB…</p>}</section>;
-  const chapters=saved.book.chapters;
+  const current=saved;
+  const chapters=current.book.chapters;
   const index=saved.anchor.spineIndex;
   const chapter=saved.book.chapters[index];
   const style=themes[saved.preferences.theme];
@@ -46,27 +47,27 @@ export function EpubReader({doc,platform,onRefresh}:{doc:DocumentSummary;platfor
   function tocButtons(items:EpubTocItem[]):React.ReactNode {
     return items.map((item,i)=>{
       const dest=chapters.findIndex(part=>part.href===item.href);
-      return <li key={item.href+item.label+i}>{dest>=0?<button disabled={busy} onClick={()=>void navigate(saved,dest)}>{item.label}</button>:<span>{item.label}</span>}
+      return <li key={item.href+item.label+i}>{dest>=0?<button disabled={busy} onClick={()=>void navigate(current,dest)}>{item.label}</button>:<span>{item.label}</span>}
         {item.children.length>0&&<ul>{tocButtons(item.children)}</ul>}</li>;
     });
   }
   return <section aria-label="EPUB reader">
     <h3>{saved.book.metadata.title || doc.title}</h3>
     <p>{saved.book.metadata.creators.join(', ')}</p>
-    <nav aria-label="EPUB chapters"><button disabled={busy||index===0} onClick={()=>void navigate(saved,index-1)}>Previous chapter</button>
+    <nav aria-label="EPUB chapters"><button disabled={busy||index===0} onClick={()=>void navigate(current,index-1)}>Previous chapter</button>
       <span> Chapter {index+1} of {saved.book.chapters.length} </span>
-      <button disabled={busy||index===saved.book.chapters.length-1} onClick={()=>void navigate(saved,index+1)}>Next chapter</button></nav>
+      <button disabled={busy||index===saved.book.chapters.length-1} onClick={()=>void navigate(current,index+1)}>Next chapter</button></nav>
     <div><label>Font size <input aria-label="EPUB font size" type="range" min="14" max="26" step="1" disabled={busy}
-      value={saved.preferences.fontSize} onChange={event=>void prefs(saved,Number(event.target.value),saved.preferences.theme)}/></label>
+      value={saved.preferences.fontSize} onChange={event=>void prefs(current,Number(event.target.value),saved.preferences.theme)}/></label>
       <label> Theme <select aria-label="EPUB theme" disabled={busy} value={saved.preferences.theme}
-        onChange={event=>void prefs(saved,saved.preferences.fontSize,event.target.value as EpubTheme)}>
+        onChange={event=>void prefs(current,saved.preferences.fontSize,event.target.value as EpubTheme)}>
         <option value="light">Light</option><option value="sepia">Sepia</option><option value="dark">Dark</option></select></label></div>
     {error&&<p role="alert">{error}</p>}
     <iframe title="EPUB chapter" sandbox="" referrerPolicy="no-referrer" srcDoc={html}
       style={{width:'100%',height:'70vh',border:'1px solid #ddd'}} />
     <details><summary>Table of contents</summary>
       <ul>{saved.book.metadata.toc.length?tocButtons(saved.book.metadata.toc):saved.book.chapters.map((part,i)=><li key={part.id}>
-        <button disabled={busy} onClick={()=>void navigate(saved,i)}>Chapter {i+1}</button></li>)}</ul></details>
+        <button disabled={busy} onClick={()=>void navigate(current,i)}>Chapter {i+1}</button></li>)}</ul></details>
     <p>Reading position is saved locally by chapter; publication scripts, styles and remote resources are disabled.</p>
   </section>;
 }
