@@ -1,5 +1,8 @@
 import {expect,it,vi} from 'vitest';
 import {createTranslationIndexedDb} from './translation-indexeddb';
+import {browserTranslationPlatform} from './index';
+import {afterEach} from 'vitest';
+afterEach(()=>vi.unstubAllGlobals());
 import type {LanguagePreferences,TranslationEntry} from '@folio/core';
 type Outcome='ok'|'open-error'|'blocked'|'tx-error'|'tx-abort';
 function fake(outcome:Outcome='ok',error=true){
@@ -66,4 +69,11 @@ it.each(['tx-error','tx-abort'] as const)('does not claim committed write on %s'
    outcome==='tx-error'?'Translation transaction failed':'Translation transaction aborted');
   expect(f.close).toHaveBeenCalledOnce();
  }
+});
+
+it('exercises the browser translation adapter through its lazy IndexedDB factory',async()=>{
+ const f=fake();
+ vi.stubGlobal('indexedDB',f.factory);
+ expect((await browserTranslationPlatform.getLanguages()).target).toBe('zh-Hans');
+ expect(f.open).toHaveBeenCalledWith('folio-translation-preview',1);
 });

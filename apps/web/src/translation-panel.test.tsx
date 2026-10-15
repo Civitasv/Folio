@@ -126,3 +126,43 @@ it('renders empty EPUB chapter translation context and ignores a late preference
  await screen.findByLabelText('Source language');
  expect(screen.queryByText('Save local translation')).toBeNull();
 });
+
+it('rehydrates an exact cached draft offline without sending text to any provider',async()=>{
+ const f=fixture();
+ await f.platform.saveManualTranslation({documentId:doc.id,unit:u,source:'en',target:'fr',providerId:'manual',
+ model:'local-draft',promptVersion:'f01d-v1'},'Cached Bonjour');
+ render(<TranslationPanel doc={doc} platform={f.platform} units={[u]}/>);
+ await waitFor(()=>expect(screen.getByTestId('translation-result')).toHaveProperty('textContent','Cached Bonjour'));
+ expect(screen.getByLabelText('Manual translation')).toHaveProperty('value','Cached Bonjour');
+ expect(f.platform.translate).not.toHaveBeenCalled();
+});
+it('cleans up pending provider requests and discards a late settings failure after unmount',async()=>{
+ const f=fixture(),controllerSignal:AbortSignal[]=[];
+ const mock={...provider,translate:vi.fn((_req:unknown,signal:AbortSignal)=>new Promise<string>((_resolve,reject)=>{
+  controllerSignal.push(signal);signal.addEventListener('abort',()=>reject(Error('cancelled')));
+ }))};
+ vi.spyOn(window,'confirm').mockReturnValue(true);
+ const page=render(<TranslationPanel doc={doc} platform={f.platform} units={[u]} provider={mock}/>);
+ await screen.findByLabelText('Translation method');
+ fireEvent.change(screen.getByLabelText('Translation method'),{target:{value:'provider'}});
+ fireEvent.click(screen.getByText('Translate displayed excerpt'));
+ expect(await screen.findByText('Cancel translation')).toBeTruthy();
+ page.unmount();expect(controllerSignal[0].aborted).toBe(true);
+ let reject!:(error:Error)=>void;
+ vi.mocked(f.platform.getLanguages).mockImplementationOnce(()=>new Promise((_resolve,fail)=>{reject=fail;}));
+ const stale=render(<TranslationPanel doc={doc} platform={f.platform} units={[u]}/>);
+ stale.unmount();await act(async()=>reject(Error('late storage failure')));
+});
+it('does not apply cache errors after unmount or lose manual mode when a provider disappears',async()=>{
+ const f=fixture();let reject!:(e:Error)=>void;
+ vi.mocked(f.platform.findTranslation).mockImplementationOnce(()=>new Promise((_resolve,fail)=>{reject=fail;}));
+ const view=render(<TranslationPanel doc={doc} platform={f.platform} units={[u]} provider={provider}/>);
+ await waitFor(()=>expect(f.platform.findTranslation).toHaveBeenCalledOnce());
+ view.unmount();await act(async()=>reject(Error('late cache failure')));
+ const second=render(<TranslationPanel doc={doc} platform={f.platform} units={[u]} provider={provider}/>);
+ await screen.findByLabelText('Translation method');
+ fireEvent.change(screen.getByLabelText('Translation method'),{target:{value:'provider'}});
+ second.rerender(<TranslationPanel doc={doc} platform={f.platform} units={[u]}/>);
+ expect(screen.queryByLabelText('Translation method')).toBeNull();
+ expect(screen.getByLabelText('Manual translation')).toBeTruthy();
+});

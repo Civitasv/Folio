@@ -17,7 +17,6 @@ export function canonicalLanguage(value: string, allowAuto=false): string {
  if(value==='auto'){if(allowAuto)return value;throw Error('Invalid language tag');}
  try {
   const tags=Intl.getCanonicalLocales(value);
-  if(tags.length!==1)throw Error('invalid');
   return tags[0];
  }catch{throw Error('Invalid language tag');}
 }
@@ -48,7 +47,7 @@ export function translationIdentity(value: TranslationIdentity): TranslationIden
 export function epubContentUnits(html: string,spineIndex: number,cfi: string): ContentUnit[] {
  const doc=new DOMParser().parseFromString(html,'text/html');
  const tags='h1,h2,h3,h4,h5,h6,p,blockquote,li,pre';
- return Array.from(doc.body.querySelectorAll(tags)).filter(el=>!el.parentElement?.closest(tags))
-  .map((el,index)=>({anchor:{kind:'epub' as const,spineIndex,cfi},unitIndex:index,text:(el.textContent??'').trim()}))
+ return Array.from(doc.body.querySelectorAll(tags)).filter(el=>!el.parentElement!.closest(tags))
+  .map((el,index)=>({anchor:{kind:'epub' as const,spineIndex,cfi},unitIndex:index,text:el.textContent!.trim()}))
   .filter(unit=>unit.text.length>0 && unit.text.length<=4000);
 }

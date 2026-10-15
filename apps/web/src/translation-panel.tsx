@@ -16,21 +16,22 @@ export function TranslationPanel({doc,units,platform,provider}:{doc:DocumentSumm
  const [busy,setBusy]=React.useState(false);
  const controller=React.useRef<AbortController|null>(null);
  React.useEffect(()=>{
-  let live=true;controller.current?.abort();setReady(false);setError('');setEntry(undefined);
+  let live=true;setReady(false);setError('');setEntry(undefined);
   void platform.getLanguages().then(value=>{if(live){setPrefs(value);setReady(true);}}).catch(()=>{
    if(live)setError('Cannot load translation preferences.');
   });
   return ()=>{live=false;controller.current?.abort();};
  },[platform,doc.id]);
  const unit=units ? units[unitIndex] : {anchor:{kind:'pdf' as const,page:doc.progress},unitIndex:0,text:excerpt};
+ const useProvider=mode==='provider' && provider!==undefined;
  const identity:TranslationIdentity|undefined=unit?{
   documentId:doc.id,unit,source:prefs.source,target:prefs.target,
-  providerId:mode==='manual'?'manual':provider?.id??'unavailable',
-  model:mode==='manual'?'local-draft':provider?.model??'unavailable',
+  providerId:useProvider?provider.id:'manual',
+  model:useProvider?provider.model:'local-draft',
   promptVersion:TRANSLATION_PROMPT_VERSION
  }:undefined;
  React.useEffect(()=>{
-  let live=true;setEntry(undefined);setNotice('');
+  let live=true;setEntry(undefined);setDraft('');setNotice('');
   if(ready&&identity&&unit.text.trim()) void platform.findTranslation(identity).then(value=>{
    if(live){setEntry(value);setDraft(value?.translatedText??'');}
   }).catch(()=>{if(live)setError('Cannot read local translation cache.');});
@@ -42,19 +43,17 @@ export function TranslationPanel({doc,units,platform,provider}:{doc:DocumentSumm
   try{const result=await platform.setLanguages(next);setPrefs(result);}
   catch{setError('Invalid language preferences or local storage unavailable.');}
  }
- async function saveManual(){
-  if(!identity)return;
+ async function saveManual(selected:TranslationIdentity){
   setBusy(true);setError('');setNotice('');
-  try{const saved=await platform.saveManualTranslation(identity,draft);setEntry(saved);setNotice('Local translation draft saved.');}
+  try{const saved=await platform.saveManualTranslation(selected,draft);setEntry(saved);setNotice('Local translation draft saved.');}
   catch{setError('Unable to save translation (check text, language or storage).');}
   finally{setBusy(false);}
  }
- async function translate(){
-  if(!identity||!provider)return;
+ async function translate(selected:TranslationIdentity,activeProvider:TranslationProvider){
   if(!window.confirm('Send only the displayed excerpt to the selected provider? The provider may use a remote service.'))return;
   const pending=new AbortController();controller.current=pending;setBusy(true);setError('');setNotice('');
   try{
-   const result=await platform.translate(identity,provider,pending.signal);
+   const result=await platform.translate(selected,activeProvider,pending.signal);
    if(!pending.signal.aborted){setEntry(result);setNotice('Provider translation saved locally.');}
   }catch{setError(pending.signal.aborted?'Translation cancelled.':'Provider translation failed. Retry or use a local draft.');}
   finally{controller.current=null;setBusy(false);}
@@ -87,10 +86,10 @@ export function TranslationPanel({doc,units,platform,provider}:{doc:DocumentSumm
     {(prefs.view!=='translation')&&<div><strong>Original</strong><p data-testid="translation-original">{unit.text}</p></div>}
     {(prefs.view!=='original')&&<div><strong>{entry?.provenance==='provider'?'Provider translation':'Local draft / cached translation'}</strong>
       <p data-testid="translation-result">{entry?.translatedText??'No cached translation for this exact text and settings.'}</p></div>}
-    {mode==='manual'?<><label>Write translated text locally <textarea aria-label="Manual translation" value={draft}
+    {!useProvider?<><label>Write translated text locally <textarea aria-label="Manual translation" value={draft}
       disabled={busy} onChange={e=>setDraft(e.target.value)} maxLength={16000}/></label>
-      <button disabled={busy||!unit.text.trim()||!draft.trim()} onClick={()=>void saveManual()}>Save local translation</button></>:
-      <button disabled={busy||!unit.text.trim()} onClick={()=>void translate()}>Translate displayed excerpt</button>}
+      <button disabled={busy||!unit.text.trim()||!draft.trim()} onClick={()=>void saveManual(identity!)}>Save local translation</button></>:
+      <button disabled={busy||!unit.text.trim()} onClick={()=>void translate(identity!,provider!)}>Translate displayed excerpt</button>}
     {busy&&<button onClick={()=>controller.current?.abort()}>Cancel translation</button>}
    </>}
   </>}
