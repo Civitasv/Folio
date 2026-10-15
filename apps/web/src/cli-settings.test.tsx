@@ -99,3 +99,15 @@ it('handles an installed CLI without a version string',async()=>{
  const f=fixture({installed:true,authenticated:true,version:''});render(<CliProviderSettings {...f}/>);
  fireEvent.click(screen.getByText('Check Codex CLI'));expect(await screen.findByText(/Installed version: unknown/)).toBeTruthy();
 });
+
+it('activates the native CLI bridge only when Tauri is available at module import',async()=>{
+ vi.resetModules();
+ const invoke=vi.fn(async(name:string)=>name==='folio_cli_status'?{installed:true,authenticated:true,version:'codex'}:null);
+ vi.stubGlobal('__TAURI__',{core:{invoke}});
+ const module=await import('./cli-settings');
+ const view=render(<module.CliProviderSettings onChange={vi.fn()}/>);
+ fireEvent.click(screen.getByText('Check Codex CLI'));
+ await screen.findByText(/appears installed and signed in/);
+ expect(invoke).toHaveBeenCalledWith('folio_cli_status');
+ view.unmount();vi.resetModules();vi.unstubAllGlobals();
+});

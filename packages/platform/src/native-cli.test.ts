@@ -1,5 +1,5 @@
 import {afterEach,expect,it,vi} from 'vitest';
-import {createCliBridge,browserCliAvailability} from './native-cli';
+import {createCliBridge,browserCliAvailability,normalizeCliFailure} from './native-cli';
 afterEach(()=>vi.unstubAllGlobals());
 const request={text:'Hello',source:'en',target:'fr',promptVersion:'f01f-v1'};
 it('never offers CLI in a plain browser and can report native availability explicitly',()=>{
@@ -47,4 +47,10 @@ it('rejects invalid output and preserves native process errors and cancellation'
  const job=createCliBridge(invoke).translate('m',request,controller.signal);
  controller.abort();reject(Error('cancelled by native CLI'));
  await expect(job).rejects.toThrow('cancelled');
+});
+
+it('normalizes a rejected CLI command using the caller cancellation state',()=>{
+ const source=Error('Codex not logged in');
+ expect(normalizeCliFailure(source,false)).toBe(source);
+ expect((normalizeCliFailure(source,true) as Error).message).toBe('Codex translation cancelled');
 });

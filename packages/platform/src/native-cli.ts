@@ -1,6 +1,7 @@
 import type {CliBridge,CliStatus} from './cli-provider';
 import {nativeInvoke} from './native-api';
 type Invoke=(name:string,args?:Record<string,unknown>)=>Promise<unknown>;
+export function normalizeCliFailure(error:unknown,cancelled:boolean):unknown {return cancelled?Error('Codex translation cancelled'):error;}
 export function createCliBridge(invoke:Invoke):CliBridge {
  return {
   async status(){
@@ -18,7 +19,8 @@ export function createCliBridge(invoke:Invoke):CliBridge {
    signal.addEventListener('abort',cancel,{once:true});
    try{
     const result=await invoke('folio_cli_translate',{model,source:request.source,target:request.target,
-     text:request.text,promptVersion:request.promptVersion,requestId});
+     text:request.text,promptVersion:request.promptVersion,requestId})
+       .catch(error=>Promise.reject(normalizeCliFailure(error,signal.aborted)));
     if(signal.aborted)throw Error('Codex translation cancelled');
     if(typeof result!=='string'||!result.trim())throw Error('Codex returned no translation');
     return result.trim();

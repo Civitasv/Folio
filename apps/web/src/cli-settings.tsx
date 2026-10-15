@@ -27,7 +27,7 @@ export function CliProviderSettings({onChange,bridge=runtimeBridge}:{onChange:(p
   setError('');
   try{const provider=createCodexProvider(model,bridge!);
    setActive(provider);onChange(provider);setNotice('Codex CLI selected. Each excerpt requires confirmation; inference may be remote.');
-  }catch(reason){setError(reason instanceof Error?reason.message:'Unable to activate Codex CLI');}
+  }catch(reason){setError((reason as Error).message);}
  }
  async function probe(selected:TranslationProvider){
   if(!window.confirm('Run a small Codex translation to check model access? This may use your CLI plan or provider quota.'))return;
