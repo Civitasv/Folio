@@ -91,7 +91,7 @@ it('aligns EPUB chapter units in translation panel as the reader navigates',asyn
  expect(await screen.findByTestId('translation-original')).toHaveProperty('textContent','First chapter');
  fireEvent.click(screen.getByText('Next chapter'));
  await waitFor(()=>expect(screen.getByTestId('translation-original')).toHaveProperty('textContent','Second chapter'));
- expect(translationPlatform.findTranslation).toHaveBeenCalledWith(expect.objectContaining({
+ await waitFor(()=>expect(translationPlatform.findTranslation).toHaveBeenCalledWith(expect.objectContaining({
   unit:{anchor:{kind:'epub',spineIndex:1,cfi:'epubcfi(/6/4)'},unitIndex:0,text:'Second chapter'}
- }));
+ })));
 });
