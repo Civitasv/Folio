@@ -61,7 +61,7 @@ export function createApiProvider(config:ApiConfig,key:()=>string,fetcher:ApiFet
   if(signal.aborted)throw Error('Translation cancelled');
   const timer=new AbortController(),abort=()=>timer.abort();signal.addEventListener('abort',abort,{once:true});
   const timeout=setTimeout(abort,20000);
-  try{
+  const run=async()=>{
    const response=await fetcher(normalized.endpoint+'/chat/completions',{method:'POST',
     headers:{Authorization:'Bearer '+secret,'Content-Type':'application/json','Accept':'application/json'},
     body:JSON.stringify({model:normalized.model,messages:translationMessages(request),stream:false,max_tokens:1024}),
@@ -73,8 +73,9 @@ export function createApiProvider(config:ApiConfig,key:()=>string,fetcher:ApiFet
    const content=apiResponseText(await limitedJson(response));
    if(signal.aborted)throw Error('Translation cancelled');
    return content;
-  }catch(error){throw normalizeApiFailure(error,signal.aborted,timer.signal.aborted);}
-  finally{clearTimeout(timeout);signal.removeEventListener('abort',abort);}
+  };
+  return run().catch(error=>Promise.reject(normalizeApiFailure(error,signal.aborted,timer.signal.aborted)))
+   .finally(()=>{clearTimeout(timeout);signal.removeEventListener('abort',abort);});
  }};
 }
 export function createNativeApiProvider(config:ApiConfig,bridge:NativeApiBridge):TranslationProvider{

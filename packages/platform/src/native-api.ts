@@ -19,12 +19,12 @@ export function createNativeApiBridge(invoke:Invoke):NativeApiBridge {
    signal.addEventListener('abort',abort,{once:true});
    try{
     const result=await invoke('folio_api_translate',{endpoint:config.endpoint,model:config.model,
-      text:request.text,source:request.source,target:request.target,promptVersion:request.promptVersion,requestId});
+      text:request.text,source:request.source,target:request.target,promptVersion:request.promptVersion,requestId})
+      .catch(error=>Promise.reject(normalizeNativeFailure(error,signal.aborted)));
     if(signal.aborted)throw Error('Translation cancelled');
     if(typeof result!=='string'||!result.trim())throw Error('Missing API translation');
     return result.trim();
-   }catch(error){throw normalizeNativeFailure(error,signal.aborted);}
-   finally{signal.removeEventListener('abort',abort);}
+   }finally{signal.removeEventListener('abort',abort);}
   }
  };
 }
