@@ -52,7 +52,7 @@ export function TranslationPanel({doc,units,platform,provider}:{doc:DocumentSumm
   finally{setBusy(false);}
  }
  async function translate(selected:TranslationIdentity,activeProvider:TranslationProvider){
-  if(!window.confirm('Send only the displayed excerpt to the selected provider? The provider may use a remote service.'))return;
+  if(!window.confirm('Send only the displayed excerpt to the selected provider? '+(activeProvider.dataFlow??'The provider may use a remote service.')))return;
   const pending=new AbortController();controller.current=pending;setBusy(true);setError('');setNotice('');
   try{
    const result=await platform.translate(selected,activeProvider,pending.signal);
