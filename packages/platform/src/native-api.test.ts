@@ -1,5 +1,5 @@
 import {afterEach,expect,it,vi} from 'vitest';
-import {createNativeApiBridge,nativeInvoke} from './native-api';
+import {createNativeApiBridge,nativeInvoke,normalizeNativeFailure} from './native-api';
 afterEach(()=>vi.unstubAllGlobals());
 it('does not invent a desktop bridge in normal browser context',()=>{
  vi.stubGlobal('__TAURI__',undefined);expect(nativeInvoke()).toBeUndefined();
@@ -65,4 +65,10 @@ it('does not overwrite the native invocation error when the caller did not cance
  const invoke=vi.fn(async(name:string)=>{if(name==='folio_api_translate')throw Error('transport failure');return null;});
  const bridge=createNativeApiBridge(invoke);
  await expect(bridge.translate({endpoint:'x',model:'m'},{text:'x',source:'en',target:'fr',promptVersion:'v'},new AbortController().signal)).rejects.toThrow('transport failure');
+});
+
+it('preserves native errors unless the user cancelled the request',()=>{
+ const error=Error('keychain unavailable');
+ expect(normalizeNativeFailure(error,false)).toBe(error);
+ expect((normalizeNativeFailure(error,true) as Error).message).toBe('Translation cancelled');
 });

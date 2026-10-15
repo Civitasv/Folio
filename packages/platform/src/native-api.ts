@@ -1,5 +1,8 @@
 import type {ApiConfig,NativeApiBridge} from './api-provider';
 type Invoke=(name:string,args?:Record<string,unknown>)=>Promise<unknown>;
+export function normalizeNativeFailure(error:unknown,cancelled:boolean):unknown{
+ return cancelled?Error('Translation cancelled'):error;
+}
 export function nativeInvoke():Invoke|undefined {
  const holder=globalThis as typeof globalThis & {__TAURI__?:{core?:{invoke?:Invoke}}};
  return holder.__TAURI__?.core?.invoke;
@@ -20,7 +23,7 @@ export function createNativeApiBridge(invoke:Invoke):NativeApiBridge {
     if(signal.aborted)throw Error('Translation cancelled');
     if(typeof result!=='string'||!result.trim())throw Error('Missing API translation');
     return result.trim();
-   }catch(error){throw signal.aborted?Error('Translation cancelled'):error;}
+   }catch(error){throw normalizeNativeFailure(error,signal.aborted);}
    finally{signal.removeEventListener('abort',abort);}
   }
  };

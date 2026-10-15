@@ -8,6 +8,12 @@ export interface NativeApiBridge {
  translate(config:ApiConfig,request:{text:string;source:string;target:string;promptVersion:string},signal:AbortSignal):Promise<string>;
 }
 const MAX_REPLY=256*1024;
+/** Consistent cancellation/timeout precedence shared by API request paths. */
+export function normalizeApiFailure(error:unknown,cancelled:boolean,timedOut:boolean):unknown {
+ if(cancelled)return Error('Translation cancelled');
+ if(timedOut)return Error('API timeout');
+ return error;
+}
 export function normalizeApiConfig(input:ApiConfig):ApiConfig{
  let url:URL;
  try{url=new URL(input.endpoint.trim());}catch{throw Error('Invalid API endpoint');}
@@ -67,7 +73,7 @@ export function createApiProvider(config:ApiConfig,key:()=>string,fetcher:ApiFet
    const content=apiResponseText(await limitedJson(response));
    if(signal.aborted)throw Error('Translation cancelled');
    return content;
-  }catch(error){if(timer.signal.aborted)throw Error(signal.aborted?'Translation cancelled':'API timeout');throw error;}
+  }catch(error){throw normalizeApiFailure(error,signal.aborted,timer.signal.aborted);}
   finally{clearTimeout(timeout);signal.removeEventListener('abort',abort);}
  }};
 }

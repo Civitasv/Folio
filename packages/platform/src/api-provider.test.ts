@@ -1,5 +1,5 @@
 import {afterEach,expect,it,vi} from 'vitest';
-import {apiResponseText,createApiProvider,createNativeApiProvider,normalizeApiConfig,testApiConnection,translationMessages} from './api-provider';
+import {apiResponseText,createApiProvider,createNativeApiProvider,normalizeApiConfig,testApiConnection,translationMessages,normalizeApiFailure} from './api-provider';
 afterEach(()=>{vi.useRealTimers();vi.restoreAllMocks();});
 const config={endpoint:'https://api.example.org/v1',model:'model-1'};
 const request={text:'Line [1]',source:'en',target:'fr',promptVersion:'f01d-v1'};
@@ -104,4 +104,11 @@ it('returns provider-specific failures on malformed stream and rejected fetch wi
   pull(controller){controller.error(Error('stream failure'));}
  },{highWaterMark:0})));
  await expect(createApiProvider(config,()=>'key',fetcher).translate(request,new AbortController().signal)).rejects.toThrow('stream failure');
+});
+
+it('classifies timeout, explicit abort and normal API errors consistently',()=>{
+ const source=Error('network');
+ expect((normalizeApiFailure(source,true,true) as Error).message).toBe('Translation cancelled');
+ expect((normalizeApiFailure(source,false,true) as Error).message).toBe('API timeout');
+ expect(normalizeApiFailure(source,false,false)).toBe(source);
 });
