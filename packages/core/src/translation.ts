@@ -14,7 +14,7 @@ export const DEFAULT_LANGUAGE_PREFERENCES: LanguagePreferences = {source:'auto',
 export const LANGUAGE_OPTIONS = [{tag:'auto',label:'Auto-detect'},{tag:'en',label:'English'},{tag:'zh-Hans',label:'简体中文'},
  {tag:'zh-Hant',label:'繁體中文'},{tag:'fr',label:'Français'},{tag:'ja',label:'日本語'},{tag:'de',label:'Deutsch'},{tag:'es',label:'Español'}] as const;
 export function canonicalLanguage(value: string, allowAuto=false): string {
- if(allowAuto && value==='auto')return value;
+ if(value==='auto'){if(allowAuto)return value;throw Error('Invalid language tag');}
  try {
   const tags=Intl.getCanonicalLocales(value);
   if(tags.length!==1)throw Error('invalid');
