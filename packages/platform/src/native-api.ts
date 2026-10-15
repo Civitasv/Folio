@@ -20,8 +20,7 @@ export function createNativeApiBridge(invoke:Invoke):NativeApiBridge {
     if(signal.aborted)throw Error('Translation cancelled');
     if(typeof result!=='string'||!result.trim())throw Error('Missing API translation');
     return result.trim();
-   }catch(error){if(signal.aborted)throw Error('Translation cancelled');throw error;}
-   finally{signal.removeEventListener('abort',abort);}
+   }finally{signal.removeEventListener('abort',abort);}
   }
  };
 }

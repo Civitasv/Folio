@@ -67,7 +67,7 @@ export function createApiProvider(config:ApiConfig,key:()=>string,fetcher:ApiFet
    const content=apiResponseText(await limitedJson(response));
    if(signal.aborted)throw Error('Translation cancelled');
    return content;
-  }catch(error){if(signal.aborted)throw Error('Translation cancelled');if(timer.signal.aborted)throw Error('API timeout');throw error;}
+  }catch(error){if(timer.signal.aborted)throw Error(signal.aborted?'Translation cancelled':'API timeout');throw error;}
   finally{clearTimeout(timeout);signal.removeEventListener('abort',abort);}
  }};
 }
