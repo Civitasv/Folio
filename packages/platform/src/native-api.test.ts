@@ -60,3 +60,9 @@ it('swallows cancellation-notification errors without unhandled provider outcome
  controller.abort();finish('late');
  await expect(work).rejects.toThrow('cancelled');
 });
+
+it('does not overwrite the native invocation error when the caller did not cancel',async()=>{
+ const invoke=vi.fn(async(name:string)=>{if(name==='folio_api_translate')throw Error('transport failure');return null;});
+ const bridge=createNativeApiBridge(invoke);
+ await expect(bridge.translate({endpoint:'x',model:'m'},{text:'x',source:'en',target:'fr',promptVersion:'v'},new AbortController().signal)).rejects.toThrow('transport failure');
+});

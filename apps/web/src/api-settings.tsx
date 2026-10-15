@@ -23,7 +23,7 @@ export function ApiProviderSettings({onChange,bridge=runtimeBridge,
   return ()=>{live=false;controller.current?.abort();};
  },[bridge]);
  function edit(callback:()=>void){
-  controller.current?.abort();setConnected(false);setSelected(undefined);onChange(undefined);setStatus('');setError('');
+  setConnected(false);setSelected(undefined);onChange(undefined);setStatus('');setError('');
   callback();
  }
  async function activate(){
@@ -47,7 +47,7 @@ export function ApiProviderSettings({onChange,bridge=runtimeBridge,
   finally{controller.current=null;setBusy(false);}
  }
  async function clear(){
-  setError('');setStatus('');setBusy(true);controller.current?.abort();
+  setError('');setStatus('');setBusy(true);
   try{if(bridge)await bridge.clearKey();setKey('');setSelected(undefined);setConnected(false);onChange(undefined);
    setStatus('API credential cleared.');}
   catch{setError('Unable to clear the OS credential.');}

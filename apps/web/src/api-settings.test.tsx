@@ -136,3 +136,16 @@ it('aborts an in-flight probe when provider panel unmounts and ignores late stat
  fireEvent.click(screen.getByText(/Test connection/));await screen.findByText('Cancel connection test');
  page.unmount();await act(async()=>finish('Late'));expect(bridge.translate).toHaveBeenCalledOnce();
 });
+
+it('activates the default native Tauri bridge when the global API exists at module evaluation',async()=>{
+ vi.resetModules();
+ const invoke=vi.fn(async(name:string)=>{
+  if(name==='folio_api_has_key')return true;
+  return null;
+ });
+ vi.stubGlobal('__TAURI__',{core:{invoke}});
+ const module=await import('./api-settings');
+ const view=render(<module.ApiProviderSettings onChange={vi.fn()}/>);
+ expect(await screen.findByText(/A desktop credential is stored/)).toBeTruthy();
+ view.unmount();vi.resetModules();vi.unstubAllGlobals();
+});

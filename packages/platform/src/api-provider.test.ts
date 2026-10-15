@@ -84,7 +84,7 @@ it('rejects if aborted immediately after fetch settles or after body parsing, wi
  await expect(p1.translate(request,first.signal)).rejects.toThrow('cancelled');
  const second=new AbortController();
  const data=JSON.stringify({choices:[{message:{content:'Bonjour'}}]});
- const body=new ReadableStream<Uint8Array>({pull(controller){second.abort();controller.enqueue(new TextEncoder().encode(data));controller.close();}});
+ const body=new ReadableStream<Uint8Array>({pull(controller){second.abort();controller.enqueue(new TextEncoder().encode(data));controller.close();}},{highWaterMark:0});
  const p2=createApiProvider(config,()=>'key',vi.fn(async()=>new Response(body)));
  await expect(p2.translate(request,second.signal)).rejects.toThrow('cancelled');
 });
@@ -97,4 +97,11 @@ it('uses a finite timeout even when fetch does not settle until aborted',async()
  const assertion=expect(result).rejects.toThrow('API timeout');
  await vi.advanceTimersByTimeAsync(20001);
  await assertion;
+});
+
+it('returns provider-specific failures on malformed stream and rejected fetch without pretending timeout',async()=>{
+ const fetcher=vi.fn(async()=>new Response(new ReadableStream<Uint8Array>({
+  pull(controller){controller.error(Error('stream failure'));}
+ },{highWaterMark:0})));
+ await expect(createApiProvider(config,()=>'key',fetcher).translate(request,new AbortController().signal)).rejects.toThrow('stream failure');
 });
