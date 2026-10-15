@@ -14,7 +14,7 @@ const SAFE_ENV:&[&str]=&["PATH","HOME","USERPROFILE","APPDATA","LOCALAPPDATA","X
 fn codex_command()->Command{let mut cmd=Command::new("codex");cmd.env_clear();for key in SAFE_ENV{if let Some(value)=std::env::var_os(key){cmd.env(key,value);}}cmd}
 
 fn valid_model(model:&str)->bool{
- !model.is_empty() && model.len()<=100 &&
+ !model.is_empty() && model.len()<=100 && model.as_bytes()[0].is_ascii_alphanumeric() &&
  model.bytes().all(|c|c.is_ascii_alphanumeric() || b"._:/-".contains(&c))
 }
 fn valid_id(id:&str)->bool{(8..=80).contains(&id.len()) &&
