@@ -1,6 +1,6 @@
 import React from 'react';
 import { chapterCfi,epubContentUnits, type DocumentSummary, type EpubTocItem, type TranslationProvider } from '@folio/core';
-import type { EpubReaderPlatform, EpubTheme, SavedEpub } from '@folio/platform';
+import type { EpubReaderPlatform, EpubTheme, SavedEpub, TranslationPlatform } from '@folio/platform';
 
 import {TranslationPanel} from './translation-panel';
 const themes: Record<EpubTheme,{background:string;color:string}> = {
