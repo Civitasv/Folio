@@ -85,3 +85,54 @@ it('handles provider health errors and explicit cancellation without leaking a s
  expect(await screen.findByRole('alert')).toHaveProperty('textContent','service denied');
  expect(confirm).toHaveBeenCalledOnce();
 });
+
+it('uses a previously saved desktop credential without requiring re-entry',async()=>{
+ const bridge:NativeApiBridge={saveKey:vi.fn(async()=>{}),hasKey:vi.fn(async()=>true),
+ clearKey:vi.fn(async()=>{}),translate:vi.fn(async()=> 'Bonjour')};
+ render(<ApiProviderSettings onChange={vi.fn()} bridge={bridge}/>);
+ await screen.findByText(/A desktop credential is stored/);
+ fireEvent.change(screen.getByLabelText('API model'),{target:{value:'model-1'}});
+ fireEvent.click(screen.getByText('Activate API provider'));
+ await screen.findByText(/Desktop provider activated/);
+ expect(bridge.saveKey).not.toHaveBeenCalled();
+});
+it('reveals cancellation and handles non-Error activation, probe and storage failures',async()=>{
+ const bridge:NativeApiBridge={saveKey:vi.fn(async()=>{throw 'denied';}),hasKey:vi.fn(async()=>true),
+ clearKey:vi.fn(async()=>{}),translate:vi.fn(async()=>{throw 'provider down';})};
+ const change=vi.fn();vi.spyOn(window,'confirm').mockReturnValue(true);
+ render(<ApiProviderSettings onChange={change} bridge={bridge}/>);
+ fireEvent.change(screen.getByLabelText('API model'),{target:{value:'model-1'}});
+ fireEvent.change(screen.getByLabelText('API key'),{target:{value:'secret'}});
+ fireEvent.click(screen.getByText('Activate API provider'));
+ expect(await screen.findByRole('alert')).toHaveProperty('textContent','Provider activation failed');
+ vi.mocked(bridge.saveKey).mockResolvedValueOnce();
+ fireEvent.click(screen.getByText('Activate API provider'));
+ await screen.findByText(/Desktop provider activated/);
+ fireEvent.click(screen.getByText(/Test connection/));
+ expect(await screen.findByRole('alert')).toHaveProperty('textContent','Connection test failed');
+});
+it('aborts a running user-initiated connection test via explicit cancel',async()=>{
+ let finish!:(error:Error)=>void;
+ const bridge:NativeApiBridge={saveKey:vi.fn(async()=>{}),hasKey:vi.fn(async()=>true),clearKey:vi.fn(async()=>{}),
+ translate:vi.fn(async(_config,_request,signal)=>new Promise<string>((_resolve,reject)=>{
+  finish=reject;signal.addEventListener('abort',()=>reject(Error('cancelled')));
+ }))};
+ vi.spyOn(window,'confirm').mockReturnValue(true);
+ render(<ApiProviderSettings onChange={vi.fn()} bridge={bridge}/>);
+ fireEvent.change(screen.getByLabelText('API model'),{target:{value:'model-1'}});
+ fireEvent.click(screen.getByText('Activate API provider'));await screen.findByText(/Desktop provider activated/);
+ fireEvent.click(screen.getByText(/Test connection/));expect(await screen.findByText('Cancel connection test')).toBeTruthy();
+ fireEvent.click(screen.getByText('Cancel connection test'));
+ expect(await screen.findByRole('alert')).toHaveProperty('textContent','Connection test cancelled.');
+});
+it('aborts an in-flight probe when provider panel unmounts and ignores late status',async()=>{
+ let finish!:(result:string)=>void;
+ const bridge:NativeApiBridge={saveKey:vi.fn(async()=>{}),hasKey:vi.fn(async()=>true),clearKey:vi.fn(async()=>{}),
+ translate:vi.fn(async()=>new Promise<string>(resolve=>{finish=resolve;}))};
+ vi.spyOn(window,'confirm').mockReturnValue(true);
+ const page=render(<ApiProviderSettings onChange={vi.fn()} bridge={bridge}/>);
+ fireEvent.change(screen.getByLabelText('API model'),{target:{value:'model-1'}});
+ fireEvent.click(screen.getByText('Activate API provider'));await screen.findByText(/Desktop provider activated/);
+ fireEvent.click(screen.getByText(/Test connection/));await screen.findByText('Cancel connection test');
+ page.unmount();await act(async()=>finish('Late'));expect(bridge.translate).toHaveBeenCalledOnce();
+});

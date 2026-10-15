@@ -39,11 +39,10 @@ export function ApiProviderSettings({onChange,bridge=runtimeBridge,
   }catch(reason){setError(reason instanceof Error?reason.message:'Provider activation failed');}
   finally{setBusy(false);}
  }
- async function probe(){
-  if(!selected)return;
+ async function probe(active:TranslationProvider){
   if(!window.confirm('Test connection with a small model request? This may use paid API tokens.'))return;
   const pending=new AbortController();controller.current=pending;setError('');setStatus('');setBusy(true);
-  try{await testApiConnection(selected,pending.signal);setConnected(true);setStatus('Connection test succeeded.');}
+  try{await testApiConnection(active,pending.signal);setConnected(true);setStatus('Connection test succeeded.');}
   catch(reason){setConnected(false);setError(pending.signal.aborted?'Connection test cancelled.':reason instanceof Error?reason.message:'Connection test failed');}
   finally{controller.current=null;setBusy(false);}
  }
@@ -61,7 +60,7 @@ export function ApiProviderSettings({onChange,bridge=runtimeBridge,
   <label>API key ({bridge?'OS credential store':'memory-only browser preview'}) <input aria-label="API key" type="password" autoComplete="off" value={key} disabled={busy}
    onChange={e=>edit(()=>setKey(e.target.value))}/></label>
   <button disabled={busy||!model.trim()} onClick={()=>void activate()}>Activate API provider</button>
-  {selected&&<button disabled={busy} onClick={()=>void probe()}>Test connection (may incur API cost)</button>}
+  {selected&&<button disabled={busy} onClick={()=>void probe(selected)}>Test connection (may incur API cost)</button>}
   {busy&&<button onClick={()=>controller.current?.abort()}>Cancel connection test</button>}
   <button disabled={busy} onClick={()=>void clear()}>Clear API key</button>
   {connected&&<p>Provider reachable at last explicit check.</p>}

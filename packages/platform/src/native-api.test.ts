@@ -42,3 +42,21 @@ it('propagates native invocation errors and invalid output',async()=>{
  const bridge=createNativeApiBridge(vi.fn(async()=>{throw Error('credential locked');}));
  await expect(bridge.translate({endpoint:'x',model:'m'},{text:'x',source:'en',target:'fr',promptVersion:'v'},new AbortController().signal)).rejects.toThrow('credential locked');
 });
+
+it('maps a rejected native invocation after cancellation to a harmless cancellation result',async()=>{
+ let reject!:(value:Error)=>void;
+ const invoke=vi.fn(async(name:string)=>name==='folio_api_translate'?new Promise((_resolve,fail)=>{reject=fail;}):true);
+ const bridge=createNativeApiBridge(invoke),controller=new AbortController();
+ const work=bridge.translate({endpoint:'x',model:'m'},{text:'abc',source:'en',target:'fr',promptVersion:'v'},controller.signal);
+ controller.abort();reject(Error('late failure'));
+ await expect(work).rejects.toThrow('Translation cancelled');
+});
+it('swallows cancellation-notification errors without unhandled provider outcome',async()=>{
+ let finish!:(v:unknown)=>void;
+ const invoke=vi.fn(async(name:string)=>name==='folio_api_translate'?new Promise(resolve=>{finish=resolve;}):
+  Promise.reject(Error('cancel not possible')));
+ const controller=new AbortController(),bridge=createNativeApiBridge(invoke);
+ const work=bridge.translate({endpoint:'x',model:'m'},{text:'abc',source:'en',target:'fr',promptVersion:'v'},controller.signal);
+ controller.abort();finish('late');
+ await expect(work).rejects.toThrow('cancelled');
+});

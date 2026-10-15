@@ -77,3 +77,24 @@ it('desktop bridge preserves model/endpoint identity while keeping stored secret
  expect(await provider.translate(request,new AbortController().signal)).toBe(' Native result ');
  expect(bridge.translate).toHaveBeenCalledWith(config,request,expect.any(AbortSignal));
 });
+
+it('rejects if aborted immediately after fetch settles or after body parsing, without storing output',async()=>{
+ const first=new AbortController();
+ const p1=createApiProvider(config,()=>'key',vi.fn(async()=>{first.abort();return reply({choices:[]});}));
+ await expect(p1.translate(request,first.signal)).rejects.toThrow('cancelled');
+ const second=new AbortController();
+ const data=JSON.stringify({choices:[{message:{content:'Bonjour'}}]});
+ const body=new ReadableStream<Uint8Array>({pull(controller){second.abort();controller.enqueue(new TextEncoder().encode(data));controller.close();}});
+ const p2=createApiProvider(config,()=>'key',vi.fn(async()=>new Response(body)));
+ await expect(p2.translate(request,second.signal)).rejects.toThrow('cancelled');
+});
+it('uses a finite timeout even when fetch does not settle until aborted',async()=>{
+ vi.useFakeTimers();
+ const provider=createApiProvider(config,()=>'key',vi.fn(async(_url:string,options:RequestInit)=>new Promise<Response>((_resolve,reject)=>{
+  options.signal!.addEventListener('abort',()=>reject(Error('aborted')),{once:true});
+ })));
+ const result=provider.translate(request,new AbortController().signal);
+ const assertion=expect(result).rejects.toThrow('API timeout');
+ await vi.advanceTimersByTimeAsync(20001);
+ await assertion;
+});
