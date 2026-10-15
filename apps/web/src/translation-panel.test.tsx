@@ -49,7 +49,7 @@ it('switches target and view, reloads only matching cache, and handles multiple 
  fireEvent.click(screen.getByText('Save local translation'));await screen.findByText('Local translation draft saved.');
  fireEvent.change(screen.getByLabelText('Target language'),{target:{value:'ja'}});
  await waitFor(()=>expect(f.platform.setLanguages).toHaveBeenCalledWith(expect.objectContaining({target:'ja'})));
- expect(screen.getByTestId('translation-result')).toHaveProperty('textContent',expect.stringContaining('No cached translation'));
+ await waitFor(()=>expect(screen.getByTestId('translation-result').textContent).toContain('No cached translation'));
  fireEvent.change(screen.getByLabelText('Translation view'),{target:{value:'original'}});
  await waitFor(()=>expect(f.platform.setLanguages).toHaveBeenCalledWith(expect.objectContaining({view:'original'})));
  expect(screen.queryByTestId('translation-result')).toBeNull();
