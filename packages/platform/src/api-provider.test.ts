@@ -25,7 +25,7 @@ it('checks reply shape without pretending missing outputs are translations',()=>
   expect(()=>apiResponseText(value)).toThrow('Missing API translation');
 });
 it('sends a single bounded user-initiated POST with omitted credentials and forbids redirects',async()=>{
- const fetcher=vi.fn(async()=>reply({choices:[{message:{content:' Bonjour '}}]}));
+ const fetcher=vi.fn(async(_url:string,_options:RequestInit)=>reply({choices:[{message:{content:' Bonjour '}}]}));
  const provider=createApiProvider(config,()=>' test-key ',fetcher);
  expect(fetcher).not.toHaveBeenCalled();
  expect(provider).toMatchObject({id:'api:https://api.example.org/v1',model:'model-1',supportsAutoSource:true});
@@ -38,12 +38,12 @@ it('sends a single bounded user-initiated POST with omitted credentials and forb
 });
 it('gates missing and newline-bearing keys and abort before network activity',async()=>{
  for(const secret of ['','   ','bad\nsecret']){
-  const fetcher=vi.fn(async()=>reply({}));
+  const fetcher=vi.fn(async(_url:string,_options:RequestInit)=>reply({}));
   const provider=createApiProvider(config,()=>secret,fetcher);
   await expect(provider.translate(request,new AbortController().signal)).rejects.toThrow('API key');
   expect(fetcher).not.toHaveBeenCalled();
  }
- const fetcher=vi.fn(async()=>reply({}));
+ const fetcher=vi.fn(async(_url:string,_options:RequestInit)=>reply({}));
  const cancelled=new AbortController();cancelled.abort();
  await expect(createApiProvider(config,()=>'key',fetcher).translate(request,cancelled.signal)).rejects.toThrow('cancelled');
  expect(fetcher).not.toHaveBeenCalled();
@@ -65,7 +65,7 @@ it('propagates transport errors, cancellation after response and explicit connec
  const controller=new AbortController();
  const canceled=createApiProvider(config,()=>'key',vi.fn(async()=>{controller.abort();throw Error('aborted');}));
  await expect(canceled.translate(request,controller.signal)).rejects.toThrow('cancelled');
- const fetcher=vi.fn(async()=>reply({choices:[{message:{content:'Salut'}}]}));
+ const fetcher=vi.fn(async(_url:string,_options:RequestInit)=>reply({choices:[{message:{content:'Salut'}}]}));
  await expect(testApiConnection(createApiProvider(config,()=>'key',fetcher),new AbortController().signal)).resolves.toBe('Salut');
  expect(JSON.parse(fetcher.mock.calls[0][1].body as string).messages[1].content).toContain('Hello');
 });
