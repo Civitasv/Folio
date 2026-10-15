@@ -9,6 +9,8 @@ export function TranslationPanel({doc,units,platform,provider}:{doc:DocumentSumm
  const [unitIndex,setUnitIndex]=React.useState(0);
  const [excerpt,setExcerpt]=React.useState('');
  const [draft,setDraft]=React.useState('');
+ const [customSource,setCustomSource]=React.useState('');
+ const [customTarget,setCustomTarget]=React.useState('');
  const [mode,setMode]=React.useState<'manual'|'provider'>('manual');
  const [entry,setEntry]=React.useState<TranslationEntry|undefined>();
  const [error,setError]=React.useState('');
@@ -65,10 +67,16 @@ export function TranslationPanel({doc,units,platform,provider}:{doc:DocumentSumm
    <div>
     <label>Source language <select aria-label="Source language" value={prefs.source} disabled={busy}
       onChange={e=>void update({...prefs,source:e.target.value})}>
-      {LANGUAGE_OPTIONS.map(lang=><option key={lang.tag} value={lang.tag}>{lang.label}</option>)}</select></label>
+      {LANGUAGE_OPTIONS.map(lang=><option key={lang.tag} value={lang.tag}>{lang.label}</option>)}
+      {!LANGUAGE_OPTIONS.some(lang=>lang.tag===prefs.source)&&<option value={prefs.source}>{prefs.source}</option>}</select></label>
+    <label>Custom source language <input aria-label="Custom source language" value={customSource} placeholder="e.g. pt-BR" onChange={e=>setCustomSource(e.target.value)}/></label>
+    <button disabled={!customSource.trim()||busy} onClick={()=>void update({...prefs,source:customSource.trim()})}>Use source language</button>
     <label>Target language <select aria-label="Target language" value={prefs.target} disabled={busy}
       onChange={e=>void update({...prefs,target:e.target.value})}>
-      {LANGUAGE_OPTIONS.filter(x=>x.tag!=='auto').map(lang=><option key={lang.tag} value={lang.tag}>{lang.label}</option>)}</select></label>
+      {LANGUAGE_OPTIONS.filter(x=>x.tag!=='auto').map(lang=><option key={lang.tag} value={lang.tag}>{lang.label}</option>)}
+      {prefs.recentTargets.filter(tag=>!LANGUAGE_OPTIONS.some(lang=>lang.tag===tag)).map(tag=><option key={tag} value={tag}>{tag} (recent)</option>)}</select></label>
+    <label>Custom target language <input aria-label="Custom target language" value={customTarget} placeholder="e.g. ko-KR" onChange={e=>setCustomTarget(e.target.value)}/></label>
+    <button disabled={!customTarget.trim()||busy} onClick={()=>void update({...prefs,target:customTarget.trim()})}>Use target language</button>
     <label>View <select aria-label="Translation view" value={prefs.view} onChange={e=>void update({...prefs,view:e.target.value as LanguagePreferences['view']})}>
       <option value="original">Original only</option><option value="bilingual">Bilingual</option><option value="translation">Translation only</option>
     </select></label>

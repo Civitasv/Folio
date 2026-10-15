@@ -3,7 +3,7 @@ import {afterEach,expect,it,vi} from 'vitest';
 import {cleanup,fireEvent,render,screen,waitFor,act} from '@testing-library/react';
 import {TranslationPanel} from './translation-panel';
 import type {TranslationPlatform} from '@folio/platform';
-import type {LanguagePreferences,TranslationIdentity,TranslationEntry,TranslationProvider} from '@folio/core';
+import {languagePreferences,type LanguagePreferences,type TranslationIdentity,type TranslationEntry,type TranslationProvider} from '@folio/core';
 const doc={id:'sha256:abc',title:'Paper',progress:2};
 const u={anchor:{kind:'epub' as const,spineIndex:0,cfi:'epubcfi(/6/2)'},unitIndex:0,text:'Hello world'};
 const prefs:LanguagePreferences={source:'en',target:'fr',recentTargets:['fr'],view:'bilingual'};
@@ -13,7 +13,7 @@ function fixture(){
  const key=(x:TranslationIdentity)=>[x.documentId,x.unit.text,x.target,x.source,x.providerId,x.model,x.unit.unitIndex].join('|');
  const platform:TranslationPlatform={
   getLanguages:vi.fn(async()=>settings),
-  setLanguages:vi.fn(async p=>{settings=p;return settings;}),
+  setLanguages:vi.fn(async p=>{settings=languagePreferences(p);return settings;}),
   findTranslation:vi.fn(async x=>cache.get(key(x))),
   saveManualTranslation:vi.fn(async(x,text)=>{
    const entry:TranslationEntry={key:key(x),identity:x,sourceHash:'hash',translatedText:text,provenance:'manual'};cache.set(key(x),entry);return entry;
@@ -165,4 +165,30 @@ it('does not apply cache errors after unmount or lose manual mode when a provide
  second.rerender(<TranslationPanel doc={doc} platform={f.platform} units={[u]}/>);
  expect(screen.queryByLabelText('Translation method')).toBeNull();
  expect(screen.getByLabelText('Manual translation')).toBeTruthy();
+});
+
+it('accepts arbitrary canonical BCP-47 source and target tags and displays recent custom targets',async()=>{
+ const f=fixture();render(<TranslationPanel doc={doc} platform={f.platform} units={[u]}/>);
+ await screen.findByLabelText('Custom target language');
+ fireEvent.change(screen.getByLabelText('Custom target language'),{target:{value:'PT-br'}});
+ fireEvent.click(screen.getByText('Use target language'));
+ await waitFor(()=>expect(screen.getByLabelText('Target language')).toHaveProperty('value','pt-BR'));
+ expect(screen.getByText('pt-BR (recent)')).toBeTruthy();
+ fireEvent.change(screen.getByLabelText('Custom source language'),{target:{value:'ko-KR'}});
+ fireEvent.click(screen.getByText('Use source language'));
+ await waitFor(()=>expect(screen.getByLabelText('Source language')).toHaveProperty('value','ko-KR'));
+ expect(screen.getByRole('option',{name:'ko-KR'})).toBeTruthy();
+ fireEvent.change(screen.getByLabelText('Target language'),{target:{value:'fr'}});
+ await waitFor(()=>expect(screen.getByLabelText('Target language')).toHaveProperty('value','fr'));
+ fireEvent.change(screen.getByLabelText('Target language'),{target:{value:'pt-BR'}});
+ await waitFor(()=>expect(screen.getByLabelText('Target language')).toHaveProperty('value','pt-BR'));
+ fireEvent.change(screen.getByLabelText('Custom target language'),{target:{value:'bad_@@'}});
+ fireEvent.click(screen.getByText('Use target language'));
+ expect(await screen.findByRole('alert')).toHaveProperty('textContent','Invalid language preferences or local storage unavailable.');
+});
+it('disables blank custom language actions without persisting a spurious choice',async()=>{
+ const f=fixture();render(<TranslationPanel doc={doc} platform={f.platform} units={[u]}/>);
+ await screen.findByLabelText('Custom target language');
+ expect(screen.getByText('Use target language')).toHaveProperty('disabled',true);
+ expect(screen.getByText('Use source language')).toHaveProperty('disabled',true);
 });
