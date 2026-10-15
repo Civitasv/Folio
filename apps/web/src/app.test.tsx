@@ -290,3 +290,21 @@ it('updates the PDF library and reader only after explicit DOI OA import',async(
  expect(await screen.findByTitle('PDF document')).toBeTruthy();
  expect(screen.getAllByRole('button',{name:'OA paper'})).toHaveLength(2);
 });
+
+it('integrates PDF translation excerpt and cleans document cache on deletion',async()=>{
+ const f=fixture([{id:'sha256:a',title:'Paper',progress:2}]),deleteTranslations=vi.fn(async()=>{});
+ const platform={...f.platform,getLanguages:vi.fn(async()=>({source:'en',target:'fr',recentTargets:['fr'],view:'bilingual' as const})),
+ setLanguages:vi.fn(async p=>p),findTranslation:vi.fn(async()=>undefined),
+ saveManualTranslation:vi.fn(async(x,text)=>({key:'local',identity:x,sourceHash:'h',translatedText:text,provenance:'manual' as const})),
+ translate:vi.fn(async()=>{throw Error('provider unavailable');}),deleteTranslations};
+ setupUrls();vi.spyOn(window,'confirm').mockReturnValue(true);render(<App platform={platform}/>);
+ await screen.findByRole('button',{name:'Paper'});fireEvent.click(screen.getByRole('button',{name:'Paper'}));
+ await screen.findByLabelText('PDF excerpt');
+ fireEvent.change(screen.getByLabelText('PDF excerpt'),{target:{value:'Paper quote'}});
+ fireEvent.change(screen.getByLabelText('Manual translation'),{target:{value:'Citation'}});
+ fireEvent.click(screen.getByText('Save local translation'));
+ await waitFor(()=>expect(platform.saveManualTranslation).toHaveBeenCalledWith(expect.objectContaining({
+  unit:{anchor:{kind:'pdf',page:2},unitIndex:0,text:'Paper quote'}}),'Citation'));
+ fireEvent.click(screen.getByRole('button',{name:'Delete Paper'}));
+ await waitFor(()=>expect(deleteTranslations).toHaveBeenCalledWith('sha256:a'));
+});
