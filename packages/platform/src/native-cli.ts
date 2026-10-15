@@ -24,8 +24,7 @@ export function createCliBridge(invoke:Invoke):CliBridge {
     if(signal.aborted)throw Error('Codex translation cancelled');
     if(typeof result!=='string'||!result.trim())throw Error('Codex returned no translation');
     return result.trim();
-   }catch(error){if(signal.aborted)throw Error('Codex translation cancelled');throw error;}
-   finally{signal.removeEventListener('abort',cancel);}
+   }finally{signal.removeEventListener('abort',cancel);}
   }
  };
 }
