@@ -290,3 +290,42 @@ it('updates the PDF library and reader only after explicit DOI OA import',async(
  expect(await screen.findByTitle('PDF document')).toBeTruthy();
  expect(screen.getAllByRole('button',{name:'OA paper'})).toHaveLength(2);
 });
+
+it('integrates PDF translation excerpt and cleans document cache on deletion',async()=>{
+ const f=fixture([{id:'sha256:a',title:'Paper',progress:2}]),deleteTranslations=vi.fn(async()=>{});
+ const platform={...f.platform,getLanguages:vi.fn(async()=>({source:'en',target:'fr',recentTargets:['fr'],view:'bilingual' as const})),
+ setLanguages:vi.fn(async p=>p),findTranslation:vi.fn(async()=>undefined),
+ saveManualTranslation:vi.fn(async(x,text)=>({key:'local',identity:x,sourceHash:'h',translatedText:text,provenance:'manual' as const})),
+ translate:vi.fn(async()=>{throw Error('provider unavailable');}),deleteTranslations};
+ setupUrls();vi.spyOn(window,'confirm').mockReturnValue(true);render(<App platform={platform}/>);
+ await screen.findByRole('button',{name:'Paper'});fireEvent.click(screen.getByRole('button',{name:'Paper'}));
+ await screen.findByLabelText('PDF excerpt');
+ fireEvent.change(screen.getByLabelText('PDF excerpt'),{target:{value:'Paper quote'}});
+ fireEvent.change(screen.getByLabelText('Manual translation'),{target:{value:'Citation'}});
+ fireEvent.click(screen.getByText('Save local translation'));
+ await waitFor(()=>expect(platform.saveManualTranslation).toHaveBeenCalledWith(expect.objectContaining({
+  unit:{anchor:{kind:'pdf',page:2},unitIndex:0,text:'Paper quote'}}),'Citation'));
+ fireEvent.click(screen.getByRole('button',{name:'Delete Paper'}));
+ await waitFor(()=>expect(deleteTranslations).toHaveBeenCalledWith('sha256:a'));
+});
+
+it('wires EPUB translation into the App without changing the PDF adapter',async()=>{
+ const f=fixture([{id:'epub:sha256:a',title:'Ebook',progress:1,kind:'epub'}]);
+ const book={metadata:{title:'Ebook',creators:[],spine:[{id:'c',href:'chapter.xhtml'}],toc:[]},
+  chapters:[{id:'c',href:'chapter.xhtml',html:'<h1>Section</h1><p>Translate this paragraph.</p>'}]};
+ const t={getLanguages:vi.fn(async()=>({source:'en',target:'fr',recentTargets:['fr'],view:'bilingual' as const})),
+  setLanguages:vi.fn(async p=>p),findTranslation:vi.fn(async()=>undefined),
+  saveManualTranslation:vi.fn(async(x,text)=>({key:'x',identity:x,sourceHash:'h',translatedText:text,provenance:'manual' as const})),
+  translate:vi.fn(async()=>{throw Error('unavailable');}),deleteTranslations:vi.fn(async()=>{})};
+ const platform={...f.platform,...t,importEpub:vi.fn(async()=>f.rows.get('epub:sha256:a')!),
+  readEpub:vi.fn(async()=>({book,anchor:{kind:'epub' as const,spineIndex:0,cfi:'epubcfi(/6/2)'},preferences:{fontSize:18,theme:'light' as const}})),
+  setEpubLocation:vi.fn(async()=>{}),setEpubPreferences:vi.fn(async()=>{})};
+ render(<App platform={platform}/>);
+ await screen.findByRole('button',{name:'Ebook'});fireEvent.click(screen.getByRole('button',{name:'Ebook'}));
+ expect(await screen.findByTestId('translation-original')).toHaveProperty('textContent','Section');
+ fireEvent.change(screen.getByLabelText('Content unit'),{target:{value:'1'}});
+ await waitFor(()=>expect(t.findTranslation).toHaveBeenCalledWith(expect.objectContaining({
+  unit:{anchor:{kind:'epub',spineIndex:0,cfi:'epubcfi(/6/2)'},unitIndex:1,text:'Translate this paragraph.'}
+ })));
+ expect(f.platform.readPdf).not.toHaveBeenCalled();
+});

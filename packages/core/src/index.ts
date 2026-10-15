@@ -1,5 +1,4 @@
 import type { EpubAnchor } from './epub';
-import type { DoiMetadata } from './doi';
 export interface DocumentSummary {
   id: string; title: string; progress: number;
   kind?: 'pdf' | 'epub' | 'reference'; creators?: string[]; doi?: string;
@@ -11,6 +10,9 @@ export interface ReaderPlatform {
   deletePdf(id: string): Promise<void>;
   setProgress(id: string, page: number): Promise<void>;
 }
+export { canonicalLanguage, languagePreferences,validateContentUnit,translationIdentity,epubContentUnits,
+ TRANSLATION_PROMPT_VERSION,DEFAULT_LANGUAGE_PREFERENCES,LANGUAGE_OPTIONS } from './translation';
+export type { SourceLanguage,TranslationView,LanguagePreferences,ContentUnit,TranslationIdentity,TranslationEntry,TranslationProvider } from './translation';
 export { normalizeDoi, doiUrl, safePublicHttps } from './doi';
 export type { DoiMetadata } from './doi';
 export { preflightPdf, MAX_PDF_BYTES } from './pdf';

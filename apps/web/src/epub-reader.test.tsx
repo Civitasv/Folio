@@ -2,7 +2,7 @@ import React from 'react';
 import { afterEach, expect,it,vi } from 'vitest';
 import { cleanup,fireEvent,render,screen,waitFor } from '@testing-library/react';
 import { EpubReader } from './epub-reader';
-import type { EpubReaderPlatform, SavedEpub } from '@folio/platform';
+import type { EpubReaderPlatform, SavedEpub, TranslationPlatform } from '@folio/platform';
 
 const doc={id:'epub:1',title:'Book',kind:'epub' as const,progress:1};
 const saved:SavedEpub={
@@ -78,4 +78,20 @@ it('fallback metadata and TOC and ignores an unmounted asynchronous load',async(
  vi.mocked(f.platform.readEpub).mockImplementationOnce(()=>new Promise(resolve=>{finish=resolve;}));
  const late=render(<EpubReader doc={doc} platform={f.platform} onRefresh={f.refresh}/>);
  late.unmount();finish(saved);
+});
+
+it('aligns EPUB chapter units in translation panel as the reader navigates',async()=>{
+ const f=fixture(),translationPlatform:TranslationPlatform={
+ getLanguages:vi.fn(async()=>({source:'en',target:'fr',recentTargets:['fr'],view:'bilingual' as const})),
+ setLanguages:vi.fn(async p=>p),findTranslation:vi.fn(async()=>undefined),
+ saveManualTranslation:vi.fn(async(x,text)=>({key:'x',identity:x,sourceHash:'h',translatedText:text,provenance:'manual' as const})),
+ translate:vi.fn(async()=>{throw Error('no backend');}),deleteTranslations:vi.fn(async()=>{})
+ };
+ render(<EpubReader doc={doc} platform={f.platform} onRefresh={f.refresh} translationPlatform={translationPlatform}/>);
+ expect(await screen.findByTestId('translation-original')).toHaveProperty('textContent','First chapter');
+ fireEvent.click(screen.getByText('Next chapter'));
+ await waitFor(()=>expect(screen.getByTestId('translation-original')).toHaveProperty('textContent','Second chapter'));
+ expect(translationPlatform.findTranslation).toHaveBeenCalledWith(expect.objectContaining({
+  unit:{anchor:{kind:'epub',spineIndex:1,cfi:'epubcfi(/6/4)'},unitIndex:0,text:'Second chapter'}
+ }));
 });

@@ -1,14 +1,15 @@
 import React from 'react';
-import { chapterCfi, type DocumentSummary, type EpubTocItem } from '@folio/core';
-import type { EpubReaderPlatform, EpubTheme, SavedEpub } from '@folio/platform';
+import { chapterCfi,epubContentUnits, type DocumentSummary, type EpubTocItem, type TranslationProvider } from '@folio/core';
+import type { EpubReaderPlatform, EpubTheme, SavedEpub, TranslationPlatform } from '@folio/platform';
 
+import {TranslationPanel} from './translation-panel';
 const themes: Record<EpubTheme,{background:string;color:string}> = {
   light:{background:'#fff',color:'#202020'},
   sepia:{background:'#f6efe0',color:'#493c29'},
   dark:{background:'#222',color:'#f3f0e9'}
 };
 /** Publisher HTML is already allowlist-sanitized in core; sandbox forbids scripts and remote resources. */
-export function EpubReader({doc,platform,onRefresh}:{doc:DocumentSummary;platform:EpubReaderPlatform;onRefresh:()=>Promise<void>}) {
+export function EpubReader({doc,platform,onRefresh,translationPlatform,translationProvider}:{doc:DocumentSummary;platform:EpubReaderPlatform;onRefresh:()=>Promise<void>;translationPlatform?:TranslationPlatform;translationProvider?:TranslationProvider}) {
   const [saved,setSaved] = React.useState<SavedEpub|null>(null);
   const [error,setError] = React.useState('');
   const [busy,setBusy] = React.useState(false);
@@ -65,6 +66,7 @@ export function EpubReader({doc,platform,onRefresh}:{doc:DocumentSummary;platfor
     {error&&<p role="alert">{error}</p>}
     <iframe title="EPUB chapter" sandbox="" referrerPolicy="no-referrer" srcDoc={html}
       style={{width:'100%',height:'70vh',border:'1px solid #ddd'}} />
+    {translationPlatform&&<TranslationPanel key={index} doc={doc} units={epubContentUnits(chapter.html,index,saved.anchor.cfi)} platform={translationPlatform} provider={translationProvider}/>}
     <details><summary>Table of contents</summary>
       <ul>{saved.book.metadata.toc.length?tocButtons(saved.book.metadata.toc):saved.book.chapters.map((part,i)=><li key={part.id}>
         <button disabled={busy} onClick={()=>void navigate(current,i)}>Chapter {i+1}</button></li>)}</ul></details>

@@ -2,10 +2,15 @@ import { preflightPdf, type DocumentSummary, type ReaderPlatform, type EpubAncho
 import { createIndexedDbStore } from './indexeddb';
 import { createEpubPlatform } from './epub-platform';
 import { createDoiPlatform, createDoiResolver } from './doi-platform';
+import {createTranslationIndexedDb} from './translation-indexeddb';
+import {createTranslationPlatform,sha256Text} from './translation-platform';
 import type { EpubPreferences } from './epub-platform';
 export { createIndexedDbStore } from './indexeddb';
 export { createEpubPlatform } from './epub-platform';
 export { createDoiPlatform, createDoiResolver, unresolvedReference } from './doi-platform';
+export { createTranslationIndexedDb } from './translation-indexeddb';
+export { createTranslationPlatform,sha256Text } from './translation-platform';
+export type {TranslationPlatform,TranslationStore,Digest} from './translation-platform';
 export type { DoiPlatform, SavedReference, DoiResolver, MetadataFetch } from './doi-platform';
 export type { EpubReaderPlatform, EpubPreferences, SavedEpub, EpubTheme } from './epub-platform';
 export type StoredPdf = DocumentSummary & {
@@ -64,8 +69,10 @@ async function hash(bytes: Uint8Array): Promise<string> {
   return Array.from(new Uint8Array(digest), value => value.toString(16).padStart(2, '0')).join('');
 }
 export const browserPlatform: ReaderPlatform = createReaderPlatform(browserStore,hash);
+export const browserTranslationPlatform=createTranslationPlatform(createTranslationIndexedDb({open:(name,version)=>indexedDB.open(name,version)}),sha256Text);
 export const universalPlatform = {
   ...browserPlatform,
   ...createEpubPlatform(browserStore,hash),
-  ...createDoiPlatform(browserStore,browserPlatform,createDoiResolver((url,options)=>fetch(url,options)),(url,options)=>fetch(url,options))
+  ...createDoiPlatform(browserStore,browserPlatform,createDoiResolver((url,options)=>fetch(url,options)),(url,options)=>fetch(url,options)),
+  ...browserTranslationPlatform
 };

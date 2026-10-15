@@ -1,10 +1,11 @@
 import React from 'react';
-import { MAX_PDF_BYTES, preflightPdf, type ReaderPlatform, type DocumentSummary } from '@folio/core';
-import { universalPlatform, type EpubReaderPlatform, type DoiPlatform } from '@folio/platform';
+import { MAX_PDF_BYTES, preflightPdf, type ReaderPlatform, type DocumentSummary, type TranslationProvider } from '@folio/core';
+import { universalPlatform, type EpubReaderPlatform, type DoiPlatform, type TranslationPlatform } from '@folio/platform';
 import { DoiPanel } from './doi-panel';
 import { EpubReader } from './epub-reader';
+import { TranslationPanel } from './translation-panel';
 
-export function App({ platform = universalPlatform }: { platform?: ReaderPlatform & Partial<EpubReaderPlatform> & Partial<DoiPlatform> }) {
+export function App({ platform = universalPlatform,translationProvider }: { platform?: ReaderPlatform & Partial<EpubReaderPlatform> & Partial<DoiPlatform> & Partial<TranslationPlatform>;translationProvider?:TranslationProvider }) {
   const [documents, setDocuments] = React.useState<DocumentSummary[]>([]);
   const [active, setActive] = React.useState<DocumentSummary | null>(null);
   const [reader, setReader] = React.useState<{ id: string; url: string } | null>(null);
@@ -69,6 +70,7 @@ export function App({ platform = universalPlatform }: { platform?: ReaderPlatfor
     if (!window.confirm('Delete this document and its saved reading position from Folio?')) return;
     try {
       await platform.deletePdf(doc.id);
+      if(platform.deleteTranslations)await platform.deleteTranslations(doc.id);
       if (active?.id === doc.id) { setActive(null); setReader(null); }
       setDocuments(await platform.listDocuments());
       setNotice(doc.kind === 'reference' ? 'DOI reference deleted from the local library.' : doc.kind === 'epub' ? 'EPUB deleted from the local library.' : 'PDF deleted from the local library.');
@@ -107,7 +109,8 @@ export function App({ platform = universalPlatform }: { platform?: ReaderPlatfor
       <button onClick={() => open(doc)}>{doc.title}</button> — {doc.kind==='reference' ? 'DOI reference' : doc.kind==='epub' ? 'EPUB chapter '+doc.progress : 'saved page '+doc.progress}{doc.creators?.length ? ' — '+doc.creators.join(', ') : ''}
       <button aria-label={'Delete '+doc.title} onClick={() => void remove(doc)}>Delete</button>
     </li>)}</ul> : <p>{query ? 'No matching documents.' : 'Your library is empty. Import a PDF to begin.'}</p>}
-    {active && (active.kind==='reference' ? <section aria-label="Reference selected"><button onClick={() => setActive(null)}>Close reference</button></section> : active.kind==='epub' && platform.importEpub && platform.readEpub && platform.setEpubLocation && platform.setEpubPreferences ? <section aria-label="EPUB book"><h2>Reading: {active.title}</h2><button onClick={() => setActive(null)}>Close</button><EpubReader doc={active} platform={platform as EpubReaderPlatform} onRefresh={async () => setDocuments(await platform.listDocuments())}/></section> : <section aria-label="PDF reader"><h2>Reading: {active.title}</h2>
+    {active && (active.kind==='reference' ? <section aria-label="Reference selected"><button onClick={() => setActive(null)}>Close reference</button></section> : active.kind==='epub' && platform.importEpub && platform.readEpub && platform.setEpubLocation && platform.setEpubPreferences ? <section aria-label="EPUB book"><h2>Reading: {active.title}</h2><button onClick={() => setActive(null)}>Close</button><EpubReader doc={active} platform={platform as EpubReaderPlatform} onRefresh={async () => setDocuments(await platform.listDocuments())}
+        translationPlatform={platform.getLanguages&&platform.setLanguages&&platform.findTranslation&&platform.saveManualTranslation&&platform.translate&&platform.deleteTranslations ? platform as TranslationPlatform:undefined} translationProvider={translationProvider}/></section> : <section aria-label="PDF reader"><h2>Reading: {active.title}</h2>
       <button onClick={() => setActive(null)}>Close</button>
       <label> Page <input aria-label="Saved page" inputMode="numeric" type="number" min="1" step="1" value={page}
         onChange={event => setPage(event.target.value)}/></label>
@@ -115,6 +118,8 @@ export function App({ platform = universalPlatform }: { platform?: ReaderPlatfor
       {reader?.id === active.id ? <iframe title="PDF document" src={reader.url+'#page='+active.progress}
         style={{width:'100%',height:'75vh',border:'1px solid #ddd'}}/> : <p>Loading local PDF…</p>}
       <p>Browser preview uses the browser PDF viewer; save the page manually. Native reader and automatic tracking follow in later slices.</p>
+      {platform.getLanguages&&platform.setLanguages&&platform.findTranslation&&platform.saveManualTranslation&&platform.translate&&platform.deleteTranslations&&
+        <TranslationPanel doc={active} platform={platform as TranslationPlatform} provider={translationProvider}/>}
     </section>)}
   </main>;
 }
