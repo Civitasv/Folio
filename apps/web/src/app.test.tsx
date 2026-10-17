@@ -370,3 +370,35 @@ it('shows contextual stored-document inspector without claiming automatic PDF ex
  fireEvent.click(screen.getByRole('button',{name:'Close'}));
  expect(screen.getByRole('complementary',{name:'Context inspector'}).textContent).not.toContain('Selected ·');
 });
+
+it('keeps page-bound PDF manual translation in contextual inspector',async()=>{
+ const f=fixture([{id:'pdf:one',title:'Paper',progress:2}]);setupUrls();
+ const p={...f.platform,getLanguages:vi.fn(async()=>({source:'en',target:'ja',recentTargets:['ja'],view:'bilingual' as const})),
+ setLanguages:vi.fn(async x=>x),findTranslation:vi.fn(async()=>undefined),
+ saveManualTranslation:vi.fn(async(x,text)=>({key:'one',identity:x,translatedText:text,sourceHash:'hash',provenance:'manual' as const})),
+ translate:vi.fn(async()=>{throw Error('disabled');}),deleteTranslations:vi.fn(async()=>{})};
+ render(<App platform={p}/>);
+ await screen.findByRole('button',{name:'Paper'});fireEvent.click(screen.getByRole('button',{name:'Paper'}));
+ const inspector=screen.getByRole('complementary',{name:'Context inspector'});
+ expect(await within(inspector).findByLabelText('PDF excerpt')).toBeTruthy();
+ expect(within(screen.getByRole('region',{name:'PDF reader'})).queryByLabelText('PDF excerpt')).toBeNull();
+ expect(screen.getByRole('main').className).toContain('has-active-reader');
+});
+it('portals EPUB bilingual unit into inspector while keeping sandboxed chapter in reader',async()=>{
+ const f=fixture([{id:'epub:one',title:'Novel',kind:'epub',progress:1}]);
+ const book={metadata:{title:'Novel',creators:[],spine:[{id:'one',href:'one.xhtml'}],toc:[]},
+ chapters:[{id:'one',href:'one.xhtml',html:'<p>Chapter body</p>'}]};
+ const p={...f.platform,importEpub:vi.fn(async()=>f.rows.get('epub:one')!),
+ readEpub:vi.fn(async()=>({book,anchor:{kind:'epub' as const,spineIndex:0,cfi:'epubcfi(/6/2)'},preferences:{fontSize:18,theme:'light' as const}})),
+ setEpubLocation:vi.fn(async()=>{}),setEpubPreferences:vi.fn(async()=>{}),
+ getLanguages:vi.fn(async()=>({source:'en',target:'fr',recentTargets:['fr'],view:'bilingual' as const})),
+ setLanguages:vi.fn(async x=>x),findTranslation:vi.fn(async()=>undefined),
+ saveManualTranslation:vi.fn(async(x,text)=>({key:'one',identity:x,translatedText:text,sourceHash:'hash',provenance:'manual' as const})),
+ translate:vi.fn(async()=>{throw Error('no provider');}),deleteTranslations:vi.fn(async()=>{})};
+ render(<App platform={p}/>);
+ await screen.findByRole('button',{name:'Novel'});fireEvent.click(screen.getByRole('button',{name:'Novel'}));
+ const inspector=screen.getByRole('complementary',{name:'Context inspector'});
+ expect(await within(inspector).findByTestId('translation-original')).toHaveProperty('textContent','Chapter body');
+ expect(within(screen.getByRole('region',{name:'EPUB reader'})).queryByTestId('translation-original')).toBeNull();
+ expect(screen.getByTitle('EPUB chapter').getAttribute('sandbox')).toBe('');
+});
