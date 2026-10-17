@@ -10,6 +10,9 @@ Folio is local-first. Never introduce mandatory accounts, cloud storage, telemet
 5. Review against acceptance criteria, privacy boundaries, platform portability, and regression risks. Prefer an independent fresh-context reviewer; disclose when unavailable.
 6. Do not claim success without evidence. CI green is necessary, not sufficient. Merge only after required checks and review gates pass; never bypass protections.
 
+## Apple Design Skill — required for UI/design changes
+Read `.agents/skills/apple-design/SKILL.md`, `docs/design/principles.md` and the active D01 spec before Folio UI authoring or review. Source provenance/license/update protocol: `docs/design/skill-sources.md`. Never execute mutable upstream skill installers in CI or overwrite a user's global agent settings. Respect reduced motion/transparency, contrast and local-first; only animate interactions when it improves their meaning. Use before/after visual review in addition to CI.
+
 ## Architecture boundaries
 - apps/web: browser entrypoint.
 - apps/desktop: Tauri shell.
