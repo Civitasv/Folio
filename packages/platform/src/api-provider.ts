@@ -2,9 +2,9 @@ import type {TranslationProvider} from '@folio/core';
 export interface ApiConfig {endpoint:string;model:string}
 export type ApiFetch=(url:string,options:RequestInit)=>Promise<Response>;
 export interface NativeApiBridge {
- saveKey(key:string):Promise<void>;
- hasKey():Promise<boolean>;
- clearKey():Promise<void>;
+ saveKey(endpoint:string,key:string):Promise<void>;
+ hasKey(endpoint:string):Promise<boolean>;
+ clearKey(endpoint:string):Promise<void>;
  translate(config:ApiConfig,request:{text:string;source:string;target:string;promptVersion:string},signal:AbortSignal):Promise<string>;
 }
 const MAX_REPLY=256*1024;
