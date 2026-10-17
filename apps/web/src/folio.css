@@ -73,3 +73,26 @@ button:disabled{cursor:not-allowed;opacity:.52}
 .folio-inspector-content input{max-width:100%}
 @media(max-width:1100px){.folio-navigation-content{min-height:0}.folio-nav-footnote{margin-top:20px}.folio-inspector-content{max-width:720px}}
 @media(max-width:700px){.folio-library-filters{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.folio-nav-footnote{display:none}.folio-brand{margin-bottom:0}.folio-content{min-height:auto}.folio-import{padding:16px}.folio-search-label{display:block}.folio-search-label input{display:block;width:100%;margin-top:7px}}
+
+/* D01c: reading canvas wins, without hiding saved library actions. */
+.folio-content.has-active-reader{display:flex;flex-direction:column}
+.folio-content.has-active-reader > .folio-toolbar{order:0}
+.folio-content.has-active-reader > .folio-reader,.folio-content.has-active-reader > .folio-reference-selection{order:1}
+.folio-content.has-active-reader > .folio-library-list{order:2}
+.folio-content.has-active-reader > .folio-import{order:3;margin-top:12px;margin-bottom:36px}
+.folio-reader{padding:24px 0 36px;min-width:0}
+.folio-reader>h2{font-weight:670;letter-spacing:-.025em;font-size:1.2rem;margin:0 0 16px;overflow-wrap:anywhere}
+.folio-reader button,.folio-reader select,.folio-reader input{border-radius:var(--folio-r-sm);accent-color:var(--folio-accent)}
+.folio-reader button{border:1px solid var(--folio-border);background:var(--folio-surface);color:var(--folio-text);min-height:32px;margin:3px;padding:6px 10px}
+.folio-reader iframe{display:block;border:1px solid var(--folio-border)!important;border-radius:var(--folio-r-sm);background:var(--folio-surface);max-width:100%;margin-top:18px}
+.folio-epub-page{background:#fff}
+.folio-inspector-content{max-height:calc(100dvh - 32px);overflow-y:auto;scrollbar-gutter:stable}
+.folio-translation-slot{margin-top:18px;min-width:0}
+.folio-translation-slot section{max-width:100%;min-width:0;overflow-wrap:anywhere;font-size:.82rem}
+.folio-translation-slot h3{font-size:.92rem;letter-spacing:-.015em}
+.folio-translation-slot label{display:block;margin:12px 0 5px;color:var(--folio-secondary)}
+.folio-translation-slot input,.folio-translation-slot textarea,.folio-translation-slot select{width:100%;max-width:100%;min-width:0;padding:7px;background:var(--folio-surface);color:var(--folio-text);border:1px solid var(--folio-border);border-radius:var(--folio-r-sm)}
+.folio-translation-slot button{display:inline-flex;margin:7px 5px 5px 0;max-width:100%;white-space:normal;overflow-wrap:anywhere;background:var(--folio-raised);color:var(--folio-text);border:1px solid var(--folio-border);border-radius:var(--folio-r-sm);padding:7px 9px}
+.folio-translation-slot pre{white-space:pre-wrap;overflow-wrap:anywhere}
+@media(max-width:1100px){.folio-inspector-content{max-height:none;overflow:visible}.folio-reader iframe{height:min(75vh,850px)}}
+@media(max-width:700px){.folio-reader{padding-top:12px}.folio-reader iframe{height:60vh!important}.folio-translation-slot{padding-bottom:20px}}
