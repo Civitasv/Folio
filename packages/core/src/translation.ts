@@ -6,7 +6,7 @@ export interface ContentUnit { anchor: ReaderAnchor; unitIndex: number; text: st
 export interface TranslationIdentity { documentId: string; unit: ContentUnit; source: string; target: string; providerId: string; model: string; promptVersion: string }
 export interface TranslationEntry { key: string; identity: TranslationIdentity; sourceHash: string; translatedText: string; provenance: 'manual' | 'provider' }
 export interface TranslationProvider {
- id: string; model: string; supportsAutoSource: boolean;
+ id: string; model: string; supportsAutoSource: boolean; dataFlow?: string;
  translate(request: {text: string; source: string; target: string; promptVersion: string},signal: AbortSignal): Promise<string>;
 }
 export const TRANSLATION_PROMPT_VERSION='f01d-v1';
