@@ -14,7 +14,7 @@ export function Workspace(){
  const closeButton=React.useRef<HTMLButtonElement|null>(null);
  const provider=choice==='api'?api:choice==='cli'?cli:undefined;
  function openSettings(){
-  previousFocus.current=document.activeElement instanceof HTMLElement?document.activeElement:null;
+  previousFocus.current=document.activeElement as HTMLElement|null;
   setShowSettings(true);
  }
  function closeSettings(){setShowSettings(false);}
