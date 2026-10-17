@@ -402,3 +402,12 @@ it('portals EPUB bilingual unit into inspector while keeping sandboxed chapter i
  expect(within(screen.getByRole('region',{name:'EPUB reader'})).queryByTestId('translation-original')).toBeNull();
  expect(screen.getByTitle('EPUB chapter').getAttribute('sandbox')).toBe('');
 });
+
+it('opens low-frequency provider settings only through the explicit toolbar action',async()=>{
+ const f=fixture(),open=vi.fn();
+ render(<App platform={f.platform} onOpenSettings={open}/>);
+ await screen.findByText('Your library is empty. Import a PDF to begin.');
+ fireEvent.click(screen.getByRole('button',{name:'Settings'}));
+ expect(open).toHaveBeenCalledOnce();
+ expect(document.activeElement).toBe(screen.getByRole('button',{name:'Settings'}));
+});

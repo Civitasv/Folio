@@ -6,7 +6,7 @@ import { EpubReader } from './epub-reader';
 import { TranslationPanel } from './translation-panel';
 import {WorkspaceShell, WorkspaceToolbar, SidebarItem, Surface} from '@folio/ui';
 
-export function App({ platform = universalPlatform,translationProvider }: { platform?: ReaderPlatform & Partial<EpubReaderPlatform> & Partial<DoiPlatform> & Partial<TranslationPlatform>;translationProvider?:TranslationProvider }) {
+export function App({ platform = universalPlatform,translationProvider,onOpenSettings }: { platform?: ReaderPlatform & Partial<EpubReaderPlatform> & Partial<DoiPlatform> & Partial<TranslationPlatform>;translationProvider?:TranslationProvider;onOpenSettings?:()=>void }) {
   const [documents, setDocuments] = React.useState<DocumentSummary[]>([]);
   const [active, setActive] = React.useState<DocumentSummary | null>(null);
   const [reader, setReader] = React.useState<{ id: string; url: string } | null>(null);
@@ -119,7 +119,7 @@ export function App({ platform = universalPlatform,translationProvider }: { plat
         <div className="folio-translation-slot"><TranslationPanel doc={active} platform={platform as TranslationPlatform} provider={translationProvider}/></div>}
     </div>}>
     <main className={active ? "folio-content has-active-reader" : "folio-content"}>
-    <WorkspaceToolbar title={active ? 'Reading workspace' : 'Library workspace'} actions={<span className="folio-local-state">Local-first</span>}/>
+    <WorkspaceToolbar title={active ? 'Reading workspace' : 'Library workspace'} actions={<><span className="folio-local-state">Local-first</span>{onOpenSettings&&<button className="folio-settings-trigger" type="button" onClick={event=>{event.currentTarget.focus();onOpenSettings();}}>Settings</button>}</>}/>
     <section className="folio-import" aria-label="Import PDF" onDragOver={event => event.preventDefault()} onDrop={event => {
       event.preventDefault(); const file = event.dataTransfer.files[0]; if (file) void importFile(file);
     }}>
