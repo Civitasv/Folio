@@ -1,4 +1,5 @@
 import React from 'react';
+import {createPortal} from 'react-dom';
 import { chapterCfi,epubContentUnits, type DocumentSummary, type EpubTocItem, type TranslationProvider } from '@folio/core';
 import type { EpubReaderPlatform, EpubTheme, SavedEpub, TranslationPlatform } from '@folio/platform';
 
@@ -9,7 +10,7 @@ const themes: Record<EpubTheme,{background:string;color:string}> = {
   dark:{background:'#222',color:'#f3f0e9'}
 };
 /** Publisher HTML is already allowlist-sanitized in core; sandbox forbids scripts and remote resources. */
-export function EpubReader({doc,platform,onRefresh,translationPlatform,translationProvider}:{doc:DocumentSummary;platform:EpubReaderPlatform;onRefresh:()=>Promise<void>;translationPlatform?:TranslationPlatform;translationProvider?:TranslationProvider}) {
+export function EpubReader({doc,platform,onRefresh,translationPlatform,translationProvider,translationHost}:{doc:DocumentSummary;platform:EpubReaderPlatform;onRefresh:()=>Promise<void>;translationPlatform?:TranslationPlatform;translationProvider?:TranslationProvider;translationHost?:Element|null}) {
   const [saved,setSaved] = React.useState<SavedEpub|null>(null);
   const [error,setError] = React.useState('');
   const [busy,setBusy] = React.useState(false);
@@ -64,9 +65,10 @@ export function EpubReader({doc,platform,onRefresh,translationPlatform,translati
         onChange={event=>void prefs(current,saved.preferences.fontSize,event.target.value as EpubTheme)}>
         <option value="light">Light</option><option value="sepia">Sepia</option><option value="dark">Dark</option></select></label></div>
     {error&&<p role="alert">{error}</p>}
-    <iframe title="EPUB chapter" sandbox="" referrerPolicy="no-referrer" srcDoc={html}
+    <iframe className="folio-epub-page" title="EPUB chapter" sandbox="" referrerPolicy="no-referrer" srcDoc={html}
       style={{width:'100%',height:'70vh',border:'1px solid #ddd'}} />
-    {translationPlatform&&<TranslationPanel key={index} doc={doc} units={epubContentUnits(chapter.html,index,saved.anchor.cfi)} platform={translationPlatform} provider={translationProvider}/>}
+    {translationPlatform && (translationHost ? createPortal(<TranslationPanel key={index} doc={doc} units={epubContentUnits(chapter.html,index,saved.anchor.cfi)} platform={translationPlatform} provider={translationProvider}/>,translationHost) :
+      <TranslationPanel key={index} doc={doc} units={epubContentUnits(chapter.html,index,saved.anchor.cfi)} platform={translationPlatform} provider={translationProvider}/> )}
     <details><summary>Table of contents</summary>
       <ul>{saved.book.metadata.toc.length?tocButtons(saved.book.metadata.toc):saved.book.chapters.map((part,i)=><li key={part.id}>
         <button disabled={busy} onClick={()=>void navigate(current,i)}>Chapter {i+1}</button></li>)}</ul></details>
