@@ -18,7 +18,7 @@ export function ApiProviderSettings({onChange,bridge=runtimeBridge,
  const controller=React.useRef<AbortController|null>(null);
  React.useEffect(()=>{
   let live=true;
-  if(bridge)void bridge.hasKey().then(present=>{if(live)setStatus(present?'A desktop credential is stored. Activate with its endpoint and model.':'No desktop credential stored.');})
+  if(bridge)void bridge.hasKey(normalizeApiConfig({endpoint:"https://api.openai.com/v1",model:"credential"}).endpoint).then(present=>{if(live)setStatus(present?'A desktop credential is stored. Activate with its endpoint and model.':'No desktop credential stored.');})
    .catch(()=>{if(live)setError('OS credential store unavailable.');});
   return ()=>{live=false;controller.current?.abort();};
  },[bridge]);
@@ -31,8 +31,8 @@ export function ApiProviderSettings({onChange,bridge=runtimeBridge,
   try{
    const config:ApiConfig=normalizeApiConfig({endpoint,model});
    if(bridge){
-    if(key.trim()){await bridge.saveKey(key);setKey('');}
-    if(!await bridge.hasKey())throw Error('Save a key in the OS credential store before activating');
+    if(key.trim()){await bridge.saveKey(config.endpoint,key);setKey('');}
+    if(!await bridge.hasKey(config.endpoint))throw Error('Save a key in the OS credential store before activating');
    } else if(!key.trim())throw Error('Enter an API key for this browser session');
    const provider=bridge?createNativeApiProvider(config,bridge):createApiProvider(config,()=>key,fetcher);
    setSelected(provider);onChange(provider);setStatus(bridge?'Desktop provider activated (key in OS credential store).':'Browser provider activated (key kept in memory until reload).');
@@ -48,7 +48,7 @@ export function ApiProviderSettings({onChange,bridge=runtimeBridge,
  }
  async function clear(){
   setError('');setStatus('');setBusy(true);
-  try{if(bridge)await bridge.clearKey();setKey('');setSelected(undefined);setConnected(false);onChange(undefined);
+  try{if(bridge)await bridge.clearKey(normalizeApiConfig({endpoint,model:'credential'}).endpoint);setKey('');setSelected(undefined);setConnected(false);onChange(undefined);
    setStatus('API credential cleared.');}
   catch{setError('Unable to clear the OS credential.');}
   finally{setBusy(false);}

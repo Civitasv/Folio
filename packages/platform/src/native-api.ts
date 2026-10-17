@@ -9,9 +9,9 @@ export function nativeInvoke():Invoke|undefined {
 }
 export function createNativeApiBridge(invoke:Invoke):NativeApiBridge {
  return {
-  saveKey:async key=>{await invoke('folio_api_save_key',{key});},
-  hasKey:async()=>Boolean(await invoke('folio_api_has_key')),
-  clearKey:async()=>{await invoke('folio_api_clear_key');},
+  saveKey:async (endpoint,key)=>{await invoke('folio_api_save_key',{endpoint,key});},
+  hasKey:async endpoint=>Boolean(await invoke('folio_api_has_key',{endpoint})),
+  clearKey:async endpoint=>{await invoke('folio_api_clear_key',{endpoint});},
   async translate(config:ApiConfig,request,signal){
    if(signal.aborted)throw Error('Translation cancelled');
    const requestId=crypto.randomUUID();

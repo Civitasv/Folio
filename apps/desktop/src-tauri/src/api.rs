@@ -8,25 +8,30 @@ const ACCOUNT: &str = "api-provider-key";
 const RESPONSE_LIMIT: usize = 256 * 1024;
 #[derive(Default)]
 pub struct ApiState { pending: Mutex<HashMap<String, oneshot::Sender<()>>> }
-fn entry() -> Result<keyring::Entry, String> {
- keyring::Entry::new(SERVICE, ACCOUNT).map_err(|_| "OS credential store is unavailable".to_owned())
+fn account(endpoint: &str) -> Result<String, String> {
+ let url=validate(endpoint,"credential")?;
+ Ok(format!("{ACCOUNT}:{}{}",url.origin().ascii_serialization(),url.path()))
+}
+fn entry(endpoint: &str) -> Result<keyring::Entry, String> {
+ let scoped=account(endpoint)?;
+ keyring::Entry::new(SERVICE, &scoped).map_err(|_| "OS credential store is unavailable".to_owned())
 }
 #[tauri::command]
-pub fn folio_api_save_key(key: String) -> Result<(), String> {
+pub fn folio_api_save_key(endpoint: String, key: String) -> Result<(), String> {
  if key.trim().is_empty() || key.len() > 4096 || key.contains('\n') || key.contains('\r') { return Err("Invalid API key".into()); }
- entry()?.set_password(&key).map_err(|_| "Cannot save key to OS credential store".into())
+ entry(&endpoint)?.set_password(&key).map_err(|_| "Cannot save key to OS credential store".into())
 }
 #[tauri::command]
-pub fn folio_api_has_key() -> Result<bool, String> {
- match entry()?.get_password() {
+pub fn folio_api_has_key(endpoint: String) -> Result<bool, String> {
+ match entry(&endpoint)?.get_password() {
   Ok(secret) => Ok(!secret.is_empty()),
   Err(keyring::Error::NoEntry) => Ok(false),
   Err(_) => Err("OS credential store unavailable or locked".into())
  }
 }
 #[tauri::command]
-pub fn folio_api_clear_key() -> Result<(), String> {
- match entry()?.delete_credential() {
+pub fn folio_api_clear_key(endpoint: String) -> Result<(), String> {
+ match entry(&endpoint)?.delete_credential() {
   Ok(()) | Err(keyring::Error::NoEntry) => Ok(()),
   Err(_) => Err("Cannot delete credential".into())
  }
@@ -68,7 +73,7 @@ pub async fn folio_api_translate(endpoint:String,model:String,text:String,source
  if request_id.len()<8 || request_id.len()>80 || !request_id.bytes().all(|c|c.is_ascii_alphanumeric() || c==b'-') {
   return Err("Invalid request ID".into());
  }
- let key=entry()?.get_password().map_err(|_| "API key unavailable in OS credential store".to_owned())?;
+ let key=entry(endpoint.as_str())?.get_password().map_err(|_| "API key unavailable in OS credential store".to_owned())?;
  if key.is_empty(){return Err("API key is missing".into());}
  let (tx,rx)=oneshot::channel();
  {let mut pending=state.pending.lock().map_err(|_|"Request state unavailable")?;
@@ -113,6 +118,9 @@ mod tests {
   for x in ["http://api.example.com/v1","https://localhost/v1","https://127.0.0.1/v1","https://example.local/v1","https://user:pass@example.com/v1","https://api.example.com/v1?x=1","https://api.example.com/v1#x","https://api.example.com/not-v1"] {assert!(validate(x,"model").is_err(),"{x}");}
   assert!(validate("https://api.example.com/v1","bad model").is_err());
   assert!(validate("https://api.example.com/v1","test/model-1").is_ok());
+  assert_ne!(account("https://one.example.com/v1").unwrap(),account("https://two.example.com/v1").unwrap());
+  assert_eq!(account("https://one.example.com/v1").unwrap(),account("https://one.example.com/v1").unwrap());
+  assert!(account("http://localhost/v1").is_err());
  }
  #[test] fn response_is_typed_and_bounded(){
   assert_eq!(extract(br#"{"choices":[{"message":{"content":" Bonjour "}}]}"#).unwrap(),"Bonjour");

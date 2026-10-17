@@ -15,11 +15,13 @@ it('uses only the Tauri invoke bridge and never exposes stored credentials',asyn
  vi.stubGlobal('__TAURI__',{core:{invoke}});
  expect(nativeInvoke()).toBe(invoke);
  const bridge=createNativeApiBridge(invoke);
- await bridge.saveKey('private');
- expect(await bridge.hasKey()).toBe(true);
+ await bridge.saveKey('https://api.example.com/v1','private');
+ expect(await bridge.hasKey('https://api.example.com/v1')).toBe(true);
  expect(await bridge.translate({endpoint:'https://api.example.com/v1',model:'m'},
   {text:'Hello',source:'en',target:'fr',promptVersion:'v1'},new AbortController().signal)).toBe('Bonjour');
- await bridge.clearKey();
+ await bridge.clearKey('https://api.example.com/v1');
+ expect(invoke).toHaveBeenCalledWith('folio_api_save_key',{endpoint:'https://api.example.com/v1',key:'private'});
+ expect(invoke).toHaveBeenCalledWith('folio_api_clear_key',{endpoint:'https://api.example.com/v1'});
  expect(calls).toEqual(['folio_api_save_key','folio_api_has_key','folio_api_translate','folio_api_clear_key']);
  expect(invoke.mock.calls[2][1]).not.toHaveProperty('key');
 });

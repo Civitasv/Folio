@@ -50,7 +50,7 @@ it('saves desktop secrets through the native bridge, reuses stored credential, p
  expect(await screen.findByText('No desktop credential stored.')).toBeTruthy();
  fill();fireEvent.click(screen.getByText('Activate API provider'));
  await screen.findByText(/Desktop provider activated/);
- expect(bridge.saveKey).toHaveBeenCalledWith('secret');
+ expect(bridge.saveKey).toHaveBeenCalledWith('https://api.openai.com/v1','secret');
  expect(screen.getByLabelText('API key')).toHaveProperty('value','');
  fireEvent.click(screen.getByText(/Test connection/));
  await screen.findByText('Connection test succeeded.');
@@ -148,4 +148,23 @@ it('activates the default native Tauri bridge when the global API exists at modu
  const view=render(<module.ApiProviderSettings onChange={vi.fn()}/>);
  expect(await screen.findByText(/A desktop credential is stored/)).toBeTruthy();
  view.unmount();vi.resetModules();vi.unstubAllGlobals();
+});
+
+it('never reuses a desktop key for a different API endpoint',async()=>{
+ const saved=new Map<string,string>();
+ const desktop:NativeApiBridge={
+  saveKey:vi.fn(async(endpoint,key)=>{saved.set(endpoint,key);}),
+  hasKey:vi.fn(async endpoint=>saved.has(endpoint)),
+  clearKey:vi.fn(async endpoint=>{saved.delete(endpoint);}),
+  translate:vi.fn(async()=> 'Bonjour')
+ };
+ render(<ApiProviderSettings onChange={vi.fn()} bridge={desktop}/>);
+ await screen.findByText('No desktop credential stored.');
+ fill();fireEvent.click(screen.getByText('Activate API provider'));
+ await screen.findByText(/Desktop provider activated/);
+ fireEvent.change(screen.getByLabelText('API endpoint'),{target:{value:'https://other.example.org/v1'}});
+ fireEvent.click(screen.getByText('Activate API provider'));
+ expect(await screen.findByRole('alert')).toHaveProperty('textContent',expect.stringContaining('Save a key'));
+ expect(desktop.hasKey).toHaveBeenCalledWith('https://other.example.org/v1');
+ expect(desktop.translate).not.toHaveBeenCalled();
 });
