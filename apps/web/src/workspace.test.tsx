@@ -17,6 +17,7 @@ afterEach(()=>cleanup());
 it('does not expose the provider forms on the library first screen, restores focus and closes by Escape',()=>{
  render(<Workspace/>);
  const open=screen.getByRole('button',{name:'Settings'});
+ open.focus();
  expect(screen.queryByRole('dialog',{name:'Settings'})).toBeNull();
  expect(screen.getByTestId('active-provider')).toHaveProperty('textContent','manual');
  fireEvent.click(open);

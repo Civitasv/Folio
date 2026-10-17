@@ -409,4 +409,5 @@ it('opens low-frequency provider settings only through the explicit toolbar acti
  await screen.findByText('Your library is empty. Import a PDF to begin.');
  fireEvent.click(screen.getByRole('button',{name:'Settings'}));
  expect(open).toHaveBeenCalledOnce();
+ expect(document.activeElement).toBe(screen.getByRole('button',{name:'Settings'}));
 });
