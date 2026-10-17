@@ -13,6 +13,7 @@ export function App({ platform = universalPlatform,translationProvider }: { plat
   const [page, setPage] = React.useState('1');
   const [query, setQuery] = React.useState('');
   const [kindFilter,setKindFilter] = React.useState<'all'|'pdf'|'epub'|'reference'>('all');
+  const [translationHost,setTranslationHost] = React.useState<HTMLElement|null>(null);
   const [error, setError] = React.useState('');
   const [notice, setNotice] = React.useState('');
   const [busy, setBusy] = React.useState(false);
@@ -111,10 +112,13 @@ export function App({ platform = universalPlatform,translationProvider }: { plat
         <p className="folio-inspector-summary">Selected · {active.title}</p>
         <dl className="folio-metadata"><dt>Format</dt><dd>{active.kind==='epub'?'EPUB':'PDF'}</dd>
           <dt>Reading position</dt><dd>{active.progress}</dd></dl>
-        <p className="folio-inspector-note">Reader-specific translation tools remain alongside the existing reader until D01c.</p>
       </Surface> : doiPanel}
+      {active?.kind==='epub'&&<div className="folio-translation-slot" ref={setTranslationHost}/>}
+      {active && active.kind!=='reference' && active.kind!=='epub' &&
+        platform.getLanguages&&platform.setLanguages&&platform.findTranslation&&platform.saveManualTranslation&&platform.translate&&platform.deleteTranslations&&
+        <div className="folio-translation-slot"><TranslationPanel doc={active} platform={platform as TranslationPlatform} provider={translationProvider}/></div>}
     </div>}>
-    <main className="folio-content">
+    <main className={active ? "folio-content has-active-reader" : "folio-content"}>
     <WorkspaceToolbar title={active ? 'Reading workspace' : 'Library workspace'} actions={<span className="folio-local-state">Local-first</span>}/>
     <section className="folio-import" aria-label="Import PDF" onDragOver={event => event.preventDefault()} onDrop={event => {
       event.preventDefault(); const file = event.dataTransfer.files[0]; if (file) void importFile(file);
@@ -132,8 +136,8 @@ export function App({ platform = universalPlatform,translationProvider }: { plat
       <button onClick={() => open(doc)}>{doc.title}</button> — {doc.kind==='reference' ? 'DOI reference' : doc.kind==='epub' ? 'EPUB chapter '+doc.progress : 'saved page '+doc.progress}{doc.creators?.length ? ' — '+doc.creators.join(', ') : ''}
       <button aria-label={'Delete '+doc.title} onClick={() => void remove(doc)}>Delete</button>
     </li>)}</ul> : <p>{query ? 'No matching documents.' : 'Your library is empty. Import a PDF to begin.'}</p>}</section>
-    {active && (active.kind==='reference' ? <section aria-label="Reference selected"><button onClick={() => setActive(null)}>Close reference</button></section> : active.kind==='epub' && platform.importEpub && platform.readEpub && platform.setEpubLocation && platform.setEpubPreferences ? <section aria-label="EPUB book"><h2>Reading: {active.title}</h2><button onClick={() => setActive(null)}>Close</button><EpubReader doc={active} platform={platform as EpubReaderPlatform} onRefresh={async () => setDocuments(await platform.listDocuments())}
-        translationPlatform={platform.getLanguages&&platform.setLanguages&&platform.findTranslation&&platform.saveManualTranslation&&platform.translate&&platform.deleteTranslations ? platform as TranslationPlatform:undefined} translationProvider={translationProvider}/></section> : <section aria-label="PDF reader"><h2>Reading: {active.title}</h2>
+    {active && (active.kind==='reference' ? <section className="folio-reference-selection" aria-label="Reference selected"><button onClick={() => setActive(null)}>Close reference</button></section> : active.kind==='epub' && platform.importEpub && platform.readEpub && platform.setEpubLocation && platform.setEpubPreferences ? <section className="folio-epub-book folio-reader" aria-label="EPUB book"><h2>Reading: {active.title}</h2><button onClick={() => setActive(null)}>Close</button><EpubReader doc={active} platform={platform as EpubReaderPlatform} onRefresh={async () => setDocuments(await platform.listDocuments())}
+        translationPlatform={platform.getLanguages&&platform.setLanguages&&platform.findTranslation&&platform.saveManualTranslation&&platform.translate&&platform.deleteTranslations ? platform as TranslationPlatform:undefined} translationProvider={translationProvider} translationHost={translationHost}/></section> : <section className="folio-pdf-reader folio-reader" aria-label="PDF reader"><h2>Reading: {active.title}</h2>
       <button onClick={() => setActive(null)}>Close</button>
       <label> Page <input aria-label="Saved page" inputMode="numeric" type="number" min="1" step="1" value={page}
         onChange={event => setPage(event.target.value)}/></label>
@@ -141,8 +145,6 @@ export function App({ platform = universalPlatform,translationProvider }: { plat
       {reader?.id === active.id ? <iframe title="PDF document" src={reader.url+'#page='+active.progress}
         style={{width:'100%',height:'75vh',border:'1px solid #ddd'}}/> : <p>Loading local PDF…</p>}
       <p>Browser preview uses the browser PDF viewer; save the page manually. Native reader and automatic tracking follow in later slices.</p>
-      {platform.getLanguages&&platform.setLanguages&&platform.findTranslation&&platform.saveManualTranslation&&platform.translate&&platform.deleteTranslations&&
-        <TranslationPanel doc={active} platform={platform as TranslationPlatform} provider={translationProvider}/>}
     </section>)}
   </main></WorkspaceShell>;
 }
