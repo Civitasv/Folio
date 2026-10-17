@@ -75,14 +75,14 @@ pub async fn folio_cli_translate(model:String,text:String,source:String,target:S
  let argv=args(&model)?;
  if !valid_id(&request_id){return Err("Invalid request ID".into());}
  let input=prompt(&text,&source,&target,&prompt_version)?;
- let workspace=std::env::temp_dir().join(format!("folio-cli-{request_id}"));
- std::fs::create_dir(&workspace).map_err(|_|"Unable to create temporary CLI workspace")?;
+ let workspace=tempfile::Builder::new().prefix("folio-cli-").tempdir()
+  .map_err(|_|"Unable to create secure temporary CLI workspace")?;
  let (tx,rx)=oneshot::channel();
  {let mut pending=state.pending.lock().map_err(|_|"CLI request state unavailable")?;
-  if pending.contains_key(&request_id){let _=std::fs::remove_dir(&workspace);return Err("Duplicate CLI request".into());}
+  if pending.contains_key(&request_id){return Err("Duplicate CLI request".into());}
   pending.insert(request_id.clone(),tx);}
  let execution=async {
-  let mut child=codex_command().args(argv).current_dir(&workspace)
+  let mut child=codex_command().args(argv).current_dir(workspace.path())
    .stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::null())
    .kill_on_drop(true).spawn().map_err(|_|"Codex CLI is missing or cannot start")?;
   child.stdin.take().ok_or("Codex stdin unavailable")?.write_all(input.as_bytes()).await.map_err(|_|"Cannot pass excerpt to Codex")?;
@@ -100,7 +100,6 @@ pub async fn folio_cli_translate(model:String,text:String,source:String,target:S
   finished=tokio::time::timeout(Duration::from_secs(90),execution)=>finished.unwrap_or_else(|_|Err("Codex timed out".into()))
  };
  state.pending.lock().map_err(|_|"CLI request state unavailable")?.remove(&request_id);
- let _=std::fs::remove_dir(&workspace);
  result
 }
 #[cfg(test)]
@@ -110,6 +109,9 @@ mod tests {
   let a=args("gpt-5").unwrap();
   assert_eq!(a,["exec","--json","--sandbox","read-only","--ignore-user-config","--skip-git-repo-check","--ephemeral","--model","gpt-5","-"]);
   for model in ["","--yolo","test;rm -rf","x\nother"] {assert!(args(model).is_err());}
+  let first=tempfile::Builder::new().prefix("folio-cli-").tempdir().unwrap();
+  let second=tempfile::Builder::new().prefix("folio-cli-").tempdir().unwrap();
+  assert_ne!(first.path(),second.path());
   assert!(!SAFE_ENV.contains(&"OPENAI_API_KEY"));assert!(!SAFE_ENV.contains(&"FOLIO_SECRET"));
   assert!(valid_id("12345678"));assert!(!valid_id("../bad"));assert!(!valid_id("short"));
  }
