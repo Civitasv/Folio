@@ -1,0 +1,42 @@
+:root {
+ color-scheme: light dark; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+ font-synthesis: none; font-optical-sizing: auto; text-rendering: optimizeLegibility;
+ --folio-bg:#f7f8fa; --folio-surface:#fff; --folio-raised:#fff; --folio-nav:#f1f2f5;
+ --folio-text:#1d232b; --folio-secondary:#626c79; --folio-tertiary:#7a8391;
+ --folio-border:#e2e6eb; --folio-accent:#3664c7; --folio-selection:#e8efff;
+ --folio-danger:#bd3838; --folio-focus:#4c7ae0; --folio-shadow:0 8px 26px rgba(30,40,60,.07);
+ --folio-r-sm:6px; --folio-r-md:10px; --folio-r-lg:14px;
+ --folio-space-1:4px; --folio-space-2:8px; --folio-space-3:12px;
+ --folio-space-4:16px; --folio-space-6:24px; --folio-space-8:32px;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--folio-bg);color:var(--folio-text);font-family:inherit}
+button,input,select,textarea{font:inherit}
+button{cursor:pointer}
+button:disabled{cursor:not-allowed;opacity:.52}
+:focus-visible{outline:2px solid var(--folio-focus);outline-offset:3px}
+.folio-workspace{display:grid;grid-template-columns:minmax(200px,240px) minmax(0,1fr) minmax(260px,300px);min-height:100dvh}
+.folio-navigation{min-width:0;background:var(--folio-nav);border-right:1px solid var(--folio-border);padding:var(--folio-space-4)}
+.folio-workspace-main{min-width:0;background:var(--folio-surface)}
+.folio-inspector{min-width:0;border-left:1px solid var(--folio-border);background:var(--folio-bg);padding:var(--folio-space-4)}
+.folio-toolbar{min-height:64px;display:flex;align-items:center;justify-content:space-between;gap:var(--folio-space-4);padding:var(--folio-space-3) var(--folio-space-6);border-bottom:1px solid var(--folio-border)}
+.folio-toolbar-title{font-size:1rem;font-weight:650;letter-spacing:-.015em;min-width:0;overflow-wrap:anywhere}
+.folio-toolbar-actions{display:flex;align-items:center;gap:var(--folio-space-2);flex-wrap:wrap}
+.folio-sidebar-item{width:100%;min-height:38px;padding:8px 12px;text-align:left;background:transparent;color:var(--folio-secondary);border:0;border-radius:var(--folio-r-sm);transition:background-color .12s ease-out,color .12s ease-out}
+.folio-sidebar-item:hover{background:var(--folio-selection);color:var(--folio-text)}
+.folio-sidebar-item.is-active{background:var(--folio-selection);color:var(--folio-accent);font-weight:600}
+.folio-surface{padding:var(--folio-space-4);background:var(--folio-surface);border:1px solid var(--folio-border);border-radius:var(--folio-r-md)}
+.folio-surface-title{font-size:.85rem;font-weight:650;margin:0 0 var(--folio-space-4);color:var(--folio-secondary);letter-spacing:.005em}
+.folio-action{min-height:34px;padding:7px 12px;border-radius:var(--folio-r-sm);font-size:.875rem;font-weight:550;border:1px solid transparent;transition:background-color .12s ease-out,transform .1s ease-out}
+.folio-action:active:not(:disabled){transform:scale(.98)}
+.folio-action--primary{background:var(--folio-accent);color:#fff}
+.folio-action--quiet{background:var(--folio-surface);border-color:var(--folio-border);color:var(--folio-text)}
+.folio-action--danger{background:transparent;color:var(--folio-danger);border-color:var(--folio-border)}
+.folio-action--quiet:hover:not(:disabled){background:var(--folio-selection)}
+@media(max-width:1100px){.folio-workspace{grid-template-columns:210px minmax(0,1fr)}.folio-inspector{grid-column:2;border-left:0;border-top:1px solid var(--folio-border)}}
+@media(max-width:700px){.folio-workspace{display:block}.folio-navigation{border-right:0;border-bottom:1px solid var(--folio-border)}.folio-inspector{border-left:0}.folio-toolbar{padding:12px 16px;flex-wrap:wrap}}
+@media(prefers-color-scheme:dark){:root{--folio-bg:#171b20;--folio-surface:#22272e;--folio-raised:#2b3038;--folio-nav:#1d2228;--folio-text:#f1f3f6;--folio-secondary:#c4cbd4;--folio-tertiary:#a8b2bf;--folio-border:#39414b;--folio-accent:#9ab8ff;--folio-selection:#303f5d;--folio-danger:#ffaaaa;--folio-focus:#a0bcff;--folio-shadow:0 8px 26px rgba(0,0,0,.18)}.folio-action--primary{color:#13233f}}
+@media(prefers-reduced-motion:reduce){.folio-sidebar-item,.folio-action{transition:none}.folio-action:active:not(:disabled){transform:none}}
+@media(prefers-reduced-transparency:reduce){.folio-navigation,.folio-inspector,.folio-toolbar{backdrop-filter:none}}
+@media(prefers-contrast:more){:root{--folio-border:currentColor}.folio-sidebar-item.is-active{outline:1px solid currentColor}.folio-action{border:1px solid currentColor}}
+@media(forced-colors:active){.folio-sidebar-item.is-active{outline:1px solid Highlight}.folio-action--primary{border:1px solid ButtonText}}

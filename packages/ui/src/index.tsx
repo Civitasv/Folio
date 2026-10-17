@@ -1,2 +1,4 @@
 import type { DocumentSummary } from '@folio/core';
 export function Library({ documents }: { documents: DocumentSummary[] }) { return <main style={{maxWidth:960,margin:'64px auto',padding:24,fontFamily:'Georgia,serif',color:'#1f1f1f'}}><h1 style={{fontSize:56,marginBottom:0}}>Folio.</h1><p style={{color:'#9c7a5b'}}>A quieter way to read.</p><hr style={{border:'none',borderTop:'1px solid #ddd',margin:'40px 0'}}/><h2>My Library</h2>{documents.length ? <ul>{documents.map(d=><li key={d.id}>{d.title} — {d.progress}%</li>)}</ul> : <p>Your library is empty. PDF import arrives in F01.</p>}</main> }
+
+export {WorkspaceShell,WorkspaceToolbar,SidebarItem,Surface,ActionButton} from './workspace';
