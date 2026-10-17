@@ -52,8 +52,9 @@ fn parse_events(bytes:&[u8])->Result<String,String>{
  Ok(answer.trim().to_owned())
 }
 async fn inspect(args:&[&str])->Option<std::process::Output>{
- tokio::time::timeout(Duration::from_secs(5),codex_command().args(args)
-  .stdin(Stdio::null()).output()).await.ok()?.ok()
+ let mut command=codex_command();
+ command.args(args).stdin(Stdio::null()).stderr(Stdio::null()).kill_on_drop(true);
+ tokio::time::timeout(Duration::from_secs(5),command.output()).await.ok()?.ok()
 }
 #[tauri::command]
 pub async fn folio_cli_status()->CliStatus{
