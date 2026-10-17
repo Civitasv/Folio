@@ -1,6 +1,6 @@
 import React from 'react';
 import { afterEach, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { App } from './app';
 import { MAX_PDF_BYTES, type DocumentSummary, type ReaderPlatform } from '@folio/core';
 
@@ -328,4 +328,45 @@ it('wires EPUB translation into the App without changing the PDF adapter',async(
   unit:{anchor:{kind:'epub',spineIndex:0,cfi:'epubcfi(/6/2)'},unitIndex:1,text:'Translate this paragraph.'}
  })));
  expect(f.platform.readPdf).not.toHaveBeenCalled();
+});
+
+it('filters by stored document kind without promising full-text or collections',async()=>{
+ const {platform}=fixture([
+  {id:'pdf:one',title:'Paper',progress:2},
+  {id:'epub:two',kind:'epub',title:'Novel',progress:3},
+  {id:'doi:three',kind:'reference',title:'Citation',doi:'10.1000/example',progress:1}
+ ]);
+ render(<App platform={platform}/>);
+ const nav=screen.getByRole('navigation',{name:'Library filters'});
+ expect(await screen.findByRole('button',{name:'Paper'})).toBeTruthy();
+ expect(screen.getByRole('button',{name:'Novel'})).toBeTruthy();
+ expect(screen.getByRole('button',{name:'Citation'})).toBeTruthy();
+ fireEvent.click(within(nav).getByRole('button',{name:'PDF'}));
+ expect(within(nav).getByRole('button',{name:'PDF'}).getAttribute('aria-current')).toBe('page');
+ expect(screen.getByRole('button',{name:'Paper'})).toBeTruthy();
+ expect(screen.queryByRole('button',{name:'Novel'})).toBeNull();
+ fireEvent.click(within(nav).getByRole('button',{name:'EPUB'}));
+ expect(screen.queryByRole('button',{name:'Paper'})).toBeNull();
+ expect(screen.getByRole('button',{name:'Novel'})).toBeTruthy();
+ fireEvent.click(within(nav).getByRole('button',{name:'DOI references'}));
+ expect(screen.getByRole('button',{name:'Citation'})).toBeTruthy();
+ expect(screen.queryByRole('button',{name:'Novel'})).toBeNull();
+ fireEvent.click(within(nav).getByRole('button',{name:'All items'}));
+ expect(screen.getByRole('button',{name:'Paper'})).toBeTruthy();
+ fireEvent.change(screen.getByLabelText('Search titles'),{target:{value:'10.1000/example'}});
+ expect(screen.getByRole('button',{name:'Citation'})).toBeTruthy();
+ expect(screen.queryByRole('button',{name:'Paper'})).toBeNull();
+});
+it('shows contextual stored-document inspector without claiming automatic PDF extraction',async()=>{
+ const {platform}=fixture([{id:'pdf:one',title:'Paper',progress:4}]);setupUrls();
+ render(<App platform={platform}/>);
+ await screen.findByRole('button',{name:'Paper'});
+ expect(screen.getByRole('complementary',{name:'Context inspector'}).textContent).not.toContain('Selected ·');
+ fireEvent.click(screen.getByRole('button',{name:'Paper'}));
+ const inspector=screen.getByRole('complementary',{name:'Context inspector'});
+ expect(inspector.textContent).toContain('Selected · Paper');
+ expect(inspector.textContent).toContain('PDF');
+ expect(inspector.textContent).toContain('4');
+ fireEvent.click(screen.getByRole('button',{name:'Close'}));
+ expect(screen.getByRole('complementary',{name:'Context inspector'}).textContent).not.toContain('Selected ·');
 });

@@ -4,6 +4,7 @@ import { universalPlatform, type EpubReaderPlatform, type DoiPlatform, type Tran
 import { DoiPanel } from './doi-panel';
 import { EpubReader } from './epub-reader';
 import { TranslationPanel } from './translation-panel';
+import {WorkspaceShell, WorkspaceToolbar, SidebarItem, Surface} from '@folio/ui';
 
 export function App({ platform = universalPlatform,translationProvider }: { platform?: ReaderPlatform & Partial<EpubReaderPlatform> & Partial<DoiPlatform> & Partial<TranslationPlatform>;translationProvider?:TranslationProvider }) {
   const [documents, setDocuments] = React.useState<DocumentSummary[]>([]);
@@ -11,6 +12,7 @@ export function App({ platform = universalPlatform,translationProvider }: { plat
   const [reader, setReader] = React.useState<{ id: string; url: string } | null>(null);
   const [page, setPage] = React.useState('1');
   const [query, setQuery] = React.useState('');
+  const [kindFilter,setKindFilter] = React.useState<'all'|'pdf'|'epub'|'reference'>('all');
   const [error, setError] = React.useState('');
   const [notice, setNotice] = React.useState('');
   const [busy, setBusy] = React.useState(false);
@@ -86,29 +88,50 @@ export function App({ platform = universalPlatform,translationProvider }: { plat
       setError(''); setNotice('Reading position saved.');
     } catch { setError('Could not save reading position.'); }
   }
-  const filtered = documents.filter(doc => (doc.title + ' ' + (doc.creators??[]).join(' ') + ' ' + (doc.doi??'')).toLocaleLowerCase().includes(query.toLocaleLowerCase()));
-  return <main style={{maxWidth:960,margin:'64px auto',padding:24,fontFamily:'Georgia,serif',color:'#1f1f1f'}}>
-    <h1 style={{fontSize:56,marginBottom:0}}>Folio.</h1><p style={{color:'#9c7a5b'}}>A quieter way to read.</p>
-    <section aria-label="Import PDF" onDragOver={event => event.preventDefault()} onDrop={event => {
+  const filtered = documents.filter(doc => (
+    (kindFilter === 'all' || (kindFilter === 'pdf' ? doc.kind !== 'epub' && doc.kind !== 'reference' : doc.kind === kindFilter)) &&
+    (doc.title + ' ' + (doc.creators??[]).join(' ') + ' ' + (doc.doi??'')).toLocaleLowerCase().includes(query.toLocaleLowerCase())
+  ));
+  const hasDoi=platform.resolveDoi && platform.saveReference && platform.readReference && platform.importOpenPdf;
+  const doiPanel=hasDoi && <DoiPanel
+      key={active?.kind==='reference' ? active.id : 'new'} platform={platform as DoiPlatform} referenceId={active?.kind==='reference' ? active.id : undefined}
+      onSaved={async () => { setDocuments(await platform.listDocuments()); }}
+      onImported={async doc => { setDocuments(await platform.listDocuments()); setActive(doc); setPage(String(doc.progress)); }}/>;
+  return <WorkspaceShell navigation={<div className="folio-navigation-content">
+      <div className="folio-brand"><h1>Folio<span>.</span></h1><p>A quieter way to read.</p></div>
+      <nav aria-label="Library filters" className="folio-library-filters">
+        <SidebarItem active={kindFilter==='all'} label="All items" onClick={()=>{setKindFilter('all');setActive(null);}}/>
+        <SidebarItem active={kindFilter==='pdf'} label="PDF" onClick={()=>{setKindFilter('pdf');setActive(null);}}/>
+        <SidebarItem active={kindFilter==='epub'} label="EPUB" onClick={()=>{setKindFilter('epub');setActive(null);}}/>
+        <SidebarItem active={kindFilter==='reference'} label="DOI references" onClick={()=>{setKindFilter('reference');setActive(null);}}/>
+      </nav>
+      <p className="folio-nav-footnote">Your documents stay on this device.</p>
+    </div>} inspector={<div className="folio-inspector-content">
+      {active && active.kind!=='reference' ? <Surface title="Document information">
+        <p className="folio-inspector-summary">Selected · {active.title}</p>
+        <dl className="folio-metadata"><dt>Format</dt><dd>{active.kind==='epub'?'EPUB':'PDF'}</dd>
+          <dt>Reading position</dt><dd>{active.progress}</dd></dl>
+        <p className="folio-inspector-note">Reader-specific translation tools remain alongside the existing reader until D01c.</p>
+      </Surface> : doiPanel}
+    </div>}>
+    <main className="folio-content">
+    <WorkspaceToolbar title={active ? 'Reading workspace' : 'Library workspace'} actions={<span className="folio-local-state">Local-first</span>}/>
+    <section className="folio-import" aria-label="Import PDF" onDragOver={event => event.preventDefault()} onDrop={event => {
       event.preventDefault(); const file = event.dataTransfer.files[0]; if (file) void importFile(file);
     }}>
       <label>Import local PDF or EPUB <input aria-label="Import PDF file" type="file" accept=".pdf,.epub,application/pdf,application/epub+zip" disabled={busy}
         onChange={event => { const file = event.target.files?.[0]; if (file) void importFile(file); event.target.value=''; }}/></label>
       <p>Or drop a PDF or EPUB here. Files remain in this browser's local storage (up to 100 MiB per file).</p>
     </section>
-    {platform.resolveDoi && platform.saveReference && platform.readReference && platform.importOpenPdf && <DoiPanel
-      key={active?.kind==='reference' ? active.id : 'new'} platform={platform as DoiPlatform} referenceId={active?.kind==='reference' ? active.id : undefined}
-      onSaved={async () => { setDocuments(await platform.listDocuments()); }}
-      onImported={async doc => { setDocuments(await platform.listDocuments()); setActive(doc); setPage(String(doc.progress)); }}/>}
     {busy && <p role="status">Importing locally…</p>}
     {error && <p role="alert">{error}</p>}
     {notice && <p role="status">{notice}</p>}
-    <hr style={{border:'none',borderTop:'1px solid #ddd',margin:'40px 0'}}/>
-    <h2>My Library</h2><label>Search titles <input aria-label="Search titles" value={query} onChange={event => setQuery(event.target.value)}/></label>
-    {filtered.length ? <ul>{filtered.map(doc => <li key={doc.id}>
+
+    <section className="folio-library-list" aria-label="My Library"><h2>My Library</h2><label className="folio-search-label">Search titles <input aria-label="Search titles" value={query} onChange={event => setQuery(event.target.value)}/></label>
+    {filtered.length ? <ul className="folio-document-list">{filtered.map(doc => <li className="folio-document-row" key={doc.id}>
       <button onClick={() => open(doc)}>{doc.title}</button> — {doc.kind==='reference' ? 'DOI reference' : doc.kind==='epub' ? 'EPUB chapter '+doc.progress : 'saved page '+doc.progress}{doc.creators?.length ? ' — '+doc.creators.join(', ') : ''}
       <button aria-label={'Delete '+doc.title} onClick={() => void remove(doc)}>Delete</button>
-    </li>)}</ul> : <p>{query ? 'No matching documents.' : 'Your library is empty. Import a PDF to begin.'}</p>}
+    </li>)}</ul> : <p>{query ? 'No matching documents.' : 'Your library is empty. Import a PDF to begin.'}</p>}</section>
     {active && (active.kind==='reference' ? <section aria-label="Reference selected"><button onClick={() => setActive(null)}>Close reference</button></section> : active.kind==='epub' && platform.importEpub && platform.readEpub && platform.setEpubLocation && platform.setEpubPreferences ? <section aria-label="EPUB book"><h2>Reading: {active.title}</h2><button onClick={() => setActive(null)}>Close</button><EpubReader doc={active} platform={platform as EpubReaderPlatform} onRefresh={async () => setDocuments(await platform.listDocuments())}
         translationPlatform={platform.getLanguages&&platform.setLanguages&&platform.findTranslation&&platform.saveManualTranslation&&platform.translate&&platform.deleteTranslations ? platform as TranslationPlatform:undefined} translationProvider={translationProvider}/></section> : <section aria-label="PDF reader"><h2>Reading: {active.title}</h2>
       <button onClick={() => setActive(null)}>Close</button>
@@ -121,5 +144,5 @@ export function App({ platform = universalPlatform,translationProvider }: { plat
       {platform.getLanguages&&platform.setLanguages&&platform.findTranslation&&platform.saveManualTranslation&&platform.translate&&platform.deleteTranslations&&
         <TranslationPanel doc={active} platform={platform as TranslationPlatform} provider={translationProvider}/>}
     </section>)}
-  </main>;
+  </main></WorkspaceShell>;
 }
