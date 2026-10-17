@@ -119,7 +119,7 @@ export function App({ platform = universalPlatform,translationProvider,onOpenSet
         <div className="folio-translation-slot"><TranslationPanel doc={active} platform={platform as TranslationPlatform} provider={translationProvider}/></div>}
     </div>}>
     <main className={active ? "folio-content has-active-reader" : "folio-content"}>
-    <WorkspaceToolbar title={active ? 'Reading workspace' : 'Library workspace'} actions={<><span className="folio-local-state">Local-first</span>{onOpenSettings&&<button className="folio-settings-trigger" type="button" onClick={onOpenSettings}>Settings</button>}</>}/>
+    <WorkspaceToolbar title={active ? 'Reading workspace' : 'Library workspace'} actions={<><span className="folio-local-state">Local-first</span>{onOpenSettings&&<button className="folio-settings-trigger" type="button" onClick={event=>{event.currentTarget.focus();onOpenSettings();}}>Settings</button>}</>}/>
     <section className="folio-import" aria-label="Import PDF" onDragOver={event => event.preventDefault()} onDrop={event => {
       event.preventDefault(); const file = event.dataTransfer.files[0]; if (file) void importFile(file);
     }}>
