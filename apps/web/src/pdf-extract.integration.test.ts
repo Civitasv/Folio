@@ -53,6 +53,7 @@ it('parses an actual local two-column PDF, never uploading content or embedding 
   expect(text.indexOf('Left paragraph one')).toBeLessThan(text.indexOf('Left paragraph two'));
   expect(text.indexOf('Left paragraph two')).toBeLessThan(text.indexOf('Right paragraph one'));
   expect(text.indexOf('Right paragraph one')).toBeLessThan(text.indexOf('Right paragraph two'));
+  expect(text.indexOf('Right paragraph two')).toBeLessThan(text.indexOf('Figure 1: Example chart.'));
   expect(p.ir.blocks.every(b=>b.page===1&&b.rect.x>=0&&b.rect.x+b.rect.width<=1.01)).toBe(true);
   expect(text).toContain('Figure 1: Example chart.');
   expect(p.ir.blocks.find(b=>b.text.includes('Figure 1:'))?.kind).toBe('caption');
