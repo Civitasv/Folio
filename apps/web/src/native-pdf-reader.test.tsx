@@ -309,7 +309,16 @@ it('renders a source-preserving figure in both parallel articles and only once i
  expect(text.indexOf('Figure 1: Original evidence.')).toBeGreaterThan(text.indexOf('Original figure'));
 });
 it('retains original-page evidence when a figure crop is unavailable',async()=>{
- 
+ const rect={x:.2,y:.3,width:.6,height:.4},figure={
+  id:'p2-figure-2',kind:'figure' as const,page:2,text:'',confidence:.9,rect,mediaRect:rect};
+ regionImage.mockRejectedValueOnce(new Error('unrenderable image'));
+ vi.mocked(parseLocalPdf).mockResolvedValueOnce({...parsed,ir:{...ir,blocks:[figure]}});
+ render(<NativePdfReader doc={doc} bytes={bytes}/>);
+ const source=await screen.findByRole('region',{name:'Original article'});
+ expect(await within(source).findByText('Original figure region is loading or unavailable. Inspect the original page.')).toBeTruthy();
+ fireEvent.click(within(source).getByRole('button',{name:'Review original page 2 for p2-figure-2'}));
+ expect(await screen.findByRole('dialog',{name:'Original PDF page 2'})).toBeTruthy();
+});
 it('preserves scientific table regions in both Parallel streams and renders them once in Interleaved',async()=>{
  const rect={x:.1,y:.2,width:.7,height:.4};
  const scientific={id:'p6-table-1000-2000-7000-4000',kind:'table' as const,page:6,text:'',
@@ -324,17 +333,6 @@ it('preserves scientific table regions in both Parallel streams and renders them
  const feed=screen.getByRole('region',{name:'Interleaved article'});
  expect(within(feed).getAllByRole('img')).toHaveLength(1);
  expect(within(feed).queryByText('< 0.001')).toBeNull();
-});
-
-const rect={x:.2,y:.3,width:.6,height:.4},figure={
-  id:'p2-figure-2',kind:'figure' as const,page:2,text:'',confidence:.9,rect,mediaRect:rect};
- regionImage.mockRejectedValueOnce(new Error('unrenderable image'));
- vi.mocked(parseLocalPdf).mockResolvedValueOnce({...parsed,ir:{...ir,blocks:[figure]}});
- render(<NativePdfReader doc={doc} bytes={bytes}/>);
- const source=await screen.findByRole('region',{name:'Original article'});
- expect(await within(source).findByText('Original figure region is loading or unavailable. Inspect the original page.')).toBeTruthy();
- fireEvent.click(within(source).getByRole('button',{name:'Review original page 2 for p2-figure-2'}));
- expect(await screen.findByRole('dialog',{name:'Original PDF page 2'})).toBeTruthy();
 });
 
 it('exposes a local parse failure and retries the stored PDF without reimporting or remote calls',async()=>{
