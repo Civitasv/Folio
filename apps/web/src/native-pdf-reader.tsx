@@ -1,5 +1,5 @@
 import React from 'react';
-import { DEFAULT_LANGUAGE_PREFERENCES, LANGUAGE_OPTIONS, TRANSLATION_PROMPT_VERSION,readingPairs,
+import { DEFAULT_LANGUAGE_PREFERENCES, LANGUAGE_OPTIONS, TRANSLATION_PROMPT_VERSION,readingPairs,sourceMediaKind,
  type PdfBlock,type PdfDocumentIR,type ReadingMode,type DocumentSummary,type TranslationProvider,
  type LanguagePreferences,type TranslationIdentity} from '@folio/core';
 import {browserReaderModeStore,type ReaderModeStore,type TranslationPlatform} from '@folio/platform';
@@ -51,7 +51,7 @@ export function NativePdfReader({doc,bytes,platform,provider,onLocation,modeStor
  React.useEffect(()=>{
   if(!parsed||!ir)return;
   let live=true;setMedia(new Map());
-  void Promise.all(ir.blocks.filter(block=>block.kind==='figure'&&block.mediaRect).map(async block=>{
+  void Promise.all(ir.blocks.filter(block=>sourceMediaKind(block.kind)&&block.mediaRect).map(async block=>{
    try{return [block.id,await parsed.regionImage(block.page,block.mediaRect!)] as const;}
    catch{return undefined;}
   })).then(items=>{if(live)setMedia(new Map(items.filter((x):x is readonly [string,string]=>!!x)));});
@@ -61,7 +61,7 @@ export function NativePdfReader({doc,bytes,platform,provider,onLocation,modeStor
   if(!ready||!ir||!platform)return;
   let live=true;setTranslations(new Map());
   void Promise.all(ir.blocks.map(async block=>{
-   if(block.kind==='figure'||block.text.length>4000)return undefined;
+   if(sourceMediaKind(block.kind)||block.text.length>4000)return undefined;
    const identity=sourceIdentity(doc,block,prefs,provider);
    try{
     const result=(await platform.findTranslation(identity))??(provider?await platform.findTranslation(sourceIdentity(doc,block,prefs)):undefined);
@@ -106,14 +106,14 @@ export function NativePdfReader({doc,bytes,platform,provider,onLocation,modeStor
  };
  const blockView=(block:PdfBlock)=> <div className={'folio-native-block folio-native-'+block.kind} key={block.id} data-block-id={block.id}
   onFocus={()=>onLocation?.(block.page)} onClick={()=>{if(mode==='interleaved')focus(block,'source');}} tabIndex={0}>
-  {block.kind==='figure'?media.has(block.id)?<img className="folio-native-figure-image" src={media.get(block.id)} alt={'Original scientific figure '+block.id}/>:<p role="status">Original figure region is loading or unavailable. Inspect the original page.</p>:
+  {sourceMediaKind(block.kind)?media.has(block.id)?<img className="folio-native-figure-image" src={media.get(block.id)} alt={'Original scientific '+block.kind+' '+block.id}/>:<p role="status">Original figure region is loading or unavailable. Inspect the original page.</p>:
    block.kind==='title'?<h2>{block.text}</h2>:block.kind==='heading'?<h3>{block.text}</h3>:<p>{block.text}</p>}
   <button className="folio-native-source-link" type="button" aria-label={'Review original page '+block.page+' for '+block.id}
    onClick={()=>void reviewPage(block.page)}>p. {block.page} · Check source</button>
  </div>;
- const targetView=(block:PdfBlock,targetText?:string)=> block.kind==='figure'?
+ const targetView=(block:PdfBlock,targetText?:string)=> sourceMediaKind(block.kind)?
   mode==='interleaved'?null:<div key={block.id} className="folio-native-target-block folio-native-media-copy" data-block-id={block.id}>
-   {media.has(block.id)?<img className="folio-native-figure-image" src={media.get(block.id)} alt={'Unmodified scientific figure '+block.id}/>:<p role="status">Original figure region is loading or unavailable.</p>}
+   {media.has(block.id)?<img className="folio-native-figure-image" src={media.get(block.id)} alt={'Unmodified scientific '+block.kind+' '+block.id}/>:<p role="status">Original figure region is loading or unavailable.</p>}
   </div>:
   <div key={block.id} className="folio-native-target-block" data-block-id={block.id}>
   {targetText?<p lang={prefs.target} dir="auto">{targetText}</p>:<div className="folio-native-missing">
