@@ -288,7 +288,7 @@ it('updates the PDF library and reader only after explicit DOI OA import',async(
  fireEvent.click(screen.getByText('Import open-access PDF'));
  await waitFor(()=>expect(platform.importOpenPdf).toHaveBeenCalledOnce());
  expect(await screen.findByTitle('PDF document')).toBeTruthy();
- expect(screen.getAllByRole('button',{name:'OA paper'})).toHaveLength(2);
+ expect(screen.getAllByRole('button',{name:'OA paper'})).toHaveLength(1);
 });
 
 it('integrates PDF translation excerpt and cleans document cache on deletion',async()=>{
@@ -410,4 +410,51 @@ it('opens low-frequency provider settings only through the explicit toolbar acti
  fireEvent.click(screen.getByRole('button',{name:'Settings'}));
  expect(open).toHaveBeenCalledOnce();
  expect(document.activeElement).toBe(screen.getByRole('button',{name:'Settings'}));
+});
+
+it('shows the library as a distinct landing surface and makes opening a PDF a reader-only canvas',async()=>{
+ const f=fixture([{id:'sha256:a',title:'Paper',progress:3,creators:['Researcher']}]);setupUrls();
+ render(<App platform={f.platform}/>);
+ await screen.findByRole('button',{name:'Paper'});
+ expect(screen.getByText('Make room for understanding.')).toBeTruthy();
+ expect(screen.getByRole('region',{name:'Import PDF'})).toBeTruthy();
+ fireEvent.click(screen.getByRole('button',{name:'Paper'}));
+ expect(await screen.findByTitle('PDF document')).toBeTruthy();
+ expect(screen.queryByText('Make room for understanding.')).toBeNull();
+ expect(screen.queryByRole('region',{name:'Import PDF'})).toBeNull();
+ expect(screen.getByRole('region',{name:'PDF reader'})).toBeTruthy();
+ expect(screen.getByRole('button',{name:'Back to library'})).toBeTruthy();
+ fireEvent.click(screen.getByRole('button',{name:'Back to library'}));
+ expect(screen.queryByTitle('PDF document')).toBeNull();
+ expect(screen.getByText('Make room for understanding.')).toBeTruthy();
+ expect(screen.getByRole('button',{name:'Paper'})).toBeTruthy();
+});
+it('collapses and restores independent navigation and detail panels while preserving reading state',async()=>{
+ const f=fixture([{id:'sha256:a',title:'Paper',progress:2}]);setupUrls();
+ render(<App platform={f.platform}/>);
+ fireEvent.click(await screen.findByRole('button',{name:'Paper'}));
+ expect(await screen.findByTitle('PDF document')).toBeTruthy();
+ const app=document.querySelector('.folio-app')!;
+ fireEvent.click(screen.getByRole('button',{name:'Hide library'}));
+ expect(app.classList.contains('navigation-collapsed')).toBe(true);
+ expect(screen.getByRole('button',{name:'Show library'}).getAttribute('aria-expanded')).toBe('false');
+ fireEvent.click(screen.getByRole('button',{name:'Hide details'}));
+ expect(app.classList.contains('inspector-collapsed')).toBe(true);
+ expect(screen.getByRole('button',{name:'Show details'}).getAttribute('aria-expanded')).toBe('false');
+ expect(screen.getByTitle('PDF document')).toBeTruthy();
+ fireEvent.click(screen.getByRole('button',{name:'Show details'}));
+ fireEvent.click(screen.getByRole('button',{name:'Show library'}));
+ expect(app.classList.contains('inspector-collapsed')).toBe(false);
+ expect(app.classList.contains('navigation-collapsed')).toBe(false);
+ expect(screen.getByRole('button',{name:'Back to library'})).toBeTruthy();
+});
+it('can import a new document while reading without restoring the stacked library landing',async()=>{
+ const f=fixture([{id:'sha256:a',title:'Paper',progress:2}]);setupUrls();
+ render(<App platform={f.platform}/>);
+ fireEvent.click(await screen.findByRole('button',{name:'Paper'}));
+ await screen.findByTitle('PDF document');
+ fireEvent.change(screen.getByLabelText('Import PDF file'),{target:{files:[file('Second.pdf')]}});
+ expect(await screen.findByText('This PDF is already in your library.')).toBeTruthy();
+ expect(screen.queryByRole('region',{name:'Import PDF'})).toBeNull();
+ expect(screen.getByRole('region',{name:'PDF reader'})).toBeTruthy();
 });
