@@ -1,6 +1,7 @@
 import * as pdfjs from 'pdfjs-dist/legacy/build/pdf.mjs';
 import workerUrl from 'pdfjs-dist/legacy/build/pdf.worker.min.mjs?url';
-import {buildPdfIR,type PdfDocumentIR,type PdfPageInput} from '@folio/core';
+import {buildPdfIR,type PdfDocumentIR,type PdfPageInput,type PdfRect} from '@folio/core';
+import {paintedImageRegions} from './pdf-media';
 
 // PDF.js 6 uses Promise.try during fake-worker setup. Older desktop WebViews and
 // Node 22 do not guarantee it; provide the standard synchronous-call semantics.
@@ -18,6 +19,7 @@ export interface ParsedPdf {
  ir:PdfDocumentIR;
  /** Exact original-page fidelity check, not a default embedded PDF viewer. */
  pageImage(pageNumber:number):Promise<string>;
+ regionImage(pageNumber:number,rect:PdfRect):Promise<string>;
  destroy():Promise<void>;
 }
 export async function parseLocalPdf(id:string,bytes:Uint8Array,signal?:AbortSignal):Promise<ParsedPdf>{
@@ -44,7 +46,9 @@ export async function parseLocalPdf(id:string,bytes:Uint8Array,signal?:AbortSign
      width:Math.abs(item.width)/viewport.width,height:height/viewport.height
     }}];
    });
-   pages.push({page:number,width:viewport.width,height:viewport.height,spans});
+   const list=await page.getOperatorList();
+   const images=paintedImageRegions(list,pdfjs.OPS,viewport.transform as [number,number,number,number,number,number],viewport.width,viewport.height);
+   pages.push({page:number,width:viewport.width,height:viewport.height,spans,images});
    page.cleanup();
   }
   const ir=buildPdfIR(id,pages);
@@ -61,6 +65,27 @@ export async function parseLocalPdf(id:string,bytes:Uint8Array,signal?:AbortSign
      const ctx=canvas.getContext('2d');
      if(!ctx)throw new Error('Canvas rendering unavailable.');
      await page.render({canvas,canvasContext:ctx,viewport,annotationMode:pdfjs.AnnotationMode.DISABLE}).promise;
+     return canvas.toDataURL('image/png');
+    }finally{canvas.width=0;canvas.height=0;page.cleanup();}
+   },
+   async regionImage(number,rect){
+    if(disposed||number<1||!Number.isInteger(number)||number>pdf.numPages||
+      ![rect.x,rect.y,rect.width,rect.height].every(Number.isFinite)||
+      rect.x<0||rect.y<0||rect.width<=0||rect.height<=0||
+      rect.x+rect.width>1.001||rect.y+rect.height>1.001)throw new Error('Source image region unavailable.');
+    const page=await pdf.getPage(number),normal=page.getViewport({scale:1});
+    const scale=Math.min(2.5,1800/Math.max(normal.width*rect.width,normal.height*rect.height));
+    const canvas=document.createElement('canvas');
+    const x=rect.x*normal.width,y=rect.y*normal.height;
+    try{
+     canvas.width=Math.ceil(normal.width*rect.width*scale);canvas.height=Math.ceil(normal.height*rect.height*scale);
+     const ctx=canvas.getContext('2d');
+     if(!ctx)throw new Error('Canvas rendering unavailable.');
+     const viewport=page.getViewport({scale});
+     // Only canvas pixels are cropped. PDF.js still renders the untouched page
+     // using the same PDF source and includes vector/overlay content in this region.
+     await page.render({canvas,canvasContext:ctx,viewport,transform:[1,0,0,1,-x*scale,-y*scale],
+      annotationMode:pdfjs.AnnotationMode.DISABLE}).promise;
      return canvas.toDataURL('image/png');
     }finally{canvas.width=0;canvas.height=0;page.cleanup();}
    },
