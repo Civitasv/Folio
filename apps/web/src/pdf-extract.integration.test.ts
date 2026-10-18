@@ -1,12 +1,11 @@
 import {expect,it} from 'vitest';
 import {parseLocalPdf} from './pdf-extract';
 import * as pdfjs from 'pdfjs-dist';
-import {createRequire} from 'node:module';
-import {pathToFileURL} from 'node:url';
-// Resolve the actual pnpm installation path for Node's PDF.js fake worker.
-// The shipped web app still bundles its worker through Vite's local ?url import.
-const localRequire=createRequire(import.meta.url);
-pdfjs.GlobalWorkerOptions.workerSrc=pathToFileURL(localRequire.resolve('pdfjs-dist/build/pdf.worker.min.mjs')).href;
+// The real worker module is preloaded for PDF.js's Node fake-worker path;
+// production still uses the version-matched local Vite worker asset.
+// @ts-expect-error The distributed worker module has no separate public TS declaration.
+import * as pdfWorker from 'pdfjs-dist/build/pdf.worker.min.mjs';
+Object.assign(globalThis,{pdfjsWorker:pdfWorker});
 
 /** A real, deterministic, redistributable selectable-text PDF; no PDF.js mocks. */
 function fixturePdf():Uint8Array{
