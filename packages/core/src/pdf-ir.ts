@@ -83,7 +83,7 @@ export function buildPdfIR(documentId:string,pages:PdfPageInput[]):PdfDocumentIR
   const regions=scientificRegions(page.layoutRegions??[],clean);
   const prose=clean.filter(span=>!belongsToScientificRegion(span,regions));
   const all=order(lines(prose));
-  if(!all.length)warnings.push('Page '+page.page+': no selectable prose text. Original page review required.');
+  if(!all.length)warnings.push('Page '+page.page+(regions.length?': no selectable prose text. Original page review required.':': no selectable text. Original page review required.'));
   const heights=prose.map(s=>s.fontSize).sort((a,b)=>a-b),median=heights[Math.floor(heights.length/2)]||1;
   let n=0;
   for(const line of all){
