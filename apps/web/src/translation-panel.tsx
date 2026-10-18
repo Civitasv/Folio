@@ -3,7 +3,7 @@ import {DEFAULT_LANGUAGE_PREFERENCES,LANGUAGE_OPTIONS,TRANSLATION_PROMPT_VERSION
  type ContentUnit,type DocumentSummary,type LanguagePreferences,type TranslationEntry,type TranslationIdentity,type TranslationProvider}
  from '@folio/core';
 import type {TranslationPlatform} from '@folio/platform';
-export function TranslationPanel({doc,units,platform,provider}:{doc:DocumentSummary;units?:ContentUnit[];platform:TranslationPlatform;provider?:TranslationProvider}){
+export function TranslationPanel({doc,units,platform,provider,layout='standard'}:{doc:DocumentSummary;units?:ContentUnit[];platform:TranslationPlatform;provider?:TranslationProvider;layout?:'standard'|'target-pane'}){
  const [prefs,setPrefs]=React.useState<LanguagePreferences>(DEFAULT_LANGUAGE_PREFERENCES);
  const [ready,setReady]=React.useState(false);
  const [unitIndex,setUnitIndex]=React.useState(0);
@@ -60,11 +60,12 @@ export function TranslationPanel({doc,units,platform,provider}:{doc:DocumentSumm
   }catch{setError(pending.signal.aborted?'Translation cancelled.':'Provider translation failed. Retry or use a local draft.');}
   finally{controller.current=null;setBusy(false);}
  }
- return <section aria-label="Translation">
-  <h3>Translation · {doc.title}</h3>
+ return <section aria-label={layout==='target-pane'?'Target translation':'Translation'} className={layout==='target-pane'?'folio-target-content':undefined}>
+  {layout==='target-pane'?<header className="folio-target-heading"><p>TRANSLATION</p><h2>Target text</h2></header>:<h3>Translation · {doc.title}</h3>}
   {!ready&&<p>Loading translation settings…</p>}
   {ready&&<>
-   <div>
+   {layout==='target-pane'&&<p className="folio-target-guidance">Translated passages for the current PDF page will appear here. Nothing is sent to a provider until you request it.</p>}
+   <div className={layout==='target-pane'?'folio-target-preferences':undefined}>
     <label>Source language <select aria-label="Source language" value={prefs.source} disabled={busy}
       onChange={e=>void update({...prefs,source:e.target.value})}>
       {LANGUAGE_OPTIONS.map(lang=><option key={lang.tag} value={lang.tag}>{lang.label}</option>)}
@@ -77,23 +78,23 @@ export function TranslationPanel({doc,units,platform,provider}:{doc:DocumentSumm
       {prefs.recentTargets.filter(tag=>!LANGUAGE_OPTIONS.some(lang=>lang.tag===tag)).map(tag=><option key={tag} value={tag}>{tag} (recent)</option>)}</select></label>
     <label>Custom target language <input aria-label="Custom target language" value={customTarget} placeholder="e.g. ko-KR" onChange={e=>setCustomTarget(e.target.value)}/></label>
     <button disabled={!customTarget.trim()||busy} onClick={()=>void update({...prefs,target:customTarget.trim()})}>Use target language</button>
-    <label>View <select aria-label="Translation view" value={prefs.view} onChange={e=>void update({...prefs,view:e.target.value as LanguagePreferences['view']})}>
+    {layout==='standard'&&<label>View <select aria-label="Translation view" value={prefs.view} onChange={e=>void update({...prefs,view:e.target.value as LanguagePreferences['view']})}>
       <option value="original">Original only</option><option value="bilingual">Bilingual</option><option value="translation">Translation only</option>
-    </select></label>
+    </select></label>}
    </div>
    {units?<label>Content unit <select aria-label="Content unit" value={unitIndex} onChange={e=>setUnitIndex(Number(e.target.value))}>
     {units.map((u,i)=><option key={u.unitIndex} value={i}>{u.text.slice(0,70)}</option>)}</select></label>:
-    <label>PDF excerpt (manual paste; PDF text extraction is not implemented) <textarea aria-label="PDF excerpt"
-      value={excerpt} onChange={e=>setExcerpt(e.target.value)} maxLength={4000}/></label>}
+    <details className="folio-target-excerpt" open={layout==='standard'?true:undefined}><summary>{layout==='target-pane'?'Add source passage':'PDF excerpt (manual paste; PDF text extraction is not implemented)'}</summary><label>PDF excerpt (manual paste; PDF text extraction is not implemented) <textarea aria-label="PDF excerpt"
+      value={excerpt} onChange={e=>setExcerpt(e.target.value)} maxLength={4000}/></label></details>}
    {unit&&<>
     <p>Only the displayed excerpt is eligible for translation. No entire-book upload or background request.</p>
     {provider&&<label>Method <select aria-label="Translation method" value={mode} onChange={e=>setMode(e.target.value as 'manual'|'provider')}>
       <option value="manual">Local manual draft</option><option value="provider">{provider.id} / {provider.model}</option>
     </select></label>}
     {!provider&&<p>AI provider unavailable in this preview. API and CLI adapters follow in F01e/F01f; manual drafts stay on-device.</p>}
-    {(prefs.view!=='translation')&&<div><strong>Original</strong><p data-testid="translation-original">{unit.text}</p></div>}
-    {(prefs.view!=='original')&&<div><strong>{entry?.provenance==='provider'?'Provider translation':'Local draft / cached translation'}</strong>
-      <p data-testid="translation-result">{entry?.translatedText??'No cached translation for this exact text and settings.'}</p></div>}
+    {layout==='standard'&&prefs.view!=='translation'&&<div><strong>Original</strong><p data-testid="translation-original">{unit.text}</p></div>}
+    {(layout==='target-pane'||prefs.view!=='original')&&<div className={layout==='target-pane'?'folio-target-result':undefined}><strong>{entry?.provenance==='provider'?'Provider translation':entry?.provenance==='manual'?'Local draft':'Translation'}</strong>
+      <p data-testid="translation-result">{entry?.translatedText??(layout==='target-pane'?'No translation yet. Add a source passage, then translate it or write a local draft.':'No cached translation for this exact text and settings.')}</p></div>}
     {!useProvider?<><label>Write translated text locally <textarea aria-label="Manual translation" value={draft}
       disabled={busy} onChange={e=>setDraft(e.target.value)} maxLength={16000}/></label>
       <button disabled={busy||!unit.text.trim()||!draft.trim()} onClick={()=>void saveManual(identity!)}>Save local translation</button></>:
