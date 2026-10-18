@@ -167,3 +167,36 @@ it('classifies and bounds local PDF diagnostics without exposing document bytes'
  expect(pdfFailureMessage(new Error('x'.repeat(900))).length).toBeLessThan(460);
  expect(new PdfParseFailure('Reading page 2',undefined).message).toContain('Unknown PDF engine error');
 });
+
+it('formats string and empty native PDF failures without losing stage provenance',()=>{
+ expect(new PdfParseFailure('Opening document','native worker failed').message).toContain('native worker failed');
+ expect(new PdfParseFailure('Opening document','  ').message).toContain('Unknown PDF engine error');
+});
+it('cancels immediately when user aborts inside an in-flight page text request',async()=>{
+ const ctrl=new AbortController();
+ getPage.mockImplementationOnce(async()=>({
+  getViewport:()=>({width:600,height:800,transform:[1,0,0,1,0,0]}),
+  getTextContent:async()=>{ctrl.abort();throw Error('interrupted text');},
+  getOperatorList:async()=>({fnArray:[],argsArray:[]}),cleanup,render
+ }));
+ await expect(parseLocalPdf('cancel:text',new Uint8Array(1),ctrl.signal)).rejects.toThrow('PDF processing cancelled.');
+ expect(cleanup).toHaveBeenCalled();
+});
+it('cancels immediately when user aborts during graphics processing',async()=>{
+ const ctrl=new AbortController();
+ getPage.mockImplementationOnce(async()=>({
+  getViewport:()=>({width:600,height:800,transform:[1,0,0,1,0,0]}),
+  getTextContent:async()=>({items,styles:{f:{ascent:.8}}}),
+  getOperatorList:async()=>{ctrl.abort();throw Error('interrupted graphics');},cleanup,render
+ }));
+ await expect(parseLocalPdf('cancel:graphics',new Uint8Array(1),ctrl.signal)).rejects.toThrow('PDF processing cancelled.');
+ expect(cleanup).toHaveBeenCalled();
+});
+it('reports an all-page failure even when an engine rejects without a cause',async()=>{
+ getPage.mockImplementationOnce(async()=>({
+  getViewport:()=>({width:600,height:800,transform:[1,0,0,1,0,0]}),
+  getTextContent:async()=>Promise.reject(undefined),
+  getOperatorList:async()=>({fnArray:[],argsArray:[]}),cleanup,render
+ }));
+ await expect(parseLocalPdf('invalid:error',new Uint8Array(1))).rejects.toThrow('No page text could be read');
+});
