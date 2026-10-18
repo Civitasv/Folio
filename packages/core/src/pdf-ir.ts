@@ -1,14 +1,15 @@
 /** Source data is immutable; a layout/presentation change never changes its identity. */
-export type PdfBlockKind = 'title'|'heading'|'paragraph'|'caption'|'reference'|'unknown';
+export type PdfBlockKind = 'title'|'heading'|'paragraph'|'caption'|'reference'|'unknown'|'figure';
 export interface PdfRect { x:number;y:number;width:number;height:number }
 export interface PdfTextSpan { text:string;rect:PdfRect;fontSize:number }
-export interface PdfPageInput { page:number;spans:PdfTextSpan[];width:number;height:number }
-export interface PdfBlock { id:string;kind:PdfBlockKind;page:number;text:string;rect:PdfRect;confidence:number }
+export interface PdfPageInput { page:number;spans:PdfTextSpan[];width:number;height:number;images?:PdfRect[] }
+export interface PdfBlock { id:string;kind:PdfBlockKind;page:number;text:string;rect:PdfRect;confidence:number;mediaRect?:PdfRect }
 export interface PdfDocumentIR {version:1;documentId:string;pages:number;blocks:PdfBlock[];warnings:string[]}
-export interface ReadingPair { block:PdfBlock;target?:string;status:'ready'|'missing' }
+export interface ReadingPair { block:PdfBlock;target?:string;status:'ready'|'missing'|'source-only' }
 export type ReadingMode = 'parallel'|'interleaved';
 export function readingPairs(ir:PdfDocumentIR, translations:ReadonlyMap<string,string>):ReadingPair[]{
  return ir.blocks.map(block=>{
+  if(block.kind==='figure')return {block,status:'source-only'};
   const target=translations.get(block.id);
   return target?.trim()?{block,target,status:'ready'}:{block,status:'missing'};
  });
@@ -94,9 +95,35 @@ export function buildPdfIR(documentId:string,pages:PdfPageInput[]):PdfDocumentIR
     blocks.push({id:'p'+page.page+'-b'+(++n),kind,page:page.page,text:t,rect:line.rect,confidence:kind==='paragraph'?.8:.65});
    }
   }
-  if(blocks.some(b=>b.page===page.page&&b.kind==='caption'))
-   warnings.push('Page '+page.page+': review figure/table visuals against the original page; text extraction alone cannot reconstruct them.');
+  // Associate *visible painted* image regions with the immediately preceding Figure
+  // caption. A publisher logo without an explicit caption is not a science figure.
+  // Crop regions are immutable source evidence; never translate embedded graph labels.
+  const figures=blocks.filter(block=>block.page===page.page&&block.kind==='caption'&&/^fig(?:ure)?\\.?\\s*\\d+/i.test(block.text));
+  const grouped=new Map<string,PdfRect>();
+  let unpaired=0;
+  for(const image of page.images??[]){
+   const candidate=figures.map(caption=>{
+    const gap=image.y-(caption.rect.y+caption.rect.height);
+    const overlap=Math.min(image.x+image.width,caption.rect.x+caption.rect.width)-Math.max(image.x,caption.rect.x);
+    return {caption,gap,overlap};
+   }).filter(x=>x.gap>=-.008&&x.gap<=.095&&x.overlap>.03)
+    .sort((a,b)=>a.gap-b.gap)[0];
+   if(!candidate){unpaired++;continue;}
+   const prev=grouped.get(candidate.caption.id);
+   grouped.set(candidate.caption.id,prev?union(prev,image):image);
+  }
+  if(unpaired)warnings.push('Page '+page.page+': '+unpaired+' unpaired embedded image region(s); inspect original page for non-captioned evidence or branding.');
+  for(const caption of figures){
+   const region=grouped.get(caption.id);
+   if(!region)continue;
+   const number=caption.text.match(/^fig(?:ure)?\\.?\\s*(\\d+)/i)?.[1];
+   const idx=blocks.indexOf(caption);
+   blocks.splice(idx,0,{id:'p'+page.page+'-figure-'+number,kind:'figure',page:page.page,
+    text:'',rect:region,mediaRect:region,confidence:.9});
+  }
+  if(blocks.some(block=>block.page===page.page&&block.kind==='caption'&&/^table\\s/i.test(block.text)))
+   warnings.push('Page '+page.page+': PDF table grid is not yet reconstructed; do not rely on flattened table cells. Check original-page evidence.');
  }
- if(pages.length)warnings.push('Text-only reflow preview: original scientific figures, tables and equations are not reconstructed yet. Check the original PDF page before relying on this article view.');
+ if(pages.length)warnings.push('Conservative reflow: only caption-associated bitmap figures are restored. Vector overlays, table grids and equations need original-page fidelity review.');
  return {version:1,documentId,pages:pages.length?Math.max(...pages.map(p=>p.page)):0,blocks,warnings};
 }
