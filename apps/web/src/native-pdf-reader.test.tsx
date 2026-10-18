@@ -215,3 +215,31 @@ it('renders a semantic subheading and supports source focus without a page-save 
  fireEvent.click(screen.getByRole('button',{name:'Interleaved · 单栏'}));
  expect(screen.getByRole('region',{name:'Interleaved article'})).toBeTruthy();
 });
+
+
+it('surfaces a provider rejection after cancellation rather than replacing a cached passage',async()=>{
+ const p=platform();p.findTranslation.mockResolvedValue(undefined);
+ let reject!:(reason:Error)=>void;
+ p.translate.mockImplementationOnce(()=>new Promise((_,fail)=>{reject=fail;}));
+ const provider:TranslationProvider={id:'localcli',model:'m',supportsAutoSource:true,translate:vi.fn(async()=> 'x')};
+ vi.spyOn(window,'confirm').mockReturnValue(true);
+ render(<NativePdfReader doc={doc} bytes={bytes} platform={p} provider={provider}/>);
+ const t=await screen.findByRole('region',{name:'Translated article'});
+ fireEvent.click(within(t).getAllByText('Translate this block')[0]);
+ fireEvent.click(within(t).getAllByText('Translate with localcli')[0]);
+ const cancel=await within(t).findByText('Cancel');fireEvent.click(cancel);
+ reject(new Error('aborted upstream'));
+ expect(await screen.findByRole('alert')).toHaveProperty('textContent','Translation cancelled.');
+ expect(within(t).queryByText('aborted upstream')).toBeNull();
+});
+it('closes expanded per-block translation controls without changing the reading layout',async()=>{
+ const p=platform();p.findTranslation.mockResolvedValue(undefined);
+ render(<NativePdfReader doc={doc} bytes={bytes} platform={p}/>);
+ const t=await screen.findByRole('region',{name:'Translated article'});
+ const summary=within(t).getAllByText('Translate this block')[0];
+ fireEvent.click(summary);
+ await waitFor(()=>expect(summary.closest('details')?.open).toBe(true));
+ fireEvent.click(summary);
+ await waitFor(()=>expect(summary.closest('details')?.open).toBe(false));
+ expect(screen.getByRole('button',{name:'Parallel · 双栏'}).getAttribute('aria-pressed')).toBe('true');
+});
