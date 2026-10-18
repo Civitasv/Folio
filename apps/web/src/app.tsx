@@ -171,7 +171,7 @@ export function App({ platform = universalPlatform,translationProvider,onOpenSet
     </div>} inspector={<div className="folio-inspector-content">
       {active&&active.kind!=='reference'?<Surface title="Document information">
         <p className="folio-inspector-summary">Selected · {active.title}</p>
-        <dl className="folio-metadata"><dt>Format</dt><dd>{active.kind==='epub'?'EPUB':'PDF'}</dd>
+        <dl className="folio-metadata"><dt>Format</dt><dd>EPUB</dd>
           <dt>Reading position</dt><dd>{active.progress}</dd></dl>
       </Surface>:active?.kind==='reference'?doiPanel:<div className="folio-inspector-intro">
         <p className="folio-eyebrow">YOUR READING SPACE</p><h2>Focus on what matters.</h2>
