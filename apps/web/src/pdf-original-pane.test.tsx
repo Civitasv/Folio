@@ -28,7 +28,7 @@ vi.mock('pdfjs-dist/web/pdf_viewer.mjs',()=>({
  PDFViewer:class{
   currentScaleValue='';currentPageNumber=1;pagesCount=3;
   setDocument=vi.fn((doc:unknown)=>{
-   if(mocks.fail&&doc)throw Error('Viewer initialization failed');
+   if(mocks.fail&&doc)throw mocks.fail==='string'?'viewer thrown string':Error('Viewer initialization failed');
   });
   constructor(){mocks.viewers.push(this);}
  }
@@ -85,4 +85,20 @@ it('supports resize-based fit to original page width when observer exists',()=>{
  expect(mocks.viewers[0].currentScaleValue).toBe('page-width');
  v.unmount();
  expect(disconnect).toHaveBeenCalledOnce();
+});
+
+it('defaults an invalid zero page to one and skips page update until the viewer owns pages',()=>{
+ const v=render(<PdfOriginalPane document={pdf} page={0}/>);
+ mocks.buses[0].emit('pagesinit',{});
+ expect(mocks.viewers[0].currentPageNumber).toBe(1);
+ mocks.viewers[0].pagesCount=0;
+ v.rerender(<PdfOriginalPane document={pdf} page={2}/>);
+ expect(mocks.viewers[0].currentPageNumber).toBe(1);
+ v.unmount();
+});
+it('normalizes non-Error PDF.js initialization failures for the user',()=>{
+ mocks.fail='string';const onError=vi.fn();
+ const v=render(<PdfOriginalPane document={pdf} onError={onError}/>);
+ expect(onError).toHaveBeenCalledWith('Original PDF viewer unavailable.');
+ v.unmount();
 });
