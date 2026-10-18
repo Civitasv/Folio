@@ -56,3 +56,12 @@ it('joins close adjacent fragments within one PDF text line in source order',()=
  expect(ir.blocks[0].text).toBe('Hello world');
  expect(ir.blocks[0].rect.width).toBeCloseTo(.25);
 });
+
+
+it('recognizes references as a section heading and treats whitespace-only pages as unextractable',()=>{
+ const ir=buildPdfIR('refs',[page(1,[span('References',.1,.1,.35),span('Bibliography item',.1,.3,.3)]),
+  page(2,[span('    ',.1,.2)])]);
+ expect(ir.blocks[0].kind).toBe('heading');
+ expect(ir.blocks[1].text).toBe('Bibliography item');
+ expect(ir.warnings).toContain('Page 2: no selectable text. Original page review required.');
+});
