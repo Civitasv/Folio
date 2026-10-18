@@ -500,3 +500,54 @@ it('makes page one selectable during lengthy later-page extraction without waiti
  expect(await screen.findByRole('group',{name:'Translation block Figure 1: Original evidence.'})).toBeTruthy();
  expect(source.getAttribute('data-selected-id')).toBe('p1-b2');
 });
+
+it('keeps a first-page source block selectable and Check source safe while later pages are processing',async()=>{
+ let finish!:(value:Awaited<ReturnType<typeof parseLocalPdf>>)=>void;
+ vi.mocked(parseLocalPdf).mockImplementationOnce(async(_id,_bytes,_signal,_recognizer,onOpened,_progress,onFirstPage)=>{
+  onOpened?.({numPages:10} as never);
+  onFirstPage?.({...ir,pages:1,blocks:blocks.slice(0,2)});
+  return new Promise(resolve=>{finish=resolve;});
+ });
+ render(<NativePdfReader doc={doc} bytes={bytes}/>);
+ const source=await screen.findByRole('region',{name:'Original PDF pages'});
+ fireEvent.click(within(source).getByRole('button',{name:'Select PDF source block 2'}));
+ expect(await screen.findByText(/Selected · p\. 1 · Source paragraph/)).toBeTruthy();
+ fireEvent.click(screen.getByRole('button',{name:'Check source'}));
+ expect(screen.queryByRole('dialog')).toBeNull();
+ finish(parsed);
+ expect(await screen.findByRole('group',{name:'Translation block Figure 1: Original evidence.'})).toBeTruthy();
+});
+it('supports Space to select the actual interleaved source block without changing translation consent',async()=>{
+ const p=platform();render(<NativePdfReader doc={doc} bytes={bytes} platform={p}/>);
+ await screen.findByRole('region',{name:'Original article'});
+ fireEvent.click(screen.getByRole('button',{name:'Interleaved · 单栏'}));
+ const source=screen.getByRole('group',{name:'Source block Source paragraph.'});
+ fireEvent.keyDown(source,{key:' '});
+ expect(source.getAttribute('data-selected')).toBe('true');
+ expect(screen.getByRole('region',{name:'Interleaved article'}).querySelector('[data-selected=true]')).toBeTruthy();
+ expect(p.translate).not.toHaveBeenCalled();
+});
+it('selects an original scientific media region without inventing translated content',async()=>{
+ const rect={x:.1,y:.2,width:.6,height:.3};
+ const figure={id:'p1-figure-2',kind:'figure' as const,page:1,text:'',sourceText:'',rect,mediaRect:rect,confidence:.95};
+ vi.mocked(parseLocalPdf).mockResolvedValueOnce({...parsed,ir:{...ir,blocks:[blocks[0],figure,blocks[2]]},
+  originalDocument:{numPages:2} as never});
+ const p=platform();render(<NativePdfReader doc={doc} bytes={bytes} platform={p}/>);
+ const source=await screen.findByRole('region',{name:'Original PDF pages'});
+ fireEvent.click(within(source).getByRole('button',{name:'Select PDF source block 2'}));
+ expect(source.getAttribute('data-selected-id')).toBe(figure.id);
+ expect(screen.getByRole('group',{name:'Translation block figure'}).getAttribute('data-selected')).toBe('true');
+ expect(p.translate).not.toHaveBeenCalled();
+});
+it('keeps selected translation block while a source page-change event enters the same page',async()=>{
+ vi.mocked(parseLocalPdf).mockResolvedValueOnce({...parsed,originalDocument:{numPages:2} as never});
+ const onLocation=vi.fn(),scroll=vi.spyOn(HTMLElement.prototype,'scrollIntoView' as never).mockImplementation(()=>{});
+ render(<NativePdfReader doc={doc} bytes={bytes} onLocation={onLocation}/>);
+ const target=await screen.findByRole('region',{name:'Translated article'});
+ const peer=within(target).getByRole('group',{name:'Translation block Figure 1: Original evidence.'});
+ fireEvent.keyDown(peer,{key:' '});
+ expect(peer.getAttribute('data-selected')).toBe('true');
+ fireEvent.click(within(screen.getByRole('region',{name:'Original PDF pages'})).getByRole('button',{name:'Move source to page 2'}));
+ expect(peer.getAttribute('data-selected')).toBe('true');
+ expect(scroll).toHaveBeenCalled();
+});
