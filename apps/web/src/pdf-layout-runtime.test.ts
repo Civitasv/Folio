@@ -20,7 +20,7 @@ it('provides bounded ephemeral page pixels only to the user-supplied local recog
  expect(read).toHaveBeenCalledWith(0,0,825,1100);
  expect(recognize).toHaveBeenCalledOnce();
  expect(render).toHaveBeenCalledWith(expect.objectContaining({annotationMode:0}));
- const canvas=render.mock.calls[0][0].canvas as HTMLCanvasElement;
+ const canvas=(render.mock.calls[0][0] as {canvas:HTMLCanvasElement}).canvas;
  expect(canvas.width).toBe(0);expect(canvas.height).toBe(0);
 });
 it('cancels before rasterization if requested',async()=>{
