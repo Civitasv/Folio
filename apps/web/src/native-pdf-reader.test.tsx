@@ -179,3 +179,39 @@ it('focuses matching blocks across two panes and within the one-column feed',asy
   expect(scroll).toHaveBeenCalled();
  }finally{HTMLElement.prototype.scrollIntoView=original;}
 });
+
+
+it('aborts an active provider operation when leaving the reader without saving a late result',async()=>{
+ const p=platform();p.findTranslation.mockResolvedValue(undefined);
+ let complete!:(value:Awaited<ReturnType<typeof p.translate>>)=>void;
+ p.translate.mockImplementationOnce(()=>new Promise(resolve=>{complete=resolve;}));
+ const provider:TranslationProvider={id:'api',model:'m',supportsAutoSource:true,translate:vi.fn(async()=> 'x')};
+ vi.spyOn(window,'confirm').mockReturnValue(true);
+ const view=render(<NativePdfReader doc={doc} bytes={bytes} platform={p} provider={provider}/>);
+ const target=await screen.findByRole('region',{name:'Translated article'});
+ fireEvent.click(within(target).getAllByText('Translate this block')[0]);
+ fireEvent.click(within(target).getAllByText('Translate with api')[0]);
+ expect(await within(target).findByText('Translating…')).toBeTruthy();
+ const signal=(p.translate.mock.calls[0] as unknown as [unknown,unknown,AbortSignal])[2];
+ view.unmount();
+ expect(signal.aborted).toBe(true);
+ complete({key:'provider',identity:sourceIdentity(doc,blocks[0],langs,provider),translatedText:'late',sourceHash:'x',provenance:'provider'});
+});
+it('does not surface a parsing error that arrives after the reading view unmounted',async()=>{
+ let reject!:(err:Error)=>void;
+ vi.mocked(parseLocalPdf).mockImplementationOnce(()=>new Promise((_,bad)=>{reject=bad;}));
+ const view=render(<NativePdfReader doc={doc} bytes={bytes}/>);
+ view.unmount();
+ reject(new Error('late parsing error'));
+ expect(screen.queryByText('Cannot rebuild this PDF. The original file remains safely stored.')).toBeNull();
+});
+it('renders a semantic subheading and supports source focus without a page-save callback',async()=>{
+ vi.mocked(parseLocalPdf).mockResolvedValueOnce({...parsed,ir:{...ir,blocks:[...blocks,
+  {...blocks[1],id:'p2-b2',kind:'heading',text:'Methods'}]}});
+ render(<NativePdfReader doc={doc} bytes={bytes}/>);
+ const source=await screen.findByRole('region',{name:'Original article'});
+ expect(within(source).getByRole('heading',{name:'Methods'})).toBeTruthy();
+ fireEvent.click(within(source).getByText('Source paragraph.'));
+ fireEvent.click(screen.getByRole('button',{name:'Interleaved · 单栏'}));
+ expect(screen.getByRole('region',{name:'Interleaved article'})).toBeTruthy();
+});
