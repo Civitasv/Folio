@@ -109,6 +109,8 @@ it('picks the source block from original PDF page coordinates and highlights the
  const choose=vi.fn();
  const view=render(<PdfOriginalPane document={pdf} page={1} blocks={[a]} onSelectBlock={choose}/>);
  const host=screen.getByRole('region',{name:'Original PDF pages'}),area=host.querySelector('.pdfViewer')!;
+ // Clicking blank PDF viewer chrome cannot select a source block.
+ fireEvent.click(host,{clientX:0,clientY:0});expect(choose).not.toHaveBeenCalled();
  const page=document.createElement('div');page.className='page';page.dataset.pageNumber='1';area.append(page);
  vi.spyOn(page,'getBoundingClientRect').mockReturnValue({left:50,top:100,width:600,height:800,right:650,bottom:900,x:50,y:100,toJSON:()=>({})});
  mocks.buses[0].emit('pagerendered',{pageNumber:1});
