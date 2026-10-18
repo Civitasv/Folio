@@ -100,51 +100,42 @@ importers:
         version: 5.9.3
 
 packages:
+
   pdfjs-dist@6.3.289:
+
 
   '@napi-rs/canvas@1.0.10':
 
-  '@napi-rs/canvas-android-arm64@1.0.10':
-
-  '@napi-rs/canvas-darwin-arm64@1.0.10':
-
-  '@napi-rs/canvas-darwin-x64@1.0.10':
-
-  '@napi-rs/canvas-linux-arm-gnueabihf@1.0.10':
-
-  '@napi-rs/canvas-linux-arm64-gnu@1.0.10':
-
-  '@napi-rs/canvas-linux-arm64-musl@1.0.10':
-
-  '@napi-rs/canvas-linux-riscv64-gnu@1.0.10':
-
-  '@napi-rs/canvas-linux-x64-gnu@1.0.10':
-
-  '@napi-rs/canvas-linux-x64-musl@1.0.10':
-
-  '@napi-rs/canvas-win32-arm64-msvc@1.0.10':
-
-  '@napi-rs/canvas-win32-x64-msvc@1.0.10':
 
   '@napi-rs/canvas-android-arm64@1.0.10':
 
+
   '@napi-rs/canvas-darwin-arm64@1.0.10':
+
 
   '@napi-rs/canvas-darwin-x64@1.0.10':
 
+
   '@napi-rs/canvas-linux-arm-gnueabihf@1.0.10':
+
 
   '@napi-rs/canvas-linux-arm64-gnu@1.0.10':
 
+
   '@napi-rs/canvas-linux-arm64-musl@1.0.10':
+
 
   '@napi-rs/canvas-linux-riscv64-gnu@1.0.10':
 
+
   '@napi-rs/canvas-linux-x64-gnu@1.0.10':
+
 
   '@napi-rs/canvas-linux-x64-musl@1.0.10':
 
+
   '@napi-rs/canvas-win32-arm64-msvc@1.0.10':
+
 
   '@napi-rs/canvas-win32-x64-msvc@1.0.10':
 
@@ -1625,51 +1616,42 @@ packages:
     resolution: {integrity: sha512-a4UGQaWPH59mOXUYnAG2ewncQS4i4F43Tv3JoAM+s2VDAmS9NsK8GpDMLrCHPksFT7h3K6TOoUNn2pb7RoXx4g==}
 
 snapshots:
+
   pdfjs-dist@6.3.289:
+
 
   '@napi-rs/canvas@1.0.10':
 
-  '@napi-rs/canvas-android-arm64@1.0.10':
-
-  '@napi-rs/canvas-darwin-arm64@1.0.10':
-
-  '@napi-rs/canvas-darwin-x64@1.0.10':
-
-  '@napi-rs/canvas-linux-arm-gnueabihf@1.0.10':
-
-  '@napi-rs/canvas-linux-arm64-gnu@1.0.10':
-
-  '@napi-rs/canvas-linux-arm64-musl@1.0.10':
-
-  '@napi-rs/canvas-linux-riscv64-gnu@1.0.10':
-
-  '@napi-rs/canvas-linux-x64-gnu@1.0.10':
-
-  '@napi-rs/canvas-linux-x64-musl@1.0.10':
-
-  '@napi-rs/canvas-win32-arm64-msvc@1.0.10':
-
-  '@napi-rs/canvas-win32-x64-msvc@1.0.10':
 
   '@napi-rs/canvas-android-arm64@1.0.10':
 
+
   '@napi-rs/canvas-darwin-arm64@1.0.10':
+
 
   '@napi-rs/canvas-darwin-x64@1.0.10':
 
+
   '@napi-rs/canvas-linux-arm-gnueabihf@1.0.10':
+
 
   '@napi-rs/canvas-linux-arm64-gnu@1.0.10':
 
+
   '@napi-rs/canvas-linux-arm64-musl@1.0.10':
+
 
   '@napi-rs/canvas-linux-riscv64-gnu@1.0.10':
 
+
   '@napi-rs/canvas-linux-x64-gnu@1.0.10':
+
 
   '@napi-rs/canvas-linux-x64-musl@1.0.10':
 
+
   '@napi-rs/canvas-win32-arm64-msvc@1.0.10':
+
 
   '@napi-rs/canvas-win32-x64-msvc@1.0.10':
 
