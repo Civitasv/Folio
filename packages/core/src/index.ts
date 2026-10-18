@@ -28,3 +28,6 @@ export type { LocalDocument, ImportDecision } from './library';
 
 export { buildPdfIR, readingPairs } from './pdf-ir';
 export type { PdfBlockKind, PdfRect, PdfTextSpan, PdfPageInput, PdfBlock, PdfDocumentIR, ReadingPair, ReadingMode } from './pdf-ir';
+
+export {scientificRegions,belongsToScientificRegion,scientificAssetId,sourceMediaKind} from './pdf-layout';
+export type {ScientificLabel,ScientificKind,LayoutObservation,ScientificRegion} from './pdf-layout';
