@@ -5,6 +5,10 @@ import * as pdfjs from 'pdfjs-dist';
 // production still uses the version-matched local Vite worker asset.
 // @ts-expect-error The distributed worker module has no separate public TS declaration.
 import * as pdfWorker from 'pdfjs-dist/build/pdf.worker.min.mjs';
+// Node 22 CI does not yet expose Promise.try, required by PDF.js 6's fake Worker.
+// Test-only polyfill; production uses macOS WebView's native API.
+if(!('try' in Promise))Object.assign(Promise,{try:(callback:(...args:unknown[])=>unknown,...args:unknown[])=>
+ new Promise((resolve,reject)=>{try{resolve(callback(...args));}catch(error){reject(error);}})});
 Object.assign(globalThis,{pdfjsWorker:pdfWorker});
 
 /** A real, deterministic, redistributable selectable-text PDF; no PDF.js mocks. */
