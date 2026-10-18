@@ -2,7 +2,7 @@ import React from 'react';
 import { DEFAULT_LANGUAGE_PREFERENCES, LANGUAGE_OPTIONS, TRANSLATION_PROMPT_VERSION,readingPairs,sourceMediaKind,
  type PdfBlock,type PdfDocumentIR,type ReadingMode,type DocumentSummary,type TranslationProvider,
  type LanguagePreferences,type TranslationIdentity} from '@folio/core';
-import {browserReaderModeStore,type ReaderModeStore,type TranslationPlatform} from '@folio/platform';
+import {browserReaderModeStore,browserReaderLayoutStore,type ReaderModeStore,type ReaderLayoutStore,type TranslationPlatform} from '@folio/platform';
 import {parseLocalPdf,pdfFailureMessage,type ParsedPdf} from './pdf-extract';
 import {PdfOriginalPane} from './pdf-original-pane';
 
@@ -12,12 +12,17 @@ export function sourceIdentity(doc:DocumentSummary,block:PdfBlock,prefs:Language
   model:provider?.model??'local-draft',promptVersion:TRANSLATION_PROMPT_VERSION,
   unit:{anchor:{kind:'pdf',page:block.page},unitIndex:Number(block.id.split('-b')[1])||0,text:block.text}};
 }
-export function NativePdfReader({doc,bytes,platform,provider,onLocation,modeStore=browserReaderModeStore}:{doc:DocumentSummary;bytes:Uint8Array;
- platform?:ReaderTranslationPlatform;provider?:TranslationProvider;onLocation?:(page:number)=>void;modeStore?:ReaderModeStore}){
+export function NativePdfReader({doc,bytes,platform,provider,onLocation,modeStore=browserReaderModeStore,layoutStore=browserReaderLayoutStore}:{doc:DocumentSummary;bytes:Uint8Array;
+ platform?:ReaderTranslationPlatform;provider?:TranslationProvider;onLocation?:(page:number)=>void;modeStore?:ReaderModeStore;layoutStore?:ReaderLayoutStore}){
  const [parsed,setParsed]=React.useState<ParsedPdf>();
  const [parseError,setParseError]=React.useState('');
  const [retryCount,setRetryCount]=React.useState(0);
  const [mode,setMode]=React.useState<ReadingMode>(()=>modeStore.read(doc.id));
+ const [layout,setLayout]=React.useState(()=>layoutStore.read(doc.id));
+ const [originalPage,setOriginalPage]=React.useState(doc.progress);
+ const updateLayout=(ratio:number,swapped:boolean)=>{
+  const next={ratio,swapped};setLayout(next);layoutStore.write(doc.id,next);
+ };
  const selectMode=(next:ReadingMode)=>{setMode(next);modeStore.write(doc.id,next);};
  const [prefs,setPrefs]=React.useState<LanguagePreferences>(DEFAULT_LANGUAGE_PREFERENCES);
  const [ready,setReady]=React.useState(false);
@@ -131,6 +136,7 @@ export function NativePdfReader({doc,bytes,platform,provider,onLocation,modeStor
  </div>;
  const focus=(block:PdfBlock,side:'source'|'target')=>{
   onLocation?.(block.page);
+  if(side==='target')setOriginalPage(block.page);
   if(mode==='parallel'){
    const other=(side==='source'?target:source).current?.querySelector<HTMLElement>('[data-block-id="'+block.id+'"]');
    other?.scrollIntoView?.({block:'center'});
@@ -146,18 +152,25 @@ export function NativePdfReader({doc,bytes,platform,provider,onLocation,modeStor
     {LANGUAGE_OPTIONS.filter(x=>x.tag!=='auto').map(x=><option key={x.tag} value={x.tag}>{x.label}</option>)}
    </select></label>}
    <span className="folio-native-status">{ir?ir.blocks.length+' source blocks · local':parseError||'Reading local PDF…'}</span>
+   {mode==='parallel'&&<><label>Left pane width <input aria-label="Left pane width" type="range" min={30} max={70} step={5} value={layout.ratio}
+    onChange={e=>updateLayout(Number(e.target.value),layout.swapped)}/><span>{layout.ratio}%</span></label>
+    <button type="button" aria-label="Swap source and translation panes" onClick={()=>updateLayout(layout.ratio,!layout.swapped)}>Swap sides</button></>}
   </header>
   {error&&<p role="alert" className="folio-native-error">{error}</p>}
   {parseError?<div role="alert" className="folio-native-error"><p>{parseError}</p><button type="button" onClick={()=>setRetryCount(n=>n+1)}>Retry local PDF reading</button></div>:!ir?<p role="status" className="folio-native-loading">Extracting local paper text and layout…</p>:
   <><div className="folio-native-warnings">{ir.warnings.map(w=><p key={w} role="status">{w}</p>)}</div>
    {!pairs.length&&<div className="folio-native-empty"><p>No selectable text detected. Scanned documents need an explicit OCR engine.</p>
     <button type="button" onClick={()=>void reviewPage(1)}>Inspect original page</button></div>}
-   {mode==='parallel'?<div className="folio-native-parallel">
-    <div className="folio-native-column folio-native-original-column" ref={source} role="region" aria-label="Original article"><div className="folio-native-column-title">ORIGINAL · PDF</div>
-     {parsed?.originalDocument?<PdfOriginalPane document={parsed.originalDocument} page={doc.progress} onPageChange={onLocation} onError={setError}/>:
+   {mode==='parallel'?<div className="folio-native-parallel" style={{gridTemplateColumns:`minmax(0,${layout.ratio}fr) minmax(0,${100-layout.ratio}fr)`}}>
+    <div className="folio-native-column folio-native-original-column" style={{order:layout.swapped?2:1}} ref={source} role="region" aria-label="Original article"><div className="folio-native-column-title">ORIGINAL · PDF</div>
+     {parsed?.originalDocument?<PdfOriginalPane document={parsed.originalDocument} page={originalPage} onPageChange={page=>{
+      setOriginalPage(page);onLocation?.(page);
+      const candidate=ir.blocks.find(block=>block.page===page&&block.text.trim());
+      if(candidate)target.current?.querySelector<HTMLElement>('[data-block-id="'+candidate.id+'"]')?.scrollIntoView?.({block:'nearest'});
+     }} onError={setError}/>:
       <article>{pairs.map(p=><div key={p.block.id} onClick={()=>focus(p.block,'source')}>{blockView(p.block)}</div>)}</article>}
     </div>
-    <div className="folio-native-column" ref={target} role="region" aria-label="Translated article"><div className="folio-native-column-title">TRANSLATION</div>
+    <div className="folio-native-column" style={{order:layout.swapped?1:2}} ref={target} role="region" aria-label="Translated article"><div className="folio-native-column-title">TRANSLATION</div>
      <article>{pairs.map(p=><div key={p.block.id} onClick={()=>focus(p.block,'target')}>{targetView(p.block,p.target)}</div>)}</article>
     </div>
    </div>:<div className="folio-native-feed" ref={feed} role="region" aria-label="Interleaved article"><article>{pairs.map(p=><section key={p.block.id} className="folio-native-pair">
