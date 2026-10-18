@@ -2,7 +2,7 @@ import React from 'react';
 import { DEFAULT_LANGUAGE_PREFERENCES, LANGUAGE_OPTIONS, TRANSLATION_PROMPT_VERSION,readingPairs,
  type PdfBlock,type PdfDocumentIR,type ReadingMode,type DocumentSummary,type TranslationProvider,
  type LanguagePreferences,type TranslationIdentity} from '@folio/core';
-import type {TranslationPlatform} from '@folio/platform';
+import {browserReaderModeStore,type ReaderModeStore,type TranslationPlatform} from '@folio/platform';
 import {parseLocalPdf,type ParsedPdf} from './pdf-extract';
 
 type ReaderTranslationPlatform=Pick<TranslationPlatform,'getLanguages'|'setLanguages'|'findTranslation'|'saveManualTranslation'|'translate'>;
@@ -11,11 +11,12 @@ export function sourceIdentity(doc:DocumentSummary,block:PdfBlock,prefs:Language
   model:provider?.model??'local-draft',promptVersion:TRANSLATION_PROMPT_VERSION,
   unit:{anchor:{kind:'pdf',page:block.page},unitIndex:Number(block.id.split('-b')[1])||0,text:block.text}};
 }
-export function NativePdfReader({doc,bytes,platform,provider,onLocation}:{doc:DocumentSummary;bytes:Uint8Array;
- platform?:ReaderTranslationPlatform;provider?:TranslationProvider;onLocation?:(page:number)=>void}){
+export function NativePdfReader({doc,bytes,platform,provider,onLocation,modeStore=browserReaderModeStore}:{doc:DocumentSummary;bytes:Uint8Array;
+ platform?:ReaderTranslationPlatform;provider?:TranslationProvider;onLocation?:(page:number)=>void;modeStore?:ReaderModeStore}){
  const [parsed,setParsed]=React.useState<ParsedPdf>();
  const [parseError,setParseError]=React.useState('');
- const [mode,setMode]=React.useState<ReadingMode>('parallel');
+ const [mode,setMode]=React.useState<ReadingMode>(()=>modeStore.read(doc.id));
+ const selectMode=(next:ReadingMode)=>{setMode(next);modeStore.write(doc.id,next);};
  const [prefs,setPrefs]=React.useState<LanguagePreferences>(DEFAULT_LANGUAGE_PREFERENCES);
  const [ready,setReady]=React.useState(false);
  const [translations,setTranslations]=React.useState<Map<string,string>>(new Map());
@@ -119,8 +120,8 @@ export function NativePdfReader({doc,bytes,platform,provider,onLocation}:{doc:Do
  return <section className="folio-native-reader" aria-label="Structured paper reader">
   <header className="folio-native-tools">
    <div role="group" aria-label="Reading layout">
-    <button type="button" aria-pressed={mode==='parallel'} onClick={()=>setMode('parallel')}>Parallel · 双栏</button>
-    <button type="button" aria-pressed={mode==='interleaved'} onClick={()=>setMode('interleaved')}>Interleaved · 单栏</button>
+    <button type="button" aria-pressed={mode==='parallel'} onClick={()=>selectMode('parallel')}>Parallel · 双栏</button>
+    <button type="button" aria-pressed={mode==='interleaved'} onClick={()=>selectMode('interleaved')}>Interleaved · 单栏</button>
    </div>
    {platform&&<label>Target <select aria-label="Target language" value={prefs.target} onChange={e=>void changeLanguage(e.target.value)}>
     {LANGUAGE_OPTIONS.filter(x=>x.tag!=='auto').map(x=><option key={x.tag} value={x.tag}>{x.label}</option>)}
