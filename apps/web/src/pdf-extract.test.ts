@@ -1,5 +1,6 @@
 import {beforeEach,afterEach,expect,it,vi} from 'vitest';
 import {parseLocalPdf,ensurePromiseTry,PdfParseFailure,pdfFailureMessage} from './pdf-extract';
+import * as pdfjs from 'pdfjs-dist/legacy/build/pdf.mjs';
 const destroy=vi.fn(async()=>{}),cleanup=vi.fn(),cancelRender=vi.fn(),render=vi.fn(()=>({promise:Promise.resolve(),cancel:cancelRender}));
 let numPages=1,items:unknown[]=[{str:'First source line',fontName:'f',transform:[1,0,0,20,100,700],width:160}];
 let failRead=false,failGraphics=false;
@@ -270,5 +271,14 @@ it('does not publish a source document when opening has already been cancelled',
  const cancelled=new AbortController();cancelled.abort();
  const opened=vi.fn();
  await expect(parseLocalPdf('abort:before',new Uint8Array(1),cancelled.signal,undefined,opened)).rejects.toThrow('PDF processing cancelled.');
+ expect(opened).not.toHaveBeenCalled();
+});
+
+it('never exposes an already-cancelled source when the PDF worker resolves after abort',async()=>{
+ const ctrl=new AbortController(),opened=vi.fn();
+ vi.mocked(pdfjs.getDocument).mockImplementationOnce(()=>({
+  promise:Promise.resolve().then(()=>{ctrl.abort();return {numPages,getPage};}),destroy
+ }) as never);
+ await expect(parseLocalPdf('cancel:opened',new Uint8Array(1),ctrl.signal,undefined,opened)).rejects.toThrow('PDF processing cancelled.');
  expect(opened).not.toHaveBeenCalled();
 });
