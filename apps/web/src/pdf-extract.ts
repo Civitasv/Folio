@@ -1,5 +1,5 @@
-import * as pdfjs from 'pdfjs-dist';
-import workerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
+import * as pdfjs from 'pdfjs-dist/legacy/build/pdf.mjs';
+import workerUrl from 'pdfjs-dist/legacy/build/pdf.worker.min.mjs?url';
 import {buildPdfIR,type PdfDocumentIR,type PdfPageInput} from '@folio/core';
 
 // PDF.js 6 uses Promise.try during fake-worker setup. Older desktop WebViews and
