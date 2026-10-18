@@ -25,3 +25,6 @@ export { parseEpub, chapterCfi } from './epub-book';
 export type { ParsedEpub, EpubChapter } from './epub-book';
 export { decideImport, normalizeProgress } from './library';
 export type { LocalDocument, ImportDecision } from './library';
+
+export { buildPdfIR, readingPairs } from './pdf-ir';
+export type { PdfBlockKind, PdfRect, PdfTextSpan, PdfPageInput, PdfBlock, PdfDocumentIR, ReadingPair, ReadingMode } from './pdf-ir';
