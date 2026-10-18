@@ -73,7 +73,8 @@ export function NativePdfReader({doc,bytes,platform,provider,onLocation}:{doc:Do
    const identity=sourceIdentity(doc,block,prefs,kind==='provider'?provider:undefined);
    const saved=kind==='provider'?await platform.translate(identity,provider!,ctrl.signal):
     await platform.saveManualTranslation(identity,drafts[block.id]??'');
-   if(!ctrl.signal.aborted)setTranslations(old=>new Map(old).set(block.id,saved.translatedText));
+   if(ctrl.signal.aborted){setError('Translation cancelled.');return;}
+   setTranslations(old=>new Map(old).set(block.id,saved.translatedText));
   }catch{setError(ctrl.signal.aborted?'Translation cancelled.':'Unable to save or generate this block translation.');}
   finally{controller.current=null;setBusy('');}
  };
