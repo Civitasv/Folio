@@ -16,6 +16,8 @@ export function sourceIdentity(doc:DocumentSummary,block:PdfBlock,prefs:Language
 export function NativePdfReader({doc,bytes,platform,provider,onLocation,modeStore=browserReaderModeStore,layoutStore=browserReaderLayoutStore}:{doc:DocumentSummary;bytes:Uint8Array;
  platform?:ReaderTranslationPlatform;provider?:TranslationProvider;onLocation?:(page:number)=>void;modeStore?:ReaderModeStore;layoutStore?:ReaderLayoutStore}){
  const [parsed,setParsed]=React.useState<ParsedPdf>();
+ const [sourceDocument,setSourceDocument]=React.useState<NonNullable<ParsedPdf['originalDocument']>>();
+ const [pageProgress,setPageProgress]=React.useState('');
  const [parseError,setParseError]=React.useState('');
  const [retryCount,setRetryCount]=React.useState(0);
  const [mode,setMode]=React.useState<ReadingMode>(()=>modeStore.read(doc.id));
@@ -39,12 +41,14 @@ export function NativePdfReader({doc,bytes,platform,provider,onLocation,modeStor
  const source=React.useRef<HTMLDivElement>(null),target=React.useRef<HTMLDivElement>(null),feed=React.useRef<HTMLDivElement>(null);
  React.useEffect(()=>{
   let live=true,docRef:ParsedPdf|undefined;const ctrl=new AbortController();
-  setParsed(undefined);setParseError('');setTranslations(new Map());setMedia(new Map());setReview(undefined);
-  void parseLocalPdf(doc.id,bytes,ctrl.signal).then(result=>{
+  setParsed(undefined);setSourceDocument(undefined);setPageProgress('');setParseError('');setTranslations(new Map());setMedia(new Map());setReview(undefined);
+  void parseLocalPdf(doc.id,bytes,ctrl.signal,undefined,
+   opened=>{if(live)setSourceDocument(opened);},
+   (page,total)=>{if(live)setPageProgress('Extracting page '+page+' / '+total+' locally…');}).then(result=>{
    docRef=result;
-   if(live)setParsed(result);else void result.destroy();
+   if(live){setParsed(result);setPageProgress('');}else void result.destroy();
   }).catch(error=>{
-   if(live){console.error('[Folio] local PDF extraction failed',error);setParseError(pdfFailureMessage(error));}
+   if(live){setSourceDocument(undefined);setPageProgress('');console.error('[Folio] local PDF extraction failed',error);setParseError(pdfFailureMessage(error));}
   });
   return ()=>{live=false;generation.current++;ctrl.abort();if(docRef)void docRef.destroy();controller.current?.abort();};
  },[doc.id,bytes,retryCount]);
@@ -153,19 +157,19 @@ export function NativePdfReader({doc,bytes,platform,provider,onLocation,modeStor
    {platform&&<label>Target <select aria-label="Target language" value={prefs.target} onChange={e=>void changeLanguage(e.target.value)}>
     {LANGUAGE_OPTIONS.filter(x=>x.tag!=='auto').map(x=><option key={x.tag} value={x.tag}>{x.label}</option>)}
    </select></label>}
-   <span className="folio-native-status">{content?content.blocks.length+' source blocks · local':parseError||'Reading local PDF…'}</span>
+   <span className="folio-native-status">{content?content.blocks.length+' source blocks · local':parseError||pageProgress||'Opening local PDF…'}</span>
    {mode==='parallel'&&<><label>Left pane width <input aria-label="Left pane width" type="range" min={30} max={70} step={5} value={layout.ratio}
     onChange={e=>updateLayout(Number(e.target.value),layout.swapped)}/><span>{layout.ratio}%</span></label>
     <button type="button" aria-label="Swap source and translation panes" onClick={()=>updateLayout(layout.ratio,!layout.swapped)}>Swap sides</button></>}
   </header>
   {error&&<p role="alert" className="folio-native-error">{error}</p>}
-  {parseError?<div role="alert" className="folio-native-error"><p>{parseError}</p><button type="button" onClick={()=>setRetryCount(n=>n+1)}>Retry local PDF reading</button></div>:!ir?<p role="status" className="folio-native-loading">Extracting local paper text and layout…</p>:
-  <><div className="folio-native-warnings">{ir.warnings.map(w=><p key={w} role="status">{w}</p>)}</div>
-   {!pairs.length&&<div className="folio-native-empty"><p>No selectable text detected. Scanned documents need an explicit OCR engine.</p>
+  {parseError?<div role="alert" className="folio-native-error"><p>{parseError}</p><button type="button" onClick={()=>setRetryCount(n=>n+1)}>Retry local PDF reading</button></div>:!ir&&!sourceDocument?<p role="status" className="folio-native-loading">Opening local PDF…</p>:
+  <>{ir&&<div className="folio-native-warnings">{ir.warnings.map(w=><p key={w} role="status">{w}</p>)}</div>}
+   {ir&&!pairs.length&&<div className="folio-native-empty"><p>No selectable text detected. Scanned documents need an explicit OCR engine.</p>
     <button type="button" onClick={()=>void reviewPage(1)}>Inspect original page</button></div>}
    {mode==='parallel'?<div className="folio-native-parallel" style={{gridTemplateColumns:`minmax(0,${layout.ratio}fr) minmax(0,${100-layout.ratio}fr)`}}>
     <div className="folio-native-column folio-native-original-column" style={{order:layout.swapped?2:1}} ref={source} role="region" aria-label="Original article"><div className="folio-native-column-title">ORIGINAL · PDF</div>
-     {parsed?.originalDocument?<PdfOriginalPane document={parsed.originalDocument} page={originalPage} onPageChange={page=>{
+     {(sourceDocument??parsed?.originalDocument)?<PdfOriginalPane document={(sourceDocument??parsed!.originalDocument)!} page={originalPage} onPageChange={page=>{
       setOriginalPage(page);onLocation?.(page);
       const candidate=content?.blocks.find(block=>block.page===page&&block.text.trim());
       if(candidate)target.current?.querySelector<HTMLElement>('[data-block-id="'+candidate.id+'"]')?.scrollIntoView?.({block:'nearest'});
@@ -173,9 +177,11 @@ export function NativePdfReader({doc,bytes,platform,provider,onLocation,modeStor
       <article>{pairs.map(p=><div key={p.block.id} onClick={()=>focus(p.block,'source')}>{blockView(p.block)}</div>)}</article>}
     </div>
     <div className="folio-native-column" style={{order:layout.swapped?1:2}} ref={target} role="region" aria-label="Translated article"><div className="folio-native-column-title">TRANSLATION</div>
-     <article>{pairs.map(p=><div key={p.block.id} onClick={()=>focus(p.block,'target')}>{targetView(p.block,p.target)}</div>)}</article>
+     {ir?<article>{pairs.map(p=><div key={p.block.id} onClick={()=>focus(p.block,'target')}>{targetView(p.block,p.target)}</div>)}</article>:
+      <p role="status" className="folio-native-loading">{pageProgress||'Preparing the structured translation…'}</p>}
     </div>
-   </div>:<div className="folio-native-feed" ref={feed} role="region" aria-label="Interleaved article"><article>{pairs.map(p=><section key={p.block.id} className="folio-native-pair">
+   </div>:!ir?<p role="status" className="folio-native-loading">{pageProgress||'Preparing interleaved reading…'}</p>:
+    <div className="folio-native-feed" ref={feed} role="region" aria-label="Interleaved article"><article>{pairs.map(p=><section key={p.block.id} className="folio-native-pair">
      <span className="folio-native-pair-label">ORIGINAL</span>{blockView(p.block)}
      <span className="folio-native-pair-label">TRANSLATION</span>{targetView(p.block,p.target)}
     </section>)}</article></div>}

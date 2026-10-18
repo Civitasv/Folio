@@ -400,7 +400,9 @@ button:disabled{cursor:not-allowed;opacity:.52}
 /* F02i1: actual selectable PDF.js original pages, not a browser preview/iframe. */
 .folio-native-original-column{display:flex;flex-direction:column;overflow:hidden;background:var(--folio-bg)}
 .folio-native-original-column .folio-native-column-title{position:relative;flex:none;background:var(--folio-surface)}
-.folio-original-pdf{position:relative;flex:1;min-height:0;overflow:auto;overscroll-behavior:contain;scrollbar-gutter:stable;outline-offset:-3px}
+.folio-original-pdf-shell{position:relative;flex:1;min-width:0;min-height:0;overflow:hidden}
+/* PDF.js PDFViewer asserts that its scroll container has position:absolute. */
+.folio-original-pdf{position:absolute;inset:0;overflow:auto;overscroll-behavior:contain;scrollbar-gutter:stable;outline-offset:-3px}
 .folio-original-pdf .pdfViewer{padding:18px 12px 36px}
 .folio-original-pdf .pdfViewer .page{margin:0 auto 16px;box-shadow:0 3px 16px rgba(0,0,0,.13);background:#fff}
 .folio-original-pdf .textLayer{user-select:text}
