@@ -11,7 +11,6 @@ export function App({ platform = universalPlatform,translationProvider,onOpenSet
   const [documents, setDocuments] = React.useState<DocumentSummary[]>([]);
   const [active, setActive] = React.useState<DocumentSummary | null>(null);
   const [reader, setReader] = React.useState<{ id: string; bytes: Uint8Array } | null>(null);
-  const [page, setPage] = React.useState('1');
   const [query, setQuery] = React.useState('');
   const [kindFilter,setKindFilter] = React.useState<'all'|'pdf'|'epub'|'reference'>('all');
   const [translationHost,setTranslationHost] = React.useState<HTMLElement|null>(null);
@@ -57,14 +56,13 @@ export function App({ platform = universalPlatform,translationProvider,onOpenSet
       const doc = await platform.importPdf(file.name, bytes);
       const duplicate = documents.some(item => item.id === doc.id);
       setDocuments(await platform.listDocuments());
-      setPage(String(doc.progress));
       setActive(doc);
       setNotice(duplicate ? 'This PDF is already in your library.' : 'PDF imported locally.');
     } catch { setError(epub ? 'EPUB import failed. The file may be invalid, unsupported or exceed local storage.' : 'PDF import failed. Check available browser storage.'); }
     finally { setBusy(false); }
   }
   function open(doc: DocumentSummary) {
-    setError(''); setPage(String(doc.progress)); setActive(doc);
+    setError(''); setActive(doc);
   }
   async function remove(doc: DocumentSummary) {
     if (!window.confirm('Delete this document and its saved reading position from Folio?')) return;
@@ -75,16 +73,6 @@ export function App({ platform = universalPlatform,translationProvider,onOpenSet
       setDocuments(await platform.listDocuments());
       setNotice(doc.kind === 'reference' ? 'DOI reference deleted from the local library.' : doc.kind === 'epub' ? 'EPUB deleted from the local library.' : 'PDF deleted from the local library.');
     } catch { setError('Unable to delete the local document.'); }
-  }
-  async function savePage(doc: DocumentSummary) {
-    const value = Number(page);
-    if (!Number.isSafeInteger(value) || value < 1) { setError('Enter a valid page number (1 or greater).'); return; }
-    try {
-      await platform.setProgress(doc.id, value);
-      setActive({ ...doc, progress: value });
-      setDocuments(await platform.listDocuments());
-      setError(''); setNotice('Reading position saved.');
-    } catch { setError('Could not save reading position.'); }
   }
   async function savePageAt(doc:DocumentSummary,number:number){
     try{await platform.setProgress(doc.id,number);setActive(previous=>previous?.id===doc.id?{...previous,progress:number}:previous);}
@@ -98,7 +86,7 @@ export function App({ platform = universalPlatform,translationProvider,onOpenSet
   const doiPanel=hasDoi && <DoiPanel
       key={active?.kind==='reference' ? active.id : 'new'} platform={platform as DoiPlatform} referenceId={active?.kind==='reference' ? active.id : undefined}
       onSaved={async () => { setDocuments(await platform.listDocuments()); }}
-      onImported={async doc => { setDocuments(await platform.listDocuments()); setActive(doc); setPage(String(doc.progress)); }}/>;
+      onImported={async doc => { setDocuments(await platform.listDocuments()); setActive(doc); }}/>;
   function returnToLibrary(){setActive(null);setNavigationOpen(true);setInspectorOpen(true);}
   function pickFile(event:React.ChangeEvent<HTMLInputElement>) {
     const file=event.target.files?.[0];
