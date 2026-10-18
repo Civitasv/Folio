@@ -9,7 +9,7 @@ const getPage=vi.fn(async()=>({
  cleanup,render
 }));
 const task=()=>({promise:Promise.resolve({numPages,getPage}),destroy});
-vi.mock('pdfjs-dist',()=>({
+vi.mock('pdfjs-dist/legacy/build/pdf.mjs',()=>({
  GlobalWorkerOptions:{workerSrc:''},
  Util:{transform:(_viewport:unknown,t:unknown)=>t},
  AnnotationMode:{DISABLE:0},
