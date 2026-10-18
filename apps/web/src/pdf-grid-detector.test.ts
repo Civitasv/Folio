@@ -63,3 +63,26 @@ it('recognizer stays local, deterministic and exposes no remote operation',async
  expect(detector.modelId).toBe('folio-local-grid-v1');
  expect(await detector.recognize(p.image())).toEqual(findSourceTableGrids(p.image(),[cap]));
 });
+
+it('coalesces two thick overlapping horizontal scan rows into a single grid rule',()=>{
+ const p=pixels();
+ for(const y of [42,62,82,102])p.line(35,y,192,y+1);
+ for(const x of [35,93,192])p.line(x,42,x,102);
+ const result=findSourceTableGrids(p.image(),[cap]);
+ expect(result).toHaveLength(1);
+ expect(result[0].rect.y).toBeCloseTo(40/180);
+});
+it('does not join separated short groups into one distant scientific table',()=>{
+ const p=pixels();
+ for(const y of [42,82,102])p.line(35,y,192,y);
+ for(const x of [35,93,192])p.line(x,42,x,102);
+ // The first pair is separated beyond a defensible contiguous grid-row gap.
+ expect(findSourceTableGrids(p.image(),[cap])).toEqual([]);
+});
+it('rejects three extremely close, non-overlapping header strokes as a whole table',()=>{
+ const p=pixels();
+ p.line(35,42,95,42);
+ p.line(96,44,158,44);
+ p.line(35,46,95,46);
+ expect(findSourceTableGrids(p.image(),[cap])).toEqual([]);
+});
