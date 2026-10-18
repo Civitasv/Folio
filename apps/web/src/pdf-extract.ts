@@ -53,7 +53,7 @@ export async function parseLocalPdf(id:string,bytes:Uint8Array,signal?:AbortSign
     page.cleanup();
     return data;
    },
-   async destroy(){if(disposed)return;disposed=true;signal?.removeEventListener('abort',abort);await pdf.destroy();}
+   async destroy(){if(disposed)return;disposed=true;signal?.removeEventListener('abort',abort);await task.destroy();}
   };
  }catch(e){signal?.removeEventListener('abort',abort);await task.destroy();throw e;}
 }
