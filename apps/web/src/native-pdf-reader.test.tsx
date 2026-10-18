@@ -412,3 +412,22 @@ it('uses PDF.js page movement as source-anchored translation navigation when ava
  fireEvent.click(screen.getByRole('button',{name:'Move source to page 3'}));
  expect(onLocation).toHaveBeenCalledWith(3);
 });
+
+
+it('shows the authoritative PDF before ten-page scientific extraction completes, then fills the translation',async()=>{
+ let finish!:(value:typeof parsed)=>void;
+ vi.mocked(parseLocalPdf).mockImplementationOnce(async(_id,_bytes,_signal,_recognizer,onOpened,onProgress)=>{
+  onOpened?.({numPages:10} as never);
+  onProgress?.(4,10);
+  return new Promise<typeof parsed>(resolve=>{finish=resolve;});
+ });
+ render(<NativePdfReader doc={doc} bytes={bytes}/>);
+ expect(await screen.findByRole('region',{name:'Original PDF pages'})).toBeTruthy();
+ expect(screen.getByRole('region',{name:'Translated article'})).toBeTruthy();
+ expect(screen.getAllByText('Extracting page 4 / 10 locally…').length).toBeGreaterThan(0);
+ expect(screen.queryByText('Source paragraph.')).toBeNull();
+ finish({...parsed,originalDocument:{numPages:10} as never});
+ expect(await screen.findByText('Not translated')).toBeTruthy();
+ expect(screen.getByRole('region',{name:'Original PDF pages'})).toBeTruthy();
+ expect(vi.mocked(parseLocalPdf)).toHaveBeenCalledTimes(1);
+});
