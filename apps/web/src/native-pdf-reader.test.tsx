@@ -37,6 +37,7 @@ it('derives an exact page/block translation identity independent of presentation
   unit:{anchor:{kind:'pdf',page:1},unitIndex:2,text:'Source paragraph.'}});
  const provider:TranslationProvider={id:'codex',model:'test',supportsAutoSource:true,translate:vi.fn(async()=> 'ok')};
  expect(sourceIdentity(doc,blocks[2],langs,provider)).toMatchObject({providerId:'codex',model:'test',unit:{unitIndex:1}});
+ expect(sourceIdentity(doc,{...blocks[0],id:'fallback-title'},langs).unit.unitIndex).toBe(0);
 });
 it('renders two semantic article streams and a single alternating stream without requesting AI on switch',async()=>{
  const p=platform(),onLocation=vi.fn();
