@@ -14,7 +14,7 @@ export function PdfOriginalPane({document,page=1,onPageChange,onError}:{
  React.useEffect(()=>{
   const container=host.current;
   if(!container)return;
-  const area=document.createElement('div');
+  const area=window.document.createElement('div');
   area.className='pdfViewer';
   container.append(area);
   const bus=new EventBus();
