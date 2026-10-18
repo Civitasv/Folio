@@ -1,10 +1,10 @@
 import {expect,it} from 'vitest';
 import {parseLocalPdf} from './pdf-extract';
-import * as pdfjs from 'pdfjs-dist';
+import * as pdfjs from 'pdfjs-dist/legacy/build/pdf.mjs';
 // The real worker module is preloaded for PDF.js's Node fake-worker path;
 // production still uses the version-matched local Vite worker asset.
 // @ts-expect-error The distributed worker module has no separate public TS declaration.
-import * as pdfWorker from 'pdfjs-dist/build/pdf.worker.min.mjs';
+import * as pdfWorker from 'pdfjs-dist/legacy/build/pdf.worker.min.mjs';
 // Node 22 CI does not yet expose Promise.try, required by PDF.js 6's fake Worker.
 // Test-only polyfill; production uses macOS WebView's native API.
 if(!('try' in Promise))Object.assign(Promise,{try:(callback:(...args:unknown[])=>unknown,...args:unknown[])=>
