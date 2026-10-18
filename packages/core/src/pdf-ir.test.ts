@@ -85,7 +85,7 @@ it('associates the supplied-paper-style Figure captions with source media, but n
  expect(figure.mediaRect).toEqual(p2.images[0]);
  expect(ir.blocks.indexOf(figure)).toBeLessThan(ir.blocks.findIndex(b=>b.text.startsWith('Figure 1.')));
  expect(ir.blocks.some(b=>b.kind==='figure'&&b.page===1)).toBe(false);
- expect(ir.warnings.some(w=>w.includes('Page 1: 1 unpaired'))).toBe(true);
+ expect(ir.warnings.some(w=>w.includes('Page 1: 1 unpaired'))).toBe(false);
  expect(readingPairs(ir,new Map()).find(p=>p.block.id==='p2-figure-1')?.status).toBe('source-only');
 });
 it('groups adjacent image panels under one figure while preserving caption and table warnings',()=>{
@@ -97,4 +97,18 @@ it('groups adjacent image panels under one figure while preserving caption and t
  expect(figure.mediaRect!.width).toBeCloseTo(.67);
  expect(ir.warnings.some(w=>w.includes('unpaired embedded image'))).toBe(true);
  expect(ir.warnings.some(w=>w.includes('PDF table grid'))).toBe(true);
+});
+
+it('keeps a wrapped three-line Figure 2 caption together as one translatable source block',()=>{
+ const p={...page(2,[
+  span('Figure 2. Dermatitis herpetiformis lesions on elbows',.06,.652,.88),
+  span('due to scratching. c) A close-up view of a small blister.',.06,.669,.88),
+  span('pathognomonic granular immunoglobulin A deposits.',.06,.686,.67)
+ ]),images:[{x:.244,y:.708,width:.512,height:.237}]};
+ const ir=buildPdfIR('scientific',[p]);
+ const caption=ir.blocks.find(b=>b.kind==='caption')!;
+ expect(caption.text).toContain('due to scratching.');
+ expect(caption.text).toContain('pathognomonic granular');
+ expect(ir.blocks.filter(b=>b.kind==='figure')).toHaveLength(1);
+ expect(ir.blocks.map(b=>b.kind)).toEqual(['figure','caption']);
 });
