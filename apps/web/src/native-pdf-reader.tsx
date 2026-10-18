@@ -154,7 +154,7 @@ export function NativePdfReader({doc,bytes,platform,provider,onLocation,modeStor
     <button type="button" onClick={()=>void reviewPage(1)}>Inspect original page</button></div>}
    {mode==='parallel'?<div className="folio-native-parallel">
     <div className="folio-native-column folio-native-original-column" ref={source} role="region" aria-label="Original article"><div className="folio-native-column-title">ORIGINAL · PDF</div>
-     {parsed?.originalDocument?<PdfOriginalPane document={parsed.originalDocument} page={doc.progress||1} onPageChange={onLocation} onError={setError}/>:
+     {parsed?.originalDocument?<PdfOriginalPane document={parsed.originalDocument} page={doc.progress} onPageChange={onLocation} onError={setError}/>:
       <article>{pairs.map(p=><div key={p.block.id} onClick={()=>focus(p.block,'source')}>{blockView(p.block)}</div>)}</article>}
     </div>
     <div className="folio-native-column" ref={target} role="region" aria-label="Translated article"><div className="folio-native-column-title">TRANSLATION</div>
