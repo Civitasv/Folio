@@ -30,7 +30,7 @@ it('preserves observed scientific classes, model order and immutable source-span
 it('filters invalid geometry/score/order and suppresses duplicate same-class regions by IoU',()=>{
  const input=[
   observation('figure',.1,.1,.95,3),observation('figure',.1,.1,.65,4),
-  observation('table',.1,.1,.72,5),observation('header_image',.2,.1),
+  observation('table',.55,.1,.72,5),observation('header_image',.2,.1),
   {...observation('table',-.1,.1),order:2},
   {...observation('table',.1,.1),rect:rect(.9,.9)},
   {...observation('table',.1,.1),rect:rect(.2,.2,0,.1)},
