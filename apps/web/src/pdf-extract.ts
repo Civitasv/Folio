@@ -39,7 +39,8 @@ export function pdfFailureMessage(error:unknown):string{
  const detail=error instanceof Error?error.message:typeof error==='string'?error:'Unknown PDF engine error';
  return 'Unable to rebuild this PDF. '+detail.slice(0,380)+'. The original file remains stored locally.';
 }
-export async function parseLocalPdf(id:string,bytes:Uint8Array,signal?:AbortSignal,recognizer?:LocalLayoutRecognizer):Promise<ParsedPdf>{
+export async function parseLocalPdf(id:string,bytes:Uint8Array,signal?:AbortSignal,recognizer?:LocalLayoutRecognizer,
+ onOpened?:(document:pdfjs.PDFDocumentProxy)=>void,onProgress?:(page:number,total:number)=>void):Promise<ParsedPdf>{
  if(signal?.aborted)throw new Error('PDF processing cancelled.');
  ensurePromiseTry();
  let task:ReturnType<typeof pdfjs.getDocument>|undefined;
@@ -49,11 +50,16 @@ export async function parseLocalPdf(id:string,bytes:Uint8Array,signal?:AbortSign
   task=pdfjs.getDocument({data:new Uint8Array(bytes),useSystemFonts:true});
   signal?.addEventListener('abort',abort,{once:true});
   const pdf=await task.promise;
+  if(signal?.aborted)throw new Error('PDF processing cancelled.');
+  // The PDF is already usable before its expensive full-document text/graphics pass.
+  // Let the original-page view mount and paint without waiting for reflow.
+  if(onOpened){onOpened(pdf);await new Promise<void>(resolve=>setTimeout(resolve,0));}
   const pages:PdfPageInput[]=[];
   const recoverable:string[]=[];
   let failedTextPages=0;
   let firstTextError:unknown;
   for(let number=1;number<=pdf.numPages;number++){
+   onProgress?.(number,pdf.numPages);
    if(signal?.aborted)throw new Error('PDF processing cancelled.');
    stage='Reading page '+number;
    const page=await pdf.getPage(number);
