@@ -17,6 +17,8 @@ export function ensurePromiseTry():void{
 pdfjs.GlobalWorkerOptions.workerSrc=workerUrl;
 export interface ParsedPdf {
  ir:PdfDocumentIR;
+ /** Same live local PDF.js document: original viewer and reflow share source bytes. */
+ originalDocument?:pdfjs.PDFDocumentProxy;
  /** Exact original-page fidelity check, not a default embedded PDF viewer. */
  pageImage(pageNumber:number):Promise<string>;
  regionImage(pageNumber:number,rect:PdfRect):Promise<string>;
@@ -98,7 +100,7 @@ export async function parseLocalPdf(id:string,bytes:Uint8Array,signal?:AbortSign
   const ir=buildPdfIR(id,pages);
   ir.warnings.push(...recoverable);
   let disposed=false;
-  return {ir,
+  return {ir,originalDocument:pdf,
    async pageImage(number){
     if(disposed||number<1||!Number.isInteger(number)||number>pdf.numPages)throw new Error('Original page unavailable.');
     const page=await pdf.getPage(number);
