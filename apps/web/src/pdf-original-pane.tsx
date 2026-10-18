@@ -19,9 +19,9 @@ export function PdfOriginalPane({document,page=1,blocks=[],selectedBlockId='',on
  change.current=onPageChange;error.current=onError;select.current=onSelectBlock;
  sourceBlocks.current=blocks;selected.current=selectedBlockId;
  const pointerBlock=(target:EventTarget|null,clientX:number,clientY:number):PdfBlock|undefined=>{
-  if(!(target instanceof Element))return undefined;
-  const pageElement=target.closest<HTMLElement>('.page[data-page-number]');
-  if(!pageElement||!host.current?.contains(pageElement))return undefined;
+  // React's mouse event target is a DOM Element within this mounted PDF host.
+  const pageElement=(target as Element).closest<HTMLElement>('.page[data-page-number]');
+  if(!pageElement)return undefined;
   const bounds=pageElement.getBoundingClientRect();
   if(bounds.width<=0||bounds.height<=0)return undefined;
   return pickPdfBlockAtPoint(sourceBlocks.current,Number(pageElement.dataset.pageNumber),
@@ -51,7 +51,6 @@ export function PdfOriginalPane({document,page=1,blocks=[],selectedBlockId='',on
   links.setViewer(reader);
   let live=true;
   const paintBlocks=()=>{
-   if(!live)return;
    for(const pageElement of area.querySelectorAll<HTMLElement>('.page[data-page-number]')){
     const number=Number(pageElement.dataset.pageNumber);
     let layer=pageElement.querySelector<HTMLElement>('.folio-pdf-block-regions');
@@ -90,7 +89,7 @@ export function PdfOriginalPane({document,page=1,blocks=[],selectedBlockId='',on
   return ()=>{
    live=false;observer?.disconnect();
    bus.off('pagesinit',ready);bus.off('pagechanging',changed);bus.off('pagerendered',paintBlocks);
-   paint.current=()=>{};hovered.current='';
+   hovered.current='';
    reader.setDocument(null as never);links.setDocument(null);
    viewer.current=null;area.remove();
   };
