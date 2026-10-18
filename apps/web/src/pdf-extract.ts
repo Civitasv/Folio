@@ -2,6 +2,7 @@ import * as pdfjs from 'pdfjs-dist/legacy/build/pdf.mjs';
 import workerUrl from 'pdfjs-dist/legacy/build/pdf.worker.min.mjs?url';
 import {buildPdfIR,type PdfDocumentIR,type PdfPageInput,type PdfRect,type PdfTextSpan} from '@folio/core';
 import {paintedImageRegions} from './pdf-media';
+import {detectLocalPageLayout,type LocalLayoutRecognizer} from './pdf-layout-runtime';
 
 // PDF.js 6 uses Promise.try during fake-worker setup. Older desktop WebViews and
 // Node 22 do not guarantee it; provide the standard synchronous-call semantics.
@@ -37,7 +38,7 @@ export function pdfFailureMessage(error:unknown):string{
  const detail=error instanceof Error?error.message:typeof error==='string'?error:'Unknown PDF engine error';
  return 'Unable to rebuild this PDF. '+detail.slice(0,380)+'. The original file remains stored locally.';
 }
-export async function parseLocalPdf(id:string,bytes:Uint8Array,signal?:AbortSignal):Promise<ParsedPdf>{
+export async function parseLocalPdf(id:string,bytes:Uint8Array,signal?:AbortSignal,recognizer?:LocalLayoutRecognizer):Promise<ParsedPdf>{
  if(signal?.aborted)throw new Error('PDF processing cancelled.');
  ensurePromiseTry();
  let task:ReturnType<typeof pdfjs.getDocument>|undefined;
@@ -89,7 +90,17 @@ export async function parseLocalPdf(id:string,bytes:Uint8Array,signal?:AbortSign
      // must remain readable if a complex image or vector operator fails.
      recoverable.push('Page '+number+': graphics inspection unavailable; verify figures using the original page.');
     }
-    pages.push({page:number,width:viewport.width,height:viewport.height,spans,images});
+    let layoutRegions:Awaited<ReturnType<typeof detectLocalPageLayout>>|undefined;
+    if(recognizer){
+     try{
+      stage='Detecting local layout on page '+number;
+      layoutRegions=await detectLocalPageLayout(page,recognizer,signal);
+     }catch(error){
+      if(signal?.aborted)throw error;
+      recoverable.push('Page '+number+': local layout detector unavailable; fallback source reading retained.');
+     }
+    }
+    pages.push({page:number,width:viewport.width,height:viewport.height,spans,images,layoutRegions});
    }finally{page.cleanup();}
   }
   if(pdf.numPages>0&&failedTextPages===pdf.numPages){
