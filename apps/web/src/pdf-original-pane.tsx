@@ -41,7 +41,8 @@ export function PdfOriginalPane({document,page=1,onPageChange,onError}:{
   return ()=>{
    live=false;observer?.disconnect();
    bus.off('pagesinit',ready);bus.off('pagechanging',changed);
-   reader.setDocument(null);links.setDocument(null);
+   // PDF.js accepts null to release pages; its TypeScript signature is narrower.
+   reader.setDocument(null as never);links.setDocument(null);
    viewer.current=null;area.remove();
   };
  },[document]);
