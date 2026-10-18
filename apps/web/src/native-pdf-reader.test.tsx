@@ -386,12 +386,14 @@ it('persists a resized and swapped Parallel layout per paper without requesting 
  expect(p.translate).not.toHaveBeenCalled();
 });
 it('uses PDF.js page movement as source-anchored translation navigation when available',async()=>{
+ const scroll=vi.spyOn(HTMLElement.prototype,'scrollIntoView' as never).mockImplementation(()=>{});
  vi.mocked(parseLocalPdf).mockResolvedValueOnce({...parsed,originalDocument:{numPages:2} as never});
  const onLocation=vi.fn();
  render(<NativePdfReader doc={doc} bytes={bytes} onLocation={onLocation}/>);
  await screen.findByRole('region',{name:'Original PDF pages'});
  fireEvent.click(screen.getByRole('button',{name:'Move source to page 2'}));
  expect(onLocation).toHaveBeenCalledWith(2);
+ expect(scroll).toHaveBeenCalled();
  expect(screen.getByRole('region',{name:'Translated article'})).toBeTruthy();
  fireEvent.click(screen.getByRole('button',{name:'Move source to page 3'}));
  expect(onLocation).toHaveBeenCalledWith(3);
