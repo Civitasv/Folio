@@ -1,5 +1,5 @@
 import {expect,it} from 'vitest';
-import {buildPdfIR,readingPairs,type PdfPageInput,type PdfTextSpan} from './pdf-ir';
+import {buildPdfIR,readingPairs,type PdfPageInput,type PdfTextSpan} ,boundedReadingIR,MAX_TRANSLATION_UNIT_CHARS from './pdf-ir';
 const span=(text:string,x:number,y:number,width=.38,fontSize=.02):PdfTextSpan=>({text,fontSize,rect:{x,y,width,height:.02}});
 const page=(n:number,spans:PdfTextSpan[]):PdfPageInput=>({page:n,width:600,height:800,spans});
 it('keeps immutable source blocks and joins only nearby paragraph lines',()=>{
@@ -173,4 +173,44 @@ it('places detected figure before its numbered caption when caption is below the
  const ir=buildPdfIR('caption-below',[p]);
  expect(ir.blocks.map(b=>b.kind)).toEqual(['figure','caption']);
  expect(ir.blocks[0].mediaRect).toEqual(r);
+});
+
+it('splits lengthy original excerpts into immutable verified chunks without losing a single source character',()=>{
+ const original='A'.repeat(3900)+' '+'B'.repeat(5100);
+ const ir=buildPdfIR('long',[page(1,[span(original,.1,.2,.7)])]);
+ // Source reflow may group an excerpt; the derived translation plan must never mutate it.
+ const originalBlock=ir.blocks[0];
+ const derived=boundedReadingIR(ir);
+ expect(MAX_TRANSLATION_UNIT_CHARS).toBe(4000);
+ expect(derived.blocks.length).toBeGreaterThan(2);
+ expect(derived.blocks.map(b=>b.text).join('')).toBe(originalBlock.text);
+ expect(derived.blocks.every(b=>b.text.length<=MAX_TRANSLATION_UNIT_CHARS)).toBe(true);
+ expect(derived.blocks.map(b=>b.id)).toEqual(derived.blocks.map((_,i)=>originalBlock.id+'-chunk'+i));
+ expect(derived.blocks.map(b=>b.chunkIndex)).toEqual(derived.blocks.map((_,i)=>i));
+ expect(derived.blocks.every(b=>b.parentId===originalBlock.id&&b.page===originalBlock.page&&b.rect===originalBlock.rect)).toBe(true);
+ expect(originalBlock.text).toBe(original);
+ expect(originalBlock.chunkIndex).toBeUndefined();
+ expect(boundedReadingIR(ir).blocks.map(b=>b.text)).toEqual(derived.blocks.map(b=>b.text));
+});
+it('does not corrupt surrogate pairs when a hard limit cuts a long non-space source',()=>{
+ const text='A'+'😀'.repeat(2100);
+ const ir={version:1 as const,documentId:'unicode',pages:1,warnings:[],blocks:[
+  {id:'p1-b2',kind:'paragraph' as const,page:1,text,rect:{x:.1,y:.1,width:.6,height:.1},confidence:.9}
+ ]};
+ const chunks=boundedReadingIR(ir).blocks;
+ expect(chunks.map(b=>b.text).join('')).toBe(text);
+ expect(chunks.every(b=>b.text.length<=4000)).toBe(true);
+ expect(chunks[0].text.length).toBe(3999);
+ expect(chunks.every(b=>!/[\uD800-\uDBFF]$/.test(b.text)&&! /^[\uDC00-\uDFFF]/.test(b.text))).toBe(true);
+});
+it('retains legacy exact identity of ordinary source and never chunks visual scientific evidence',()=>{
+ const table={id:'p2-table-100-200-300-400',kind:'table' as const,page:2,text:'x'.repeat(5000),
+  rect:{x:.1,y:.2,width:.3,height:.4},confidence:.8,mediaRect:{x:.1,y:.2,width:.3,height:.4}};
+ const normal={...table,id:'p1-b1',kind:'paragraph' as const,page:1,text:'Short source text',mediaRect:undefined};
+ const ir={version:1 as const,documentId:'normal',pages:2,warnings:[],blocks:[normal,table]};
+ const derived=boundedReadingIR(ir);
+ expect(derived.blocks).toHaveLength(2);
+ expect(derived.blocks[0]).toBe(normal);
+ expect(derived.blocks[1]).toBe(table);
+ expect(ir.blocks).toEqual([normal,table]);
 });
