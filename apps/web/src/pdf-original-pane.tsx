@@ -1,4 +1,6 @@
 import React from 'react';
+// The PDFViewer module reads pdfjsLib at evaluation time; initialize its matching core first.
+import * as pdfjs from 'pdfjs-dist';
 import {EventBus,PDFLinkService,PDFViewer} from 'pdfjs-dist/web/pdf_viewer.mjs';
 import 'pdfjs-dist/web/pdf_viewer.css';
 import type {ParsedPdf} from './pdf-extract';
@@ -19,7 +21,7 @@ export function PdfOriginalPane({document,page=1,onPageChange,onError}:{
   const bus=new EventBus();
   const links=new PDFLinkService({eventBus:bus,externalLinkTarget:2});
   const reader=new PDFViewer({container,viewer:area,eventBus:bus,linkService:links,
-   textLayerMode:1,annotationMode:0,removePageBorders:true,maxCanvasPixels:4*1024*1024,maxCanvasDim:4096});
+   textLayerMode:1,annotationMode:pdfjs.AnnotationMode.ENABLE,removePageBorders:true,maxCanvasPixels:4*1024*1024,maxCanvasDim:4096});
   viewer.current=reader;
   links.setViewer(reader);
   let live=true;
