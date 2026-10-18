@@ -9,6 +9,7 @@ const mocks=vi.hoisted(()=>({
  links:[] as Array<{setViewer:ReturnType<typeof vi.fn>;setDocument:ReturnType<typeof vi.fn>}>,
  fail:false as boolean|'string'
 }));
+vi.mock('pdfjs-dist',()=>({AnnotationMode:{ENABLE:1}}));
 vi.mock('pdfjs-dist/web/pdf_viewer.mjs',()=>({
  EventBus:class{
   listeners=new Map<string,Array<(v:unknown)=>void>>();
