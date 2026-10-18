@@ -3,6 +3,7 @@ import workerUrl from 'pdfjs-dist/legacy/build/pdf.worker.min.mjs?url';
 import {buildPdfIR,type PdfDocumentIR,type PdfPageInput,type PdfRect,type PdfTextSpan} from '@folio/core';
 import {paintedImageRegions} from './pdf-media';
 import {detectLocalPageLayout,type LocalLayoutRecognizer} from './pdf-layout-runtime';
+import {createConservativeGridRecognizer} from './pdf-grid-detector';
 
 // PDF.js 6 uses Promise.try during fake-worker setup. Older desktop WebViews and
 // Node 22 do not guarantee it; provide the standard synchronous-call semantics.
@@ -90,14 +91,16 @@ export async function parseLocalPdf(id:string,bytes:Uint8Array,signal?:AbortSign
      // must remain readable if a complex image or vector operator fails.
      recoverable.push('Page '+number+': graphics inspection unavailable; verify figures using the original page.');
     }
+    const captions=spans.filter(span=>/^table\s*\d+[.:\s]/i.test(span.text)).map(span=>span.rect);
+    const activeRecognizer=recognizer??(captions.length?createConservativeGridRecognizer(captions):undefined);
     let layoutRegions:Awaited<ReturnType<typeof detectLocalPageLayout>>|undefined;
-    if(recognizer){
+    if(activeRecognizer){
      try{
       stage='Detecting local layout on page '+number;
-      layoutRegions=await detectLocalPageLayout(page,recognizer,signal);
+      layoutRegions=await detectLocalPageLayout(page,activeRecognizer,signal);
      }catch(error){
       if(signal?.aborted)throw error;
-      recoverable.push('Page '+number+': local layout detector unavailable; fallback source reading retained.');
+      recoverable.push('Page '+number+': local layout detection unavailable; fallback source reading retained.');
      }
     }
     pages.push({page:number,width:viewport.width,height:viewport.height,spans,images,layoutRegions});
