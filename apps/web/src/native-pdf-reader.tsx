@@ -25,6 +25,7 @@ export function NativePdfReader({doc,bytes,platform,provider,onLocation}:{doc:Do
  const [error,setError]=React.useState('');
  const [review,setReview]=React.useState<{page:number;image:string}>();
  const controller=React.useRef<AbortController|null>(null);
+ const generation=React.useRef(0);
  const source=React.useRef<HTMLDivElement>(null),target=React.useRef<HTMLDivElement>(null),feed=React.useRef<HTMLDivElement>(null);
  React.useEffect(()=>{
   let live=true,docRef:ParsedPdf|undefined;const ctrl=new AbortController();
@@ -33,7 +34,7 @@ export function NativePdfReader({doc,bytes,platform,provider,onLocation}:{doc:Do
    docRef=result;
    if(live)setParsed(result);else void result.destroy();
   }).catch(()=>{if(live)setParseError('Cannot rebuild this PDF. The original file remains safely stored.');});
-  return ()=>{live=false;ctrl.abort();if(docRef)void docRef.destroy();controller.current?.abort();};
+  return ()=>{live=false;generation.current++;ctrl.abort();if(docRef)void docRef.destroy();controller.current?.abort();};
  },[doc.id,bytes]);
  React.useEffect(()=>{
   let live=true;setReady(false);
@@ -48,7 +49,10 @@ export function NativePdfReader({doc,bytes,platform,provider,onLocation}:{doc:Do
   void Promise.all(ir.blocks.map(async block=>{
    if(block.text.length>4000)return undefined;
    const identity=sourceIdentity(doc,block,prefs,provider);
-   try{const result=await platform.findTranslation(identity);return result?[block.id,result.translatedText] as const:undefined;}
+   try{
+    const result=(await platform.findTranslation(identity))??(provider?await platform.findTranslation(sourceIdentity(doc,block,prefs)):undefined);
+    return result?[block.id,result.translatedText] as const:undefined;
+   }
    catch{return undefined;}
   })).then(items=>{if(live)setTranslations(new Map(items.filter((x):x is readonly [string,string]=>!!x)));});
   return ()=>{live=false;};
@@ -59,22 +63,27 @@ export function NativePdfReader({doc,bytes,platform,provider,onLocation}:{doc:Do
   node?.scrollIntoView?.({behavior:'auto',block:'center'});
  };
  async function changeLanguage(value:string){
-  setError('');
-  try{setPrefs(await platform!.setLanguages({...prefs,target:value}));}
-  catch{setError('Unable to save target language.');}
+  const epoch=++generation.current;
+  controller.current?.abort();setBusy('');setError('');
+  try{
+   const updated=await platform!.setLanguages({...prefs,target:value});
+   if(generation.current===epoch)setPrefs(updated);
+  }catch{if(generation.current===epoch)setError('Unable to save target language.');}
  }
  const submit=async(block:PdfBlock,kind:'manual'|'provider')=>{
   // Rendered actions already require a supported unit and configured adapter.
   if(kind==='provider'&&!window.confirm('Send only this original block to '+provider!.id+'? '+(provider!.dataFlow??'This provider may use a remote service.')))return;
-  const ctrl=new AbortController();controller.current=ctrl;setBusy(block.id);setError('');
+  const ctrl=new AbortController(),epoch=generation.current;
+  controller.current=ctrl;setBusy(block.id);setError('');
   try{
    const identity=sourceIdentity(doc,block,prefs,kind==='provider'?provider:undefined);
    const saved=kind==='provider'?await platform!.translate(identity,provider!,ctrl.signal):
     await platform!.saveManualTranslation(identity,drafts[block.id]);
+   if(generation.current!==epoch)return;
    if(ctrl.signal.aborted){setError('Translation cancelled.');return;}
    setTranslations(old=>new Map(old).set(block.id,saved.translatedText));
-  }catch{setError(ctrl.signal.aborted?'Translation cancelled.':'Unable to save or generate this block translation.');}
-  finally{controller.current=null;setBusy('');}
+  }catch{if(generation.current===epoch)setError(ctrl.signal.aborted?'Translation cancelled.':'Unable to save or generate this block translation.');}
+  finally{if(controller.current===ctrl){controller.current=null;setBusy('');}}
  };
  const reviewPage=async(page:number)=>{
   setError('');
