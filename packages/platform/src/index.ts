@@ -82,3 +82,6 @@ export const universalPlatform = {
   ...createDoiPlatform(browserStore,browserPlatform,createDoiResolver((url,options)=>fetch(url,options)),(url,options)=>fetch(url,options)),
   ...browserTranslationPlatform
 };
+
+export {createReaderModeStore,browserReaderModeStore} from './reader-mode';
+export type {ReaderModeStore} from './reader-mode';
