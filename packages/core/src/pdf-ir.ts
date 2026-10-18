@@ -81,7 +81,9 @@ export function buildPdfIR(documentId:string,pages:PdfPageInput[]):PdfDocumentIR
   const clean=page.spans.filter(s=>Number.isFinite(s.rect.x)&&Number.isFinite(s.rect.y)&&Number.isFinite(s.rect.width)&&Number.isFinite(s.rect.height)&&Number.isFinite(s.fontSize)&&s.rect.x>=0&&s.rect.y>=0&&s.rect.x+s.rect.width<=1.01&&s.rect.y+s.rect.height<=1.01);
   if(clean.length!==page.spans.length)warnings.push('Page '+page.page+': invalid source geometry skipped.');
   const regions=scientificRegions(page.layoutRegions??[],clean);
-  const prose=clean.filter(span=>!belongsToScientificRegion(span,regions));
+  // A layout box can overlap its printed caption. Captions are real translatable
+  // source text, not pixels to discard with a table/figure's interior labels.
+  const prose=clean.filter(span=>/^(?:fig(?:ure)?\.?|table)\s*\d+[.:\s]/i.test(span.text)||!belongsToScientificRegion(span,regions));
   const all=order(lines(prose));
   if(!all.length)warnings.push('Page '+page.page+(regions.length?': no selectable prose text. Original page review required.':': no selectable text. Original page review required.'));
   const heights=prose.map(s=>s.fontSize).sort((a,b)=>a-b),median=heights[Math.floor(heights.length/2)]||1;
