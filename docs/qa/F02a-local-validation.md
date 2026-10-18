@@ -1,40 +1,37 @@
-# F02a — Local standalone functional validation
+# F02a — Standalone full-window PDF split: manual acceptance
 
-Status: pending human/manual QA. This is an **execution checklist**, not a claim that any screenshot or OS test was performed.
+Status: pending real-device/manual QA. Nothing here claims an observed screenshot or OS test.
 
-## Setup
-
-From the Folio monorepo root, use a current Node/pnpm and the Rust/Tauri prerequisites appropriate to the OS:
+## Startup
 
 ```sh
 pnpm install --frozen-lockfile
 pnpm check
 cargo check --workspace
 cargo test --workspace
-pnpm dev
+pnpm desktop
 ```
 
-Open the URL Vite reports. Repeat against the native shell with `pnpm desktop` when its local platform prerequisites are installed. Browser IndexedDB storage is origin-specific; do not clear site data between pre-/post-change comparisons. Configure network-offline mode **after** any necessary initial dependency setup. Tests cannot guarantee native entitlement, OS credential-store and authenticated CLI behavior.
+Use the actual app reported by the desktop shell, with at least one normal text PDF and EPUB. Browser preview can also be checked using `pnpm dev`; IndexedDB is origin-scoped, and browser site-data clearing is destructive.
 
-## Functional smoke (record pass/fail, OS and app SHA)
+## Reader acceptance
 
-| Case | Action | Expected |
-| --- | --- | --- |
-| First launch | Open a clean local origin | Calm Library landing; import, search and explicit DOI action available. No AI calls or DOI lookup on boot. |
-| PDF import | Add a real text PDF through the picker and drag/drop | Stored locally; document row shows PDF; PDF browser preview opens directly in primary reading canvas; import/library stack is absent from the active main canvas. |
-| PDF progress | Save a valid page, close and reopen | Saved page restored; invalid page yields clear error; browser preview honestly identified as temporary and page save manual. |
-| EPUB import | Import a real EPUB with TOC and multilingual text | Sanitized chapter opens in main; navigation, appearance and saved chapter survive close/reopen. |
-| Sidebar | Open reader, hide/reveal library and details | Main canvas expands/reflows; source stays mounted; closing reader while both hidden restores the Library shell. |
-| Translation | Use manual local draft; if configured, separately confirm selected provider operation | Only displayed excerpt sent after explicit consent; cache and exact anchor preserved; no synthetic translation shown when absent. |
-| DOI | Look up a valid DOI by explicit click; save metadata-only; optionally import OA PDF | Metadata-only visibly distinct from the locally stored PDF; no automatic background download or full-text assertion. |
-| Library | Filter by format, search title/creator/DOI, delete inactive and active docs | Records stay accurate; destructive delete requires confirmation; local translation cache for deleted item is removed. |
-| Offline/reopen | Disconnect after local imports and reopen | Local PDFs, EPUBs, last position and cached manual translations remain usable. |
-| Error | Invalid signature, oversized file, quota/storage failure | Visible failure; current documents remain intact. |
+| Action | Expected |
+| --- | --- |
+| Open local PDF | The entire Folio window switches from Library to exactly two equal primary reading panes: **Original PDF** left, **Target translation** right. No persistent Library navigation, Inspector, document grid or stacked import form in this view. |
+| Original PDF | PDF appears as a native browser PDF preview in the left pane, with page-specific manual position control. Saving and reopening returns to saved page; closing revokes unused object URL. PDF is never uploaded to a Folio server. |
+| Target translation | Right pane remains visible independently of translation provider. When available, chosen target language is clearly visible, all other language options folded under an expandable control, and the resulting target text is the main content. Original excerpt is not duplicated in an output block. |
+| No result | No generated sample/placeholder that appears to be an actual translation; clear instruction to add a source excerpt from the displayed page. In F02a this step is temporarily manual, because PDF text extraction belongs to F02b. |
+| Translation | Paste at most 4,000 characters using Add source passage, choose target language, save local manual draft or deliberately choose configured provider and confirm exact excerpt data-flow. Existing exact page/text/language/provider cache only. Changing language or opening a document does not trigger remote translation. Cancellation and error must be visible. |
+| Missing adapter | If translation functions are missing on a platform, keep original PDF readable and show a real explanatory right-pane state. |
+| More | Import a new PDF/EPUB or delete current PDF (with confirmation); no library list becomes permanently stacked above reader. |
+| Return | Back to Library restores import/search/filters/DOI and document list; EPUB and DOI reference pathways behave as before. |
+| Exceptions | Invalid/oversized PDF and local quota, failed read, failed position persistence, failed provider/abort: visibly report and preserve previously stored documents. |
 
-## Visual/accessibility gate
+## Manual visual/accessibility gate
 
-Capture **real** before/after screenshots at 1440, 1280, 1024, 768 and 390 CSS-pixel widths, 200% zoom, dark/light system scheme, reduced motion and increased contrast. Test long and CJK titles, keyboard-only navigation/focus, screen reader landmarks/labels and inspector controls. Verify PDF iframe and EPUB sandbox do not overflow horizontally. Keep PR Draft until visual review and active PDF/EPUB smoke are actually recorded.
+Capture real evidence for desktop widths 1440, 1280 and 1024; narrow/zoom behavior at 768 and 390 must be usable (a vertical mobile fallback is intentional when two panes cannot remain legible). Also test 200% zoom, CJK and long titles, light/dark, reduced motion, increased contrast, keyboard-only navigation, Settings focus, page control, Details menu and source passage editor. Verify independent source/target scrolling and no horizontal content clipping. Do not treat jsdom and CI as screenshot/desktop acceptance.
 
-## Deferred engine acceptance
+## Deferred engines
 
-F02a deliberately keeps the browser PDF iframe and page-bound manual text excerpt. It **does not validate PDF text extraction, source/translation parallel reading, linked scrolling or annotations**. Those belong to F02b–d with separate real-file fixtures and coverage. Never report these as delivered by this branch.
+This PR does **not** ship PDF.js text extraction/reflow, automatic page tracking, whole-paper translation, OCR, block alignment, formula parsing, synced reading, or native window fullscreen switching. F02b/F02c must implement and test these with real PDF fixtures. “Full-window” means the app's reading canvas fills the available window, without forcing OS fullscreen.
