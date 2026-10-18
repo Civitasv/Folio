@@ -56,7 +56,7 @@ it('mounts PDF.js viewer with selectable original-page host and reuses source pr
  v.unmount();
  expect(mocks.viewers[0].setDocument).toHaveBeenLastCalledWith(null);
  expect(mocks.links[0].setDocument).toHaveBeenLastCalledWith(null);
- expect(mocks.buses[0].off).toHaveBeenCalledTimes(2);
+ expect(mocks.buses[0].off).toHaveBeenCalledTimes(3);
  expect(source.querySelector('.pdfViewer')).toBeNull();
 });
 it('bounds source page and ignores post-unmount viewer events',()=>{
