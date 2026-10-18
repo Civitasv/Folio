@@ -1,5 +1,5 @@
 import {expect,it,vi} from 'vitest';
-import {createReaderLayoutStore} from './reader-layout';
+import {createReaderLayoutStore,browserReaderLayoutStore} from './reader-layout';
 it('stores split and side preference per document without document bytes',()=>{
  const memory=new Map<string,string>();
  const store=createReaderLayoutStore({getItem:k=>memory.get(k)??null,setItem:(k,v)=>{memory.set(k,v);}});
@@ -29,4 +29,13 @@ it('falls back if local storage or JSON read fails, and never throws for disable
  const store=createReaderLayoutStore({getItem:vi.fn(()=>{throw Error('denied');}),setItem:vi.fn(()=>{throw Error('quota');})});
  expect(store.read('x')).toEqual({ratio:50,swapped:false});
  expect(()=>store.write('x',{ratio:50,swapped:false})).not.toThrow();
+});
+
+it('browser adapter persists only layout preferences with an available localStorage',()=>{
+ const id='local:browser';
+ try{
+  browserReaderLayoutStore.write(id,{ratio:55,swapped:true});
+  expect(browserReaderLayoutStore.read(id)).toEqual({ratio:55,swapped:true});
+  expect(localStorage.getItem('folio:reader-layout:v1:local%3Abrowser')).toBe('{"ratio":55,"swapped":true}');
+ }finally{localStorage.removeItem('folio:reader-layout:v1:local%3Abrowser');}
 });
