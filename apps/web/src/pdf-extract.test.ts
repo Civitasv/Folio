@@ -1,5 +1,5 @@
 import {beforeEach,afterEach,expect,it,vi} from 'vitest';
-import {parseLocalPdf} from './pdf-extract';
+import {parseLocalPdf,ensurePromiseTry} from './pdf-extract';
 const destroy=vi.fn(async()=>{}),cleanup=vi.fn(),render=vi.fn(()=>({promise:Promise.resolve()}));
 let numPages=1,items:unknown[]=[{str:'First source line',fontName:'f',transform:[1,0,0,20,100,700],width:160}];
 let failRead=false;
@@ -85,4 +85,22 @@ it('releases a source page after a failed canvas rasterization',async()=>{
  await expect(p.pageImage(1)).rejects.toThrow('raster failure');
  expect(cleanup).toHaveBeenCalled();
  await p.destroy();
+});
+
+it('provides Promise.try synchronous-call and rejection semantics only when missing',async()=>{
+ const original=Object.getOwnPropertyDescriptor(Promise,'try');
+ try{
+  Object.defineProperty(Promise,'try',{configurable:true,writable:true,value:undefined});
+  ensurePromiseTry();
+  const impl=(Promise as PromiseConstructor & {try:<T>(fn:(n:number)=>T,n:number)=>Promise<Awaited<T>>}).try;
+  expect(typeof impl).toBe('function');
+  await expect(impl((n:number)=>n+1,4)).resolves.toBe(5);
+  await expect(impl(()=>{throw new Error('sync failure');},0)).rejects.toThrow('sync failure');
+  const first=(Promise as PromiseConstructor & {try:unknown}).try;
+  ensurePromiseTry();
+  expect((Promise as PromiseConstructor & {try:unknown}).try).toBe(first);
+ }finally{
+  if(original)Object.defineProperty(Promise,'try',original);
+  else Reflect.deleteProperty(Promise,'try');
+ }
 });
