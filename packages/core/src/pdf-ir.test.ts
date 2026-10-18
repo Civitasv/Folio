@@ -1,5 +1,5 @@
 import {expect,it} from 'vitest';
-import {buildPdfIR,readingPairs,type PdfPageInput,type PdfTextSpan} ,boundedReadingIR,MAX_TRANSLATION_UNIT_CHARS from './pdf-ir';
+import {buildPdfIR,readingPairs,boundedReadingIR,MAX_TRANSLATION_UNIT_CHARS,type PdfPageInput,type PdfTextSpan} from './pdf-ir';
 const span=(text:string,x:number,y:number,width=.38,fontSize=.02):PdfTextSpan=>({text,fontSize,rect:{x,y,width,height:.02}});
 const page=(n:number,spans:PdfTextSpan[]):PdfPageInput=>({page:n,width:600,height:800,spans});
 it('keeps immutable source blocks and joins only nearby paragraph lines',()=>{
