@@ -41,17 +41,16 @@ export async function parseLocalPdf(id:string,bytes:Uint8Array,signal?:AbortSign
    async pageImage(number){
     if(disposed||number<1||!Number.isInteger(number)||number>pdf.numPages)throw new Error('Original page unavailable.');
     const page=await pdf.getPage(number);
-    const normal=page.getViewport({scale:1});
-    const viewport=page.getViewport({scale:Math.min(1.65,2200/Math.max(normal.width,normal.height))});
     const canvas=document.createElement('canvas');
-    canvas.width=Math.ceil(viewport.width);canvas.height=Math.ceil(viewport.height);
-    const ctx=canvas.getContext('2d');
-    if(!ctx)throw new Error('Canvas rendering unavailable.');
-    await page.render({canvas,canvasContext:ctx,viewport,annotationMode:pdfjs.AnnotationMode.DISABLE}).promise;
-    const data=canvas.toDataURL('image/png');
-    canvas.width=0;canvas.height=0;
-    page.cleanup();
-    return data;
+    try{
+     const normal=page.getViewport({scale:1});
+     const viewport=page.getViewport({scale:Math.min(1.65,2200/Math.max(normal.width,normal.height))});
+     canvas.width=Math.ceil(viewport.width);canvas.height=Math.ceil(viewport.height);
+     const ctx=canvas.getContext('2d');
+     if(!ctx)throw new Error('Canvas rendering unavailable.');
+     await page.render({canvas,canvasContext:ctx,viewport,annotationMode:pdfjs.AnnotationMode.DISABLE}).promise;
+     return canvas.toDataURL('image/png');
+    }finally{canvas.width=0;canvas.height=0;page.cleanup();}
    },
    async destroy(){if(disposed)return;disposed=true;signal?.removeEventListener('abort',abort);await task.destroy();}
   };
