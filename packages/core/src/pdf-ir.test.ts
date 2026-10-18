@@ -65,3 +65,10 @@ it('recognizes references as a section heading and treats whitespace-only pages 
  expect(ir.blocks[1].text).toBe('Bibliography item');
  expect(ir.warnings).toContain('Page 2: no selectable text. Original page review required.');
 });
+
+
+it('uses a defensive font median when embedded PDF metrics are zero',()=>{
+ const ir=buildPdfIR('zero-font',[page(1,[span('Text with unavailable font size',.1,.2,.4,0)])]);
+ expect(ir.blocks).toHaveLength(1);
+ expect(ir.blocks[0].kind).toBe('paragraph');
+});
