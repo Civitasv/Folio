@@ -157,3 +157,20 @@ it('orders non-captioned scientific assets relative to nearby text and supports 
  expect(ir.blocks.map(b=>b.kind)).toEqual(['paragraph','paragraph','algorithm','paragraph']);
  expect(ir.blocks[2].id).toContain('p2-algorithm');
 });
+
+it('does not treat an observed table as a substitute for a separate unpaired image',()=>{
+ const observed={label:'table' as const,rect:{x:.1,y:.25,width:.6,height:.25},confidence:.91,order:1};
+ const p={...page(4,[span('Table 2. Source values',.1,.19,.46)]),layoutRegions:[observed],
+  images:[{x:.7,y:.71,width:.19,height:.12}]};
+ const ir=buildPdfIR('two-assets',[p]);
+ expect(ir.blocks.some(b=>b.kind==='table')).toBe(true);
+ expect(ir.warnings.some(w=>w.includes('unpaired embedded image'))).toBe(true);
+});
+it('places detected figure before its numbered caption when caption is below the painted region',()=>{
+ const r={x:.13,y:.40,width:.7,height:.12};
+ const p={...page(4,[span('Figure 5. The exact source panel',.12,.49,.62)]),
+  layoutRegions:[{label:'figure' as const,rect:r,confidence:.9,order:1}]};
+ const ir=buildPdfIR('caption-below',[p]);
+ expect(ir.blocks.map(b=>b.kind)).toEqual(['figure','caption']);
+ expect(ir.blocks[0].mediaRect).toEqual(r);
+});
