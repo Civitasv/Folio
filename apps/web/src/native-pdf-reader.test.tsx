@@ -14,7 +14,8 @@ const blocks=[
 ];
 const ir:PdfDocumentIR={version:1,documentId:doc.id,pages:2,blocks,warnings:[]};
 const destroy=vi.fn(async()=>{}),pageImage=vi.fn(async()=> 'data:image/png;base64,AA==');
-const parsed={ir,destroy,pageImage};
+const regionImage=vi.fn(async()=> 'data:image/png;base64,BB==');
+const parsed={ir,destroy,pageImage,regionImage};
 const langs={...DEFAULT_LANGUAGE_PREFERENCES,source:'en',target:'zh-Hans'};
 function platform(){
  return {getLanguages:vi.fn(async()=>langs),setLanguages:vi.fn(async p=>p),
@@ -24,7 +25,7 @@ function platform(){
  saveManualTranslation:vi.fn(async(identity,text)=>({key:'manual',identity,sourceHash:'hash',translatedText:text,provenance:'manual' as const})),
  translate:vi.fn(async(identity)=>({key:'provider',identity,sourceHash:'hash',translatedText:'模型译文。',provenance:'provider' as const}))};
 }
-beforeEach(()=>{vi.mocked(parseLocalPdf).mockReset();vi.mocked(parseLocalPdf).mockResolvedValue(parsed);destroy.mockClear();pageImage.mockClear();});
+beforeEach(()=>{vi.mocked(parseLocalPdf).mockReset();vi.mocked(parseLocalPdf).mockResolvedValue(parsed);destroy.mockClear();pageImage.mockClear();regionImage.mockClear();});
 afterEach(()=>{cleanup();vi.restoreAllMocks();localStorage.clear();});
 it('derives an exact page/block translation identity independent of presentation',()=>{
  expect(sourceIdentity(doc,blocks[1],langs)).toMatchObject({documentId:doc.id,target:'zh-Hans',providerId:'manual',
@@ -287,4 +288,34 @@ it('remembers explicit reading mode when the same PDF is reopened, without affec
  reopened.unmount();
  render(<NativePdfReader doc={{...doc,id:'another'}} bytes={bytes}/>);
  expect(await screen.findByRole('region',{name:'Original article'})).toBeTruthy();
+});
+
+it('renders a source-preserving figure in both parallel articles and only once in interleaved reading',async()=>{
+ const rect={x:.2,y:.3,width:.6,height:.4},figure={
+  id:'p2-figure-1',kind:'figure' as const,page:2,text:'',confidence:.9,rect,mediaRect:rect};
+ vi.mocked(parseLocalPdf).mockResolvedValueOnce({...parsed,ir:{...ir,blocks:[...blocks.slice(0,2),figure,blocks[2]]}});
+ const p=platform();render(<NativePdfReader doc={doc} bytes={bytes} platform={p}/>);
+ expect(await screen.findByRole('region',{name:'Original article'})).toBeTruthy();
+ expect(await screen.findByAltText('Original scientific figure p2-figure-1')).toBeTruthy();
+ expect(screen.getByAltText('Unmodified scientific figure p2-figure-1')).toBeTruthy();
+ expect(regionImage).toHaveBeenCalledWith(2,rect);
+ expect(p.findTranslation.mock.calls.some(([identity])=>identity.unit.text==='')).toBe(false);
+ fireEvent.click(screen.getByRole('button',{name:'Interleaved · 单栏'}));
+ const feed=screen.getByRole('region',{name:'Interleaved article'});
+ expect(within(feed).getAllByRole('img')).toHaveLength(1);
+ expect(within(feed).getByAltText('Original scientific figure p2-figure-1')).toBeTruthy();
+ expect(within(feed).queryByAltText('Unmodified scientific figure p2-figure-1')).toBeNull();
+ const text=feed.textContent??'';
+ expect(text.indexOf('Figure 1: Original evidence.')).toBeGreaterThan(text.indexOf('Original figure'));
+});
+it('retains original-page evidence when a figure crop is unavailable',async()=>{
+ const rect={x:.2,y:.3,width:.6,height:.4},figure={
+  id:'p2-figure-2',kind:'figure' as const,page:2,text:'',confidence:.9,rect,mediaRect:rect};
+ regionImage.mockRejectedValueOnce(new Error('unrenderable image'));
+ vi.mocked(parseLocalPdf).mockResolvedValueOnce({...parsed,ir:{...ir,blocks:[figure]}});
+ render(<NativePdfReader doc={doc} bytes={bytes}/>);
+ const source=await screen.findByRole('region',{name:'Original article'});
+ expect(await within(source).findByText('Original figure region is loading or unavailable. Inspect the original page.')).toBeTruthy();
+ fireEvent.click(within(source).getByRole('button',{name:'Review original page 2 for p2-figure-2'}));
+ expect(await screen.findByRole('dialog',{name:'Original PDF page 2'})).toBeTruthy();
 });
