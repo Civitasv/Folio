@@ -282,3 +282,18 @@ it('never exposes an already-cancelled source when the PDF worker resolves after
  await expect(parseLocalPdf('cancel:opened',new Uint8Array(1),ctrl.signal,undefined,opened)).rejects.toThrow('PDF processing cancelled.');
  expect(opened).not.toHaveBeenCalled();
 });
+
+it('emits a stable first-page IR before processing later pages so source blocks are selectable early',async()=>{
+ numPages=2;
+ const opened=vi.fn(),progress=vi.fn(),preview=vi.fn();
+ const p=await parseLocalPdf('local-paper',new Uint8Array(1),undefined,undefined,opened,progress,preview);
+ expect(opened).toHaveBeenCalledOnce();
+ expect(progress).toHaveBeenCalledWith(1,2);
+ expect(progress).toHaveBeenCalledWith(2,2);
+ expect(preview).toHaveBeenCalledOnce();
+ expect(preview.mock.calls[0][0]).toMatchObject({documentId:'local-paper',pages:1,
+  blocks:[expect.objectContaining({id:'p1-b1',text:'First source line'})]});
+ expect(p.ir.pages).toBe(2);
+ expect(p.ir.blocks[0].id).toBe(preview.mock.calls[0][0].blocks[0].id);
+ await p.destroy();
+});

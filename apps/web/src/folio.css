@@ -415,3 +415,17 @@ button:disabled{cursor:not-allowed;opacity:.52}
 .folio-native-parallel .folio-native-column{border-right:0}
 .folio-native-parallel .folio-native-column[style*="order: 1"]{border-right:1px solid var(--folio-border)}
 @media(max-width:760px){.folio-native-parallel .folio-native-column[style*="order: 1"]{border-right:0;border-bottom:1px solid var(--folio-border)}}
+
+/* PDF-native block selection: highlights never capture PDF.js text selection. */
+.folio-original-pdf .page{position:relative}
+.folio-pdf-block-regions{position:absolute;inset:0;pointer-events:none;z-index:5;overflow:hidden}
+.folio-pdf-block-region{position:absolute;pointer-events:none;box-sizing:border-box;border-radius:2px;border:1px solid transparent}
+.folio-pdf-block-region[data-hovered=true]{border-color:var(--folio-accent);background:color-mix(in srgb,var(--folio-accent) 8%,transparent)}
+.folio-pdf-block-region[data-selected=true]{border:2px solid var(--folio-accent);background:color-mix(in srgb,var(--folio-accent) 13%,transparent)}
+.folio-native-block[data-selected=true],.folio-native-target-block[data-selected=true],.folio-native-column article>div[data-selected=true]{background:var(--folio-selection);border-radius:6px}
+.folio-native-pair[data-selected=true]{border-left:3px solid var(--folio-accent);padding-left:10px}
+.folio-selected-block-status{display:flex;align-items:center;gap:8px;max-width:260px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.7rem;color:var(--folio-accent)}
+.folio-selected-block-status button{flex:none;border:1px solid var(--folio-border);border-radius:6px;background:var(--folio-surface);color:var(--folio-text);padding:4px 7px}
+.folio-native-progress{font-size:.72rem;color:var(--folio-secondary);padding:4px 0}
+@media(prefers-contrast:more){.folio-pdf-block-region[data-selected=true]{outline:2px solid currentColor;background:transparent}}
+@media(prefers-reduced-motion:reduce){.folio-pdf-block-region{transition:none}}

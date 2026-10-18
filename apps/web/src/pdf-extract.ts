@@ -40,7 +40,8 @@ export function pdfFailureMessage(error:unknown):string{
  return 'Unable to rebuild this PDF. '+detail.slice(0,380)+'. The original file remains stored locally.';
 }
 export async function parseLocalPdf(id:string,bytes:Uint8Array,signal?:AbortSignal,recognizer?:LocalLayoutRecognizer,
- onOpened?:(document:pdfjs.PDFDocumentProxy)=>void,onProgress?:(page:number,total:number)=>void):Promise<ParsedPdf>{
+ onOpened?:(document:pdfjs.PDFDocumentProxy)=>void,onProgress?:(page:number,total:number)=>void,
+ onFirstPage?:(ir:PdfDocumentIR)=>void):Promise<ParsedPdf>{
  if(signal?.aborted)throw new Error('PDF processing cancelled.');
  ensurePromiseTry();
  let task:ReturnType<typeof pdfjs.getDocument>|undefined;
@@ -110,6 +111,8 @@ export async function parseLocalPdf(id:string,bytes:Uint8Array,signal?:AbortSign
      }
     }
     pages.push({page:number,width:viewport.width,height:viewport.height,spans,images,layoutRegions});
+    // Let the first page become selectable while longer scientific PDFs continue reflowing.
+    if(number===1&&onFirstPage)onFirstPage(buildPdfIR(id,pages));
    }finally{page.cleanup();}
   }
   if(pdf.numPages>0&&failedTextPages===pdf.numPages){
