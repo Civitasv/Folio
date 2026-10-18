@@ -42,7 +42,7 @@ Direct PDF/EPUB and DOI use without external apps must be first class. Library a
 Two distinct surfaces, not one stacked page:
 
 - **Library:** calm document-centric landing: recent reading, to-read/in-progress/completed and a searchable compact document list; PDF/EPUB/DOI acquisition; explicit source labels and import state. Import is a single unobtrusive action, not an always-open administrative form. Metadata-only references never masquerade as downloaded full text. Remove is safe/recoverable when trash is implemented; until then destructive deletion is confirmed.
-- **Reader:** a focused, resizable three-region workspace. Left: TOC/outline and in-document search; center: primary reading canvas and translation; right: Notes / Ask Folio / document details. Left/right collapse independently and never take away minimum usable reading width. No library list or dropzone above the active document. Exiting returns to the prior library state.
+- **Reader:** launch into a quiet full-window **two-pane source/translation canvas** by default: the untouched original on the left and target-language reading content on the right, with a thin header and Back to Library. No permanently mounted library, TOC, Inspector, AI chat, cards or settings inside the reading canvas. Later navigation/search/notes/Ask tools appear only through deliberate, dismissible actions and may temporarily overlay or replace a pane, never turn the normal reading experience into an obligatory third column. Keep both panes legible; at very narrow widths a vertical responsive fallback is acceptable.
 - **Settings:** deliberate low-frequency dialog/screen for appearance, language, provider, data storage, import adapters and privacy.
 - **Research notes:** evidence-linked, editable and exportable; not just a transient chat history.
 
@@ -97,7 +97,7 @@ Preserve all existing F01 imported documents/identities, EPUB location, PDF prog
 
 ## 10. Delivery and dependencies
 
-- **F02a — Reader-first visual and navigation reset:** compact library, active reader replacing library main content, accessible toolbar, responsive collapsible inspector/TOC, typography/theme/token polish, no fake features. Preserve existing PDFs/EPUBs/DOI and provider UX. This is the immediate implementation slice.
+- **F02a — Full-window source/target PDF reading shell:** compact separate Library; two equal reading panes for PDFs, original left/target output right, minimal header, transparent manual excerpt bridge through existing translation provider/cache while PDF.js is not shipped, no fake features. Preserve existing EPUB/DOI/provider behavior. This is the immediate standalone implementation slice.
 - **F02b — PDF engine:** PDF.js rendering and text layer, outline/page/search/selection, saved automatic progress and reliable anchor mapping; retire browser iframe once verified.
 - **F02c — Parallel reading:** source/parallel/translation modes for PDF and EPUB, adjustable split, swap, sync on/off, aligned block view, local cache/explicit provider operation and provider-status clarity.
 - **F02d — Research marks:** cross-format selection anchor, search, annotation, note, undo, Markdown export.
@@ -111,6 +111,7 @@ Each slice must have a reviewable child spec/PR. A parent-level complete label r
 ## 11. Acceptance and evidence gates
 
 - User with no documents sees a clear, attractive import/onboarding action; populated library shows scannable distinct records rather than raw filename slug rows.
+- PDF opening fills the window with two primary panes, without persistent Library, Inspector or chat sidebar. Right-hand target content is never fabricated; before the text engine ships, the bounded manual source-excerpt workflow is explicitly identified as temporary.
 - Opening a document makes the reading content primary immediately. Search/import/library do not remain stacked above an iframe.
 - PDF and EPUB source/parallel/translation controls only appear when the corresponding actual engines/capabilities exist; disabled/unsupported states are truthful.
 - Normal text PDFs can be searched and selected without manual paste once F02b ships; exact stable anchors survive reopen.
