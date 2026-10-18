@@ -14,7 +14,6 @@ export function readingPairs(ir:PdfDocumentIR, translations:ReadonlyMap<string,s
  });
 }
 interface Line { text:string;rect:PdfRect;fontSize:number }
-const key=(n:number)=>Math.round(n*1000);
 function union(a:PdfRect,b:PdfRect):PdfRect{
  const x=Math.min(a.x,b.x),y=Math.min(a.y,b.y);
  return {x,y,width:Math.max(a.x+a.width,b.x+b.width)-x,height:Math.max(a.y+a.height,b.y+b.height)-y};
@@ -24,7 +23,8 @@ function lines(spans:PdfTextSpan[]):Line[]{
   .sort((a,b)=>a.rect.y-b.rect.y||a.rect.x-b.rect.x);
  const result:Line[]=[];
  for(const s of ordered){
-  const line=result.find(l=>Math.abs(l.rect.y-s.rect.y)<=Math.min(l.rect.height,s.rect.height)*.35 && Math.abs(l.fontSize-s.fontSize)<Math.max(2,l.fontSize*.23));
+  const line=result.find(l=>Math.abs(l.rect.y-s.rect.y)<=Math.min(l.rect.height,s.rect.height)*.35 && Math.abs(l.fontSize-s.fontSize)<Math.max(.006,l.fontSize*.23) &&
+   s.rect.x<=l.rect.x+l.rect.width+.05&&l.rect.x<=s.rect.x+s.rect.width+.05);
   if(!line){result.push({text:s.text.trim(),rect:{...s.rect},fontSize:s.fontSize});continue;}
   const before=s.rect.x<line.rect.x;
   line.text=before?s.text.trim()+' '+line.text:line.text+' '+s.text.trim();
