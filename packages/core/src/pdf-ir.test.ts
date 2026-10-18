@@ -48,3 +48,11 @@ it('retains overlapping and hyphenated source without discarding a block',()=>{
  expect(ir.blocks.length).toBeGreaterThan(0);
  expect(ir.blocks[0].text).toMatch(/geo/);
 });
+
+
+it('joins close adjacent fragments within one PDF text line in source order',()=>{
+ const ir=buildPdfIR('same-line',[page(1,[span('Hello',.1,.2,.12),span('world',.23,.2,.12)])]);
+ expect(ir.blocks).toHaveLength(1);
+ expect(ir.blocks[0].text).toBe('Hello world');
+ expect(ir.blocks[0].rect.width).toBeCloseTo(.25);
+});
