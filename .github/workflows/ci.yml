@@ -18,6 +18,24 @@ jobs:
           node-version: 22
       - run: pnpm install --frozen-lockfile
       - run: pnpm check
+      - name: Report exact uncovered source lines and branches
+        if: failure()
+        run: |
+          node --input-type=module <<'NODE'
+          import {existsSync,readFileSync} from 'node:fs';
+          if(existsSync('coverage/lcov.info')){
+            const files=readFileSync('coverage/lcov.info','utf8').split('end_of_record');
+            for(const file of files){
+              const name=file.match(/^SF:(.*)$/m)?.[1];
+              if(!name)continue;
+              const missing=file.split('\n').filter(x=>
+                /^DA:[0-9]+,[0]+(?:,|$)/.test(x)||
+                /^BRDA:[0-9]+,[0-9]+,[0-9]+,(?:0|-)$/m.test(x)||
+                /^FNDA:0,/.test(x));
+              if(missing.length)console.log(name+' gaps: '+missing.join(' | '));
+            }
+          }
+          NODE
       - uses: actions/upload-artifact@v4
         if: always()
         with:
