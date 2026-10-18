@@ -1,12 +1,12 @@
 import {beforeEach,afterEach,expect,it,vi} from 'vitest';
-import {parseLocalPdf,ensurePromiseTry} from './pdf-extract';
+import {parseLocalPdf,ensurePromiseTry,PdfParseFailure,pdfFailureMessage} from './pdf-extract';
 const destroy=vi.fn(async()=>{}),cleanup=vi.fn(),render=vi.fn(()=>({promise:Promise.resolve()}));
 let numPages=1,items:unknown[]=[{str:'First source line',fontName:'f',transform:[1,0,0,20,100,700],width:160}];
-let failRead=false;
+let failRead=false,failGraphics=false;
 const getPage=vi.fn(async()=>({
  getViewport:()=>({width:600,height:800,transform:[1,0,0,1,0,0]}),
  getTextContent:async()=>{if(failRead)throw Error('read failed');return {items,styles:{f:{ascent:.8}}};},
- getOperatorList:async()=>({fnArray:[],argsArray:[]}),cleanup,render
+ getOperatorList:async()=>{if(failGraphics)throw Error('graphics unavailable');return {fnArray:[],argsArray:[]};},cleanup,render
 }));
 const task=()=>({promise:Promise.resolve({numPages,getPage}),destroy});
 vi.mock('pdfjs-dist/legacy/build/pdf.mjs',()=>({
@@ -18,7 +18,7 @@ vi.mock('pdfjs-dist/legacy/build/pdf.mjs',()=>({
 }));
 beforeEach(()=>{
  destroy.mockClear();cleanup.mockClear();render.mockClear();getPage.mockClear();
- numPages=1;items=[{str:'First source line',fontName:'f',transform:[1,0,0,20,100,700],width:160}];failRead=false;
+ numPages=1;items=[{str:'First source line',fontName:'f',transform:[1,0,0,20,100,700],width:160}];failRead=false;failGraphics=false;
  vi.spyOn(HTMLCanvasElement.prototype,'getContext').mockReturnValue({} as CanvasRenderingContext2D);
  vi.spyOn(HTMLCanvasElement.prototype,'toDataURL').mockReturnValue('data:image/png;base64,AA==');
 });
@@ -132,4 +132,71 @@ it('cleans region-render canvas even when source rendering fails',async()=>{
  vi.spyOn(HTMLCanvasElement.prototype,'getContext').mockReturnValueOnce(null);
  await expect(p.regionImage(1,rect)).rejects.toThrow('Canvas rendering unavailable.');
  await p.destroy();
+});
+
+it('preserves extracted text when inspecting PDF graphics fails',async()=>{
+ failGraphics=true;
+ const result=await parseLocalPdf('original:one',new Uint8Array(1));
+ expect(result.ir.blocks.map(block=>block.text)).toContain('First source line');
+ expect(result.ir.warnings).toContain('Page 1: graphics inspection unavailable; verify figures using the original page.');
+ await result.destroy();
+});
+it('retains readable later pages when an earlier text layer cannot be decoded',async()=>{
+ numPages=2;
+ getPage.mockImplementationOnce(async()=>({
+  getViewport:()=>({width:600,height:800,transform:[1,0,0,1,0,0]}),
+  getTextContent:async()=>{throw Error('broken first text layer');},
+  getOperatorList:async()=>({fnArray:[],argsArray:[]}),cleanup,render
+ }));
+ const result=await parseLocalPdf('original:two',new Uint8Array(1));
+ expect(result.ir.blocks.map(block=>block.page)).toEqual([2]);
+ expect(result.ir.warnings).toContain('Page 1: text extraction failed; source-page review remains available.');
+ await result.destroy();
+});
+it('reports a meaningful stage when every text layer fails and retains original error after destroy failure',async()=>{
+ failRead=true;
+ destroy.mockRejectedValueOnce(new Error('destroy failed'));
+ await expect(parseLocalPdf('original:all',new Uint8Array(1))).rejects.toThrow('Extracting text from all pages: read failed');
+});
+it('classifies and bounds local PDF diagnostics without exposing document bytes',()=>{
+ const issue=new PdfParseFailure('Opening document',new Error('Worker not loaded'));
+ expect(issue.name).toBe('PdfParseFailure');
+ expect(pdfFailureMessage(issue)).toContain('Opening document: Worker not loaded');
+ expect(pdfFailureMessage('load failure')).toContain('load failure');
+ expect(pdfFailureMessage({cause:'unknown'})).toContain('Unknown PDF engine error');
+ expect(pdfFailureMessage(new Error('x'.repeat(900))).length).toBeLessThan(460);
+ expect(new PdfParseFailure('Reading page 2',undefined).message).toContain('Unknown PDF engine error');
+});
+
+it('formats string and empty native PDF failures without losing stage provenance',()=>{
+ expect(new PdfParseFailure('Opening document','native worker failed').message).toContain('native worker failed');
+ expect(new PdfParseFailure('Opening document','  ').message).toContain('Unknown PDF engine error');
+});
+it('cancels immediately when user aborts inside an in-flight page text request',async()=>{
+ const ctrl=new AbortController();
+ getPage.mockImplementationOnce(async()=>({
+  getViewport:()=>({width:600,height:800,transform:[1,0,0,1,0,0]}),
+  getTextContent:async()=>{ctrl.abort();throw Error('interrupted text');},
+  getOperatorList:async()=>({fnArray:[],argsArray:[]}),cleanup,render
+ }));
+ await expect(parseLocalPdf('cancel:text',new Uint8Array(1),ctrl.signal)).rejects.toThrow('PDF processing cancelled.');
+ expect(cleanup).toHaveBeenCalled();
+});
+it('cancels immediately when user aborts during graphics processing',async()=>{
+ const ctrl=new AbortController();
+ getPage.mockImplementationOnce(async()=>({
+  getViewport:()=>({width:600,height:800,transform:[1,0,0,1,0,0]}),
+  getTextContent:async()=>({items,styles:{f:{ascent:.8}}}),
+  getOperatorList:async()=>{ctrl.abort();throw Error('interrupted graphics');},cleanup,render
+ }));
+ await expect(parseLocalPdf('cancel:graphics',new Uint8Array(1),ctrl.signal)).rejects.toThrow('PDF processing cancelled.');
+ expect(cleanup).toHaveBeenCalled();
+});
+it('reports an all-page failure even when an engine rejects without a cause',async()=>{
+ getPage.mockImplementationOnce(async()=>({
+  getViewport:()=>({width:600,height:800,transform:[1,0,0,1,0,0]}),
+  getTextContent:async()=>Promise.reject(undefined),
+  getOperatorList:async()=>({fnArray:[],argsArray:[]}),cleanup,render
+ }));
+ await expect(parseLocalPdf('invalid:error',new Uint8Array(1))).rejects.toThrow('No page text could be read');
 });

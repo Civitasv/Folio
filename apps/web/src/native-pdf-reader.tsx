@@ -3,7 +3,7 @@ import { DEFAULT_LANGUAGE_PREFERENCES, LANGUAGE_OPTIONS, TRANSLATION_PROMPT_VERS
  type PdfBlock,type PdfDocumentIR,type ReadingMode,type DocumentSummary,type TranslationProvider,
  type LanguagePreferences,type TranslationIdentity} from '@folio/core';
 import {browserReaderModeStore,type ReaderModeStore,type TranslationPlatform} from '@folio/platform';
-import {parseLocalPdf,type ParsedPdf} from './pdf-extract';
+import {parseLocalPdf,pdfFailureMessage,type ParsedPdf} from './pdf-extract';
 
 type ReaderTranslationPlatform=Pick<TranslationPlatform,'getLanguages'|'setLanguages'|'findTranslation'|'saveManualTranslation'|'translate'>;
 export function sourceIdentity(doc:DocumentSummary,block:PdfBlock,prefs:LanguagePreferences,provider?:TranslationProvider):TranslationIdentity{
@@ -15,6 +15,7 @@ export function NativePdfReader({doc,bytes,platform,provider,onLocation,modeStor
  platform?:ReaderTranslationPlatform;provider?:TranslationProvider;onLocation?:(page:number)=>void;modeStore?:ReaderModeStore}){
  const [parsed,setParsed]=React.useState<ParsedPdf>();
  const [parseError,setParseError]=React.useState('');
+ const [retryCount,setRetryCount]=React.useState(0);
  const [mode,setMode]=React.useState<ReadingMode>(()=>modeStore.read(doc.id));
  const selectMode=(next:ReadingMode)=>{setMode(next);modeStore.write(doc.id,next);};
  const [prefs,setPrefs]=React.useState<LanguagePreferences>(DEFAULT_LANGUAGE_PREFERENCES);
@@ -35,9 +36,11 @@ export function NativePdfReader({doc,bytes,platform,provider,onLocation,modeStor
   void parseLocalPdf(doc.id,bytes,ctrl.signal).then(result=>{
    docRef=result;
    if(live)setParsed(result);else void result.destroy();
-  }).catch(()=>{if(live)setParseError('Cannot rebuild this PDF. The original file remains safely stored.');});
+  }).catch(error=>{
+   if(live){console.error('[Folio] local PDF extraction failed',error);setParseError(pdfFailureMessage(error));}
+  });
   return ()=>{live=false;generation.current++;ctrl.abort();if(docRef)void docRef.destroy();controller.current?.abort();};
- },[doc.id,bytes]);
+ },[doc.id,bytes,retryCount]);
  React.useEffect(()=>{
   let live=true;setReady(false);
   if(!platform){setReady(true);return;}
@@ -144,7 +147,7 @@ export function NativePdfReader({doc,bytes,platform,provider,onLocation,modeStor
    <span className="folio-native-status">{ir?ir.blocks.length+' source blocks · local':parseError||'Reading local PDF…'}</span>
   </header>
   {error&&<p role="alert" className="folio-native-error">{error}</p>}
-  {parseError?<div role="alert" className="folio-native-error">{parseError}</div>:!ir?<p role="status" className="folio-native-loading">Extracting local paper text and layout…</p>:
+  {parseError?<div role="alert" className="folio-native-error"><p>{parseError}</p><button type="button" onClick={()=>setRetryCount(n=>n+1)}>Retry local PDF reading</button></div>:!ir?<p role="status" className="folio-native-loading">Extracting local paper text and layout…</p>:
   <><div className="folio-native-warnings">{ir.warnings.map(w=><p key={w} role="status">{w}</p>)}</div>
    {!pairs.length&&<div className="folio-native-empty"><p>No selectable text detected. Scanned documents need an explicit OCR engine.</p>
     <button type="button" onClick={()=>void reviewPage(1)}>Inspect original page</button></div>}
