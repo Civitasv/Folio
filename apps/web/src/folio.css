@@ -406,3 +406,10 @@ button:disabled{cursor:not-allowed;opacity:.52}
 .folio-original-pdf .textLayer{user-select:text}
 @media(max-width:760px){.folio-native-original-column{overflow:hidden!important}}
 @media(prefers-contrast:more){.folio-original-pdf .pdfViewer .page{outline:1px solid currentColor}}
+
+/* F02i4: explicit, accessible split geometry without decorative chrome. */
+.folio-native-tools input[type=range]{width:clamp(74px,10vw,138px);min-width:74px;accent-color:var(--folio-accent)}
+.folio-native-tools>button{min-height:31px;padding:5px 10px;background:var(--folio-surface);border:1px solid var(--folio-border);border-radius:6px;color:var(--folio-secondary);font-size:.76rem}
+.folio-native-parallel .folio-native-column{border-right:0}
+.folio-native-parallel .folio-native-column[style*="order: 1"]{border-right:1px solid var(--folio-border)}
+@media(max-width:760px){.folio-native-parallel .folio-native-column[style*="order: 1"]{border-right:0;border-bottom:1px solid var(--folio-border)}}
