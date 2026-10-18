@@ -469,3 +469,26 @@ it('returns to Library navigation and inspector after leaving focused PDF',async
  expect(screen.getByRole('navigation',{name:'Library filters'})).toBeTruthy();
  expect(screen.getByRole('complementary',{name:'Context inspector'})).toBeTruthy();
 });
+
+
+it('preserves collapsible library and inspector on the existing EPUB path only',async()=>{
+ const f=fixture([{id:'epub:sha256:a',title:'Book',kind:'epub',progress:1}]);
+ const p={...f.platform,importEpub:vi.fn(async()=>f.rows.get('epub:sha256:a')!),
+  readEpub:vi.fn(async()=>({book:{metadata:{title:'Book',creators:[],spine:[{id:'x',href:'x.xhtml'}],toc:[]},chapters:[{id:'x',href:'x.xhtml',html:'<p>Chapter</p>'}]},
+   anchor:{kind:'epub' as const,spineIndex:0,cfi:'epubcfi(/6/2)'},preferences:{fontSize:18,theme:'light' as const}})),
+  setEpubLocation:vi.fn(async()=>{}),setEpubPreferences:vi.fn(async()=>{})};
+ render(<App platform={p}/>);
+ fireEvent.click(await screen.findByRole('button',{name:'Book'}));
+ expect(await screen.findByTitle('EPUB chapter')).toBeTruthy();
+ const app=document.querySelector('.folio-app')!;
+ fireEvent.click(screen.getByRole('button',{name:'Hide library'}));
+ expect(app.classList.contains('navigation-collapsed')).toBe(true);
+ fireEvent.click(screen.getByRole('button',{name:'Show library'}));
+ expect(app.classList.contains('navigation-collapsed')).toBe(false);
+ fireEvent.click(screen.getByRole('button',{name:'Hide details'}));
+ expect(app.classList.contains('inspector-collapsed')).toBe(true);
+ fireEvent.click(screen.getByRole('button',{name:'Show details'}));
+ expect(app.classList.contains('inspector-collapsed')).toBe(false);
+ fireEvent.click(screen.getByRole('button',{name:'Close'}));
+ expect(screen.getByText('Make room for understanding.')).toBeTruthy();
+});
