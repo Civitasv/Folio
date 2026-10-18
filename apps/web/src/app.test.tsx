@@ -472,3 +472,21 @@ it('opens native focused PDF settings without adding a sidebar',async()=>{
  expect(document.activeElement).toBe(screen.getByRole('button',{name:'Settings'}));
  expect(screen.queryByRole('complementary',{name:'Context inspector'})).toBeNull();
 });
+
+
+it('ignores a delayed page save when a different document has become active',async()=>{
+ const {platform}=fixture([{id:'a',title:'A',progress:1},{id:'b',title:'B',progress:1}]);
+ let complete!:()=>void;
+ vi.spyOn(platform,'setProgress').mockImplementationOnce(()=>new Promise<void>(resolve=>{complete=resolve;}));
+ render(<App platform={platform}/>);
+ fireEvent.click(await screen.findByRole('button',{name:'A'}));
+ const block=await screen.findByText('Next paragraph');
+ fireEvent.focus(block.parentElement!);
+ await waitFor(()=>expect(platform.setProgress).toHaveBeenCalledWith('a',2));
+ fireEvent.click(screen.getByRole('button',{name:'Back to library'}));
+ fireEvent.click(screen.getByRole('button',{name:'B'}));
+ await screen.findByRole('region',{name:'Structured paper reader'});
+ complete();
+ await waitFor(()=>expect(screen.getByRole('heading',{name:'B'})).toBeTruthy());
+ expect(screen.getByRole('region',{name:'Structured paper reader'})).toBeTruthy();
+});
