@@ -1,15 +1,16 @@
+import {belongsToScientificRegion,scientificRegions,sourceMediaKind,scientificAssetId,type LayoutObservation} from './pdf-layout';
 /** Source data is immutable; a layout/presentation change never changes its identity. */
-export type PdfBlockKind = 'title'|'heading'|'paragraph'|'caption'|'reference'|'unknown'|'figure';
+export type PdfBlockKind = 'title'|'heading'|'paragraph'|'caption'|'reference'|'unknown'|'figure'|'chart'|'table'|'formula'|'algorithm';
 export interface PdfRect { x:number;y:number;width:number;height:number }
 export interface PdfTextSpan { text:string;rect:PdfRect;fontSize:number }
-export interface PdfPageInput { page:number;spans:PdfTextSpan[];width:number;height:number;images?:PdfRect[] }
-export interface PdfBlock { id:string;kind:PdfBlockKind;page:number;text:string;rect:PdfRect;confidence:number;mediaRect?:PdfRect }
+export interface PdfPageInput { page:number;spans:PdfTextSpan[];width:number;height:number;images?:PdfRect[];layoutRegions?:LayoutObservation[] }
+export interface PdfBlock { id:string;kind:PdfBlockKind;page:number;text:string;rect:PdfRect;confidence:number;mediaRect?:PdfRect;sourceText?:string }
 export interface PdfDocumentIR {version:1;documentId:string;pages:number;blocks:PdfBlock[];warnings:string[]}
 export interface ReadingPair { block:PdfBlock;target?:string;status:'ready'|'missing'|'source-only' }
 export type ReadingMode = 'parallel'|'interleaved';
 export function readingPairs(ir:PdfDocumentIR, translations:ReadonlyMap<string,string>):ReadingPair[]{
  return ir.blocks.map(block=>{
-  if(block.kind==='figure')return {block,status:'source-only'};
+  if(sourceMediaKind(block.kind))return {block,status:'source-only'};
   const target=translations.get(block.id);
   return target?.trim()?{block,target,status:'ready'}:{block,status:'missing'};
  });
@@ -18,6 +19,11 @@ interface Line { text:string;rect:PdfRect;fontSize:number }
 function union(a:PdfRect,b:PdfRect):PdfRect{
  const x=Math.min(a.x,b.x),y=Math.min(a.y,b.y);
  return {x,y,width:Math.max(a.x+a.width,b.x+b.width)-x,height:Math.max(a.y+a.height,b.y+b.height)-y};
+}
+function overlapRect(a:PdfRect,b:PdfRect):number{
+ const x=Math.max(0,Math.min(a.x+a.width,b.x+b.width)-Math.max(a.x,b.x));
+ const y=Math.max(0,Math.min(a.y+a.height,b.y+b.height)-Math.max(a.y,b.y));
+ return x*y/(b.width*b.height);
 }
 function lines(spans:PdfTextSpan[]):Line[]{
  const ordered=[...spans].filter(s=>s.text.trim()&&s.rect.width>0&&s.rect.height>0)
@@ -74,9 +80,13 @@ export function buildPdfIR(documentId:string,pages:PdfPageInput[]):PdfDocumentIR
  for(const page of pages){
   const clean=page.spans.filter(s=>Number.isFinite(s.rect.x)&&Number.isFinite(s.rect.y)&&Number.isFinite(s.rect.width)&&Number.isFinite(s.rect.height)&&Number.isFinite(s.fontSize)&&s.rect.x>=0&&s.rect.y>=0&&s.rect.x+s.rect.width<=1.01&&s.rect.y+s.rect.height<=1.01);
   if(clean.length!==page.spans.length)warnings.push('Page '+page.page+': invalid source geometry skipped.');
-  const all=order(lines(clean));
-  if(!all.length){warnings.push('Page '+page.page+': no selectable text. Original page review required.');continue;}
-  const heights=clean.map(s=>s.fontSize).sort((a,b)=>a-b),median=heights[Math.floor(heights.length/2)]||1;
+  const regions=scientificRegions(page.layoutRegions??[],clean);
+  // A layout box can overlap its printed caption. Captions are real translatable
+  // source text, not pixels to discard with a table/figure's interior labels.
+  const prose=clean.filter(span=>/^(?:fig(?:ure)?\.?|table)\s*\d+[.:\s]/i.test(span.text)||!belongsToScientificRegion(span,regions));
+  const all=order(lines(prose));
+  if(!all.length)warnings.push('Page '+page.page+(regions.length?': no selectable prose text. Original page review required.':': no selectable text. Original page review required.'));
+  const heights=prose.map(s=>s.fontSize).sort((a,b)=>a-b),median=heights[Math.floor(heights.length/2)]||1;
   let n=0;
   for(const line of all){
    const t=line.text.replace(/\s+/g,' ').trim();
@@ -105,6 +115,8 @@ export function buildPdfIR(documentId:string,pages:PdfPageInput[]):PdfDocumentIR
   const grouped=new Map<string,PdfRect>();
   let unpaired=0;
   for(const image of page.images??[]){
+   // A model-detected whole region replaces its bitmap-only fallback.
+   if(regions.some(region=>region.kind==='figure'||region.kind==='chart'?overlapRect(region.rect,image)>.6:false))continue;
    // An uncaptained top-of-page branding image is not article evidence.
    if(image.y<.14&&!figures.length)continue;
    const candidate=figures.map(caption=>{
@@ -126,9 +138,23 @@ export function buildPdfIR(documentId:string,pages:PdfPageInput[]):PdfDocumentIR
    blocks.splice(idx,0,{id:'p'+page.page+'-figure-'+number,kind:'figure',page:page.page,
     text:'',rect:region,mediaRect:region,confidence:.9});
   }
-  if(blocks.some(block=>block.page===page.page&&block.kind==='caption'&&/^table\s/i.test(block.text)))
+  for(const region of regions){
+   const block:PdfBlock={id:scientificAssetId(page.page,region),kind:region.kind,page:page.page,
+    text:'',rect:region.rect,mediaRect:region.rect,confidence:region.confidence,sourceText:region.sourceText};
+   const captionPrefix=region.kind==='table'?/^table\s*\d+/i:region.kind==='figure'||region.kind==='chart'?/^fig(?:ure)?\.?\s*\d+/i:undefined;
+   const caption=captionPrefix?blocks.filter(entry=>entry.page===page.page&&entry.kind==='caption'&&captionPrefix.test(entry.text))
+    .sort((a,b)=>Math.abs(a.rect.y-region.rect.y)-Math.abs(b.rect.y-region.rect.y))[0]:undefined;
+   if(caption&&Math.abs(caption.rect.y-region.rect.y)<.16){
+    const index=blocks.indexOf(caption);
+    blocks.splice(region.rect.y<caption.rect.y?index:index+1,0,block);
+   }else{
+    const index=blocks.findIndex(entry=>entry.page===page.page&&entry.rect.y>region.rect.y);
+    blocks.splice(index<0?blocks.length:index,0,block);
+   }
+  }
+  if(blocks.some(block=>block.page===page.page&&block.kind==='caption'&&/^table\s/i.test(block.text)&&!regions.some(region=>region.kind==='table')))
    warnings.push('Page '+page.page+': PDF table grid is not yet reconstructed; do not rely on flattened table cells. Check original-page evidence.');
  }
- if(pages.length)warnings.push('Conservative reflow: only caption-associated bitmap figures are restored. Vector overlays, table grids and equations need original-page fidelity review.');
+ if(pages.length)warnings.push('Conservative reflow: only verified scientific regions are shown as original-page assets. Unidentified table grids, vectors and equations still require original-page fidelity review.');
  return {version:1,documentId,pages:pages.length?Math.max(...pages.map(p=>p.page)):0,blocks,warnings};
 }

@@ -319,6 +319,21 @@ it('retains original-page evidence when a figure crop is unavailable',async()=>{
  fireEvent.click(within(source).getByRole('button',{name:'Review original page 2 for p2-figure-2'}));
  expect(await screen.findByRole('dialog',{name:'Original PDF page 2'})).toBeTruthy();
 });
+it('preserves scientific table regions in both Parallel streams and renders them once in Interleaved',async()=>{
+ const rect={x:.1,y:.2,width:.7,height:.4};
+ const scientific={id:'p6-table-1000-2000-7000-4000',kind:'table' as const,page:6,text:'',
+  sourceText:'< 0.001',confidence:.96,rect,mediaRect:rect};
+ vi.mocked(parseLocalPdf).mockResolvedValueOnce({...parsed,ir:{...ir,blocks:[scientific]}});
+ const p=platform();render(<NativePdfReader doc={doc} bytes={bytes} platform={p}/>);
+ expect(await screen.findByAltText('Original scientific table p6-table-1000-2000-7000-4000')).toBeTruthy();
+ expect(screen.getByAltText('Unmodified scientific table p6-table-1000-2000-7000-4000')).toBeTruthy();
+ expect(p.findTranslation).not.toHaveBeenCalled();
+ expect(regionImage).toHaveBeenCalledWith(6,rect);
+ fireEvent.click(screen.getByRole('button',{name:'Interleaved · 单栏'}));
+ const feed=screen.getByRole('region',{name:'Interleaved article'});
+ expect(within(feed).getAllByRole('img')).toHaveLength(1);
+ expect(within(feed).queryByText('< 0.001')).toBeNull();
+});
 
 it('exposes a local parse failure and retries the stored PDF without reimporting or remote calls',async()=>{
  vi.mocked(parseLocalPdf).mockRejectedValueOnce(new Error('PDF worker unavailable')).mockResolvedValueOnce(parsed);
