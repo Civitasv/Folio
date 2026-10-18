@@ -76,7 +76,7 @@ export function App({ platform = universalPlatform,translationProvider,onOpenSet
     try {
       await platform.deletePdf(doc.id);
       if(platform.deleteTranslations)await platform.deleteTranslations(doc.id);
-      if (active?.id === doc.id) { setActive(null); setReader(null); }
+      if (active?.id === doc.id) { returnToLibrary(); setReader(null); }
       setDocuments(await platform.listDocuments());
       setNotice(doc.kind === 'reference' ? 'DOI reference deleted from the local library.' : doc.kind === 'epub' ? 'EPUB deleted from the local library.' : 'PDF deleted from the local library.');
     } catch { setError('Unable to delete the local document.'); }
@@ -100,6 +100,7 @@ export function App({ platform = universalPlatform,translationProvider,onOpenSet
       key={active?.kind==='reference' ? active.id : 'new'} platform={platform as DoiPlatform} referenceId={active?.kind==='reference' ? active.id : undefined}
       onSaved={async () => { setDocuments(await platform.listDocuments()); }}
       onImported={async doc => { setDocuments(await platform.listDocuments()); setActive(doc); setPage(String(doc.progress)); }}/>;
+  function returnToLibrary(){setActive(null);setNavigationOpen(true);setInspectorOpen(true);}
   function pickFile(event:React.ChangeEvent<HTMLInputElement>) {
     const file=event.target.files?.[0];
     if(file)void importFile(file);
@@ -126,12 +127,12 @@ export function App({ platform = universalPlatform,translationProvider,onOpenSet
   return <div className={'folio-app'+(active?' folio-app--reading':'')+(!navigationOpen?' navigation-collapsed':'')+(!inspectorOpen?' inspector-collapsed':'')}>
     <WorkspaceShell navigation={<div className="folio-navigation-content">
       <div className="folio-brand"><h1>Folio<span>.</span></h1><p>Read deeper. Think further.</p></div>
-      {active&&<button className="folio-navigation-back" aria-label="Back to library" type="button" onClick={()=>setActive(null)}>← Back to library</button>}
+      {active&&<button className="folio-navigation-back" aria-label="Back to library" type="button" onClick={returnToLibrary}>← Back to library</button>}
       <nav aria-label="Library filters" className="folio-library-filters">
-        <SidebarItem active={kindFilter==='all'} label="All items" onClick={()=>{setKindFilter('all');setActive(null);}}/>
-        <SidebarItem active={kindFilter==='pdf'} label="PDF" onClick={()=>{setKindFilter('pdf');setActive(null);}}/>
-        <SidebarItem active={kindFilter==='epub'} label="EPUB" onClick={()=>{setKindFilter('epub');setActive(null);}}/>
-        <SidebarItem active={kindFilter==='reference'} label="DOI references" onClick={()=>{setKindFilter('reference');setActive(null);}}/>
+        <SidebarItem active={kindFilter==='all'} label="All items" onClick={()=>{setKindFilter('all');returnToLibrary();}}/>
+        <SidebarItem active={kindFilter==='pdf'} label="PDF" onClick={()=>{setKindFilter('pdf');returnToLibrary();}}/>
+        <SidebarItem active={kindFilter==='epub'} label="EPUB" onClick={()=>{setKindFilter('epub');returnToLibrary();}}/>
+        <SidebarItem active={kindFilter==='reference'} label="DOI references" onClick={()=>{setKindFilter('reference');returnToLibrary();}}/>
       </nav>
       {active&&libraryList(true)}
       <p className="folio-nav-footnote">A private reading space. Your documents stay on this device.</p>
@@ -164,11 +165,11 @@ export function App({ platform = universalPlatform,translationProvider,onOpenSet
       {active?.kind==='reference'?<section className="folio-reference-selection folio-reader" aria-label="Reference selected">
         <div className="folio-reader-heading"><div><p className="folio-eyebrow">SAVED REFERENCE</p><h2>{active.title}</h2>
           <p>Metadata only. Import an open-access PDF explicitly to begin full-text reading.</p></div>
-          <button type="button" onClick={()=>setActive(null)}>Close reference</button></div>
+          <button type="button" onClick={returnToLibrary}>Close reference</button></div>
       </section>:active?.kind==='epub'&&platform.importEpub&&platform.readEpub&&platform.setEpubLocation&&platform.setEpubPreferences?
         <section className="folio-epub-book folio-reader" aria-label="EPUB book">
           <div className="folio-reader-heading"><div><p className="folio-eyebrow">EPUB · LOCAL DOCUMENT</p><h2>Reading: {active.title}</h2></div>
-            <div className="folio-reader-actions"><button onClick={()=>setActive(null)}>Close</button>
+            <div className="folio-reader-actions"><button onClick={returnToLibrary}>Close</button>
               <label className="folio-inline-import">Add a document {picker}</label></div></div>
           <EpubReader doc={active} platform={platform as EpubReaderPlatform}
             onRefresh={async()=>setDocuments(await platform.listDocuments())}
@@ -177,7 +178,7 @@ export function App({ platform = universalPlatform,translationProvider,onOpenSet
         </section>:active?
         <section className="folio-pdf-reader folio-reader" aria-label="PDF reader">
           <div className="folio-reader-heading"><div><p className="folio-eyebrow">PDF · LOCAL DOCUMENT</p><h2>Reading: {active.title}</h2></div>
-            <div className="folio-reader-actions"><button onClick={()=>setActive(null)}>Close</button>
+            <div className="folio-reader-actions"><button onClick={returnToLibrary}>Close</button>
               <label className="folio-inline-import">Add a document {picker}</label></div></div>
           <div className="folio-pdf-controls"><label>Page <input aria-label="Saved page" inputMode="numeric" type="number" min="1" step="1" value={page}
             onChange={event=>setPage(event.target.value)}/></label>
