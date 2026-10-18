@@ -120,3 +120,146 @@ button:disabled{cursor:not-allowed;opacity:.52}
 @media(prefers-reduced-motion:reduce){.folio-settings-trigger:active,.folio-settings-section button:active:not(:disabled){transform:none}}
 @media(prefers-reduced-transparency:reduce){.folio-settings-scrim{background:var(--folio-text)}}
 @media(prefers-contrast:more){.folio-settings-dialog,.folio-settings-section{border-color:currentColor}}
+
+
+/* F02a — an intentional reading surface, independent of the platform adapter. */
+.folio-app {
+ --folio-bg:#f4f4f1;--folio-surface:#fff;--folio-raised:#f9f9f7;--folio-nav:#f5f5f2;
+ --folio-text:#20221f;--folio-secondary:#666b66;--folio-tertiary:#858b83;
+ --folio-border:#e4e6df;--folio-accent:#306755;--folio-selection:#e6eee8;
+ --folio-shadow:0 12px 38px rgba(37,50,42,.06);
+ min-height:100dvh;color:var(--folio-text);background:var(--folio-bg);
+}
+.folio-app .folio-workspace{grid-template-columns:minmax(206px,248px) minmax(0,1fr) minmax(252px,310px);height:100dvh;min-height:700px}
+.folio-app .folio-workspace-main{min-width:0;min-height:0;overflow:hidden}
+.folio-app .folio-navigation{overflow-y:auto;scrollbar-width:thin;padding:24px 16px;background:var(--folio-nav)}
+.folio-app .folio-inspector{overflow-y:auto;scrollbar-width:thin;padding:24px 18px;background:var(--folio-raised)}
+.folio-app .folio-inspector-content{max-height:none;overflow:visible}
+.folio-app .folio-content{height:100%;min-height:0;overflow-y:auto;scrollbar-gutter:stable;background:var(--folio-surface)}
+.folio-app .folio-content.has-active-reader{display:flex;flex-direction:column}
+.folio-app .folio-toolbar{min-height:66px;padding:12px clamp(18px,2.6vw,36px);background:var(--folio-surface)}
+.folio-app .folio-toolbar-title{font-size:.84rem;color:var(--folio-secondary);letter-spacing:.015em;font-weight:600}
+.folio-app .folio-navigation-content{min-height:100%;gap:0}
+.folio-app .folio-brand{padding:2px 8px 30px}
+.folio-app .folio-brand h1{font-size:1.9rem;font-weight:740;letter-spacing:-.065em;line-height:1.1}
+.folio-app .folio-brand p{font-size:.72rem;letter-spacing:.012em;margin-top:9px}
+.folio-app .folio-library-filters{gap:3px}
+.folio-app .folio-sidebar-item{padding:10px 12px;min-height:40px;border-radius:8px;font-size:.84rem;font-weight:530}
+.folio-app .folio-sidebar-item.is-active{font-weight:660}
+.folio-app .folio-nav-footnote{margin-top:auto;padding:22px 10px 8px;font-size:.72rem;line-height:1.65}
+.folio-app .folio-navigation-back{border:1px solid var(--folio-border);text-align:left;background:var(--folio-surface);color:var(--folio-text);border-radius:8px;font-size:.8rem;font-weight:590;padding:10px 12px;margin-bottom:22px}
+.folio-app .folio-navigation-back:hover{background:var(--folio-selection)}
+.folio-app .folio-eyebrow{font-size:.68rem;color:var(--folio-accent);font-weight:720;letter-spacing:.12em;margin:0 0 12px;text-transform:uppercase}
+.folio-app .folio-library-home{width:min(920px,calc(100% - 44px));margin:0 auto!important;padding:clamp(22px,4.8vw,56px) 0 60px}
+.folio-app .folio-library-hero{max-width:660px;margin-bottom:34px}
+.folio-app .folio-library-hero h2{font-size:clamp(1.85rem,3vw,2.65rem);line-height:1.12;letter-spacing:-.055em;font-weight:690;margin:0 0 15px}
+.folio-app .folio-library-hero>p:last-child{font-size:.96rem;line-height:1.65;color:var(--folio-secondary);margin:0;max-width:520px}
+.folio-app .folio-import{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:13px;padding:22px 24px;background:var(--folio-raised);border:1px dashed #bdc8bc;border-radius:14px;margin:0}
+.folio-app .folio-import h3{font-size:.98rem;margin:0 0 4px;letter-spacing:-.02em}
+.folio-app .folio-import p{color:var(--folio-secondary);font-size:.76rem;margin:0}
+.folio-app .folio-import>p:last-child{flex-basis:100%;font-size:.72rem;color:var(--folio-tertiary)}
+.folio-app .folio-import label{font-size:0;display:flex;flex-direction:column;gap:5px}
+.folio-app input[type=file]{font-size:.76rem;max-width:225px;color:var(--folio-secondary)}
+.folio-app input[type=file]::file-selector-button{font:inherit;font-size:.8rem;font-weight:620;cursor:pointer;border:0;border-radius:7px;padding:10px 12px;background:var(--folio-accent);color:#fff;margin-right:9px}
+.folio-app .folio-section-heading{display:flex;justify-content:space-between;align-items:end;gap:10px;margin-bottom:16px}
+.folio-app .folio-section-heading h2{margin:0;font-size:1.38rem;letter-spacing:-.04em}
+.folio-app .folio-count{font-size:.75rem;color:var(--folio-tertiary);white-space:nowrap}
+.folio-app .folio-library-list{margin-top:42px;margin-bottom:24px}
+.folio-app .folio-search-label{font-size:.72rem;font-weight:600;display:grid;gap:7px;max-width:none;margin-bottom:16px}
+.folio-app .folio-search-label input{width:100%;min-height:40px;padding:10px 12px;border-radius:8px;font-size:.86rem;background:var(--folio-surface)}
+.folio-app .folio-document-list{border:1px solid var(--folio-border);border-radius:12px;overflow:hidden}
+.folio-app .folio-document-row{display:flex;flex-wrap:nowrap;align-items:center;gap:14px;padding:13px 15px;background:var(--folio-surface);font-size:.79rem}
+.folio-app .folio-document-row:last-child{border-bottom:0}
+.folio-app .folio-document-row:hover{background:var(--folio-raised)}
+.folio-app .folio-document-kind{flex:none;min-width:42px;text-align:center;padding:5px;border-radius:5px;background:var(--folio-selection);color:var(--folio-accent);font-size:.64rem;font-weight:750;letter-spacing:.03em}
+.folio-app .folio-document-detail{display:grid;gap:5px;flex:1;min-width:0}
+.folio-app .folio-document-detail>button{font-size:.89rem;font-weight:630;line-height:1.4;text-align:left;overflow-wrap:anywhere;padding:0;border:0;background:transparent;color:var(--folio-text)}
+.folio-app .folio-document-detail>button:hover,.folio-app .folio-document-detail>button.is-current{color:var(--folio-accent)}
+.folio-app .folio-document-detail>span{color:var(--folio-tertiary);font-size:.73rem;overflow-wrap:anywhere}
+.folio-app .folio-document-row>.folio-delete{flex:none;margin-left:8px;border:0;border-radius:6px;padding:6px 8px;font-size:.7rem;color:var(--folio-secondary);background:transparent}
+.folio-app .folio-document-row>.folio-delete:hover{color:var(--folio-danger);background:var(--folio-selection)}
+.folio-app .folio-empty-list{font-size:.86rem;padding:18px;border:1px dashed var(--folio-border);border-radius:10px;color:var(--folio-secondary)}
+.folio-app .folio-library-list--compact{margin-top:23px;margin-bottom:0;border-top:1px solid var(--folio-border);padding-top:22px}
+.folio-app .folio-library-list--compact .folio-nav-section-heading{font-size:.74rem;font-weight:710;color:var(--folio-secondary);letter-spacing:.03em;margin:0 0 15px}
+.folio-app .folio-library-list--compact .folio-document-list{border:0;border-radius:0}
+.folio-app .folio-library-list--compact .folio-document-row{padding:11px 4px;gap:8px;background:transparent}
+.folio-app .folio-library-list--compact .folio-document-kind{font-size:.6rem;min-width:35px;padding:5px 3px}
+.folio-app .folio-library-list--compact .folio-document-detail>button{font-size:.77rem}
+.folio-app .folio-library-list--compact .folio-document-detail>span{font-size:.66rem}
+.folio-app .folio-library-list--compact .folio-document-row>.folio-delete{font-size:.65rem;padding:5px 2px;margin-left:0}
+.folio-app .folio-library-list--compact .folio-search-label{margin-bottom:10px}
+.folio-app .folio-library-list--compact .folio-search-label input{min-height:36px;font-size:.76rem}
+.folio-app .folio-doi-acquisition{border-top:1px solid var(--folio-border);padding-top:30px;margin-top:38px}
+.folio-app .folio-doi-acquisition h2{font-size:1rem;letter-spacing:-.02em;margin:0 0 14px}
+.folio-app .folio-doi-acquisition section{font-size:.82rem;line-height:1.65}
+.folio-app .folio-doi-acquisition form{display:flex;align-items:end;gap:10px;flex-wrap:wrap}
+.folio-app .folio-doi-acquisition form label{flex:1;min-width:180px}
+.folio-app .folio-doi-acquisition input{width:100%;min-height:38px;margin-top:5px}
+.folio-app .folio-doi-acquisition button{min-height:38px}
+.folio-app .folio-doi-acquisition>section>p{color:var(--folio-secondary);max-width:620px}
+.folio-app .folio-inspector-intro{padding:8px 2px}
+.folio-app .folio-inspector-intro h2{font-size:1.18rem;font-weight:670;letter-spacing:-.035em;line-height:1.25;margin:0 0 15px}
+.folio-app .folio-inspector-intro>p:not(.folio-eyebrow){font-size:.79rem;line-height:1.7;color:var(--folio-secondary)}
+.folio-app .folio-reader{padding:0 0 28px;margin:0!important;min-height:0}
+.folio-app .folio-reader-heading{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:14px;padding:18px clamp(18px,2.6vw,36px);border-bottom:1px solid var(--folio-border)}
+.folio-app .folio-reader-heading .folio-eyebrow{margin:0 0 5px;font-size:.61rem}
+.folio-app .folio-reader-heading h2{font-size:1.06rem;line-height:1.35;letter-spacing:-.022em;font-weight:670;margin:0;overflow-wrap:anywhere}
+.folio-app .folio-reader-heading>div:first-child{flex:1;min-width:180px}
+.folio-app .folio-reader-actions{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.folio-app .folio-reader button{margin:0}
+.folio-app .folio-inline-import{display:grid;gap:4px;font-size:.68rem;color:var(--folio-secondary)}
+.folio-app .folio-inline-import input[type=file]{max-width:215px}
+.folio-app .folio-pdf-controls{display:flex;align-items:center;flex-wrap:wrap;gap:10px;background:var(--folio-raised);padding:12px clamp(18px,2.6vw,36px);border-bottom:1px solid var(--folio-border)}
+.folio-app .folio-pdf-controls label{display:flex;align-items:center;gap:8px;font-size:.8rem;color:var(--folio-secondary)}
+.folio-app .folio-pdf-controls input{max-width:74px;min-height:33px;padding:6px 8px;border:1px solid var(--folio-border);background:var(--folio-surface);color:var(--folio-text)}
+.folio-app .folio-pdf-controls>span{margin-left:auto;font-size:.68rem;color:var(--folio-tertiary)}
+.folio-app .folio-pdf-reader iframe{width:calc(100% - 48px);height:calc(100dvh - 245px);min-height:360px;margin:18px 24px 0;border-radius:8px!important;background:#fff}
+.folio-app .folio-preview-note{font-size:.72rem;line-height:1.55;color:var(--folio-tertiary);margin:12px 24px 0}
+.folio-app .folio-epub-book>section{padding:16px clamp(18px,2.6vw,36px)}
+.folio-app .folio-epub-book .folio-epub-page{height:calc(100dvh - 360px)!important;min-height:350px}
+.folio-app .folio-chrome-action{border:1px solid var(--folio-border);background:var(--folio-raised);color:var(--folio-secondary);border-radius:7px;padding:7px 10px;font-size:.75rem;min-height:34px}
+.folio-app .folio-chrome-action:hover{background:var(--folio-selection);color:var(--folio-text)}
+.folio-app .folio-feedback{padding:9px 14px;border:1px solid var(--folio-border);background:var(--folio-selection);border-radius:8px;font-size:.8rem}
+.folio-app .folio-error{color:var(--folio-danger);background:var(--folio-raised)}
+.folio-app .folio-reference-selection>div>div:first-child>p:last-child{font-size:.81rem;color:var(--folio-secondary)}
+.folio-app.inspector-collapsed .folio-inspector,.folio-app.navigation-collapsed .folio-navigation{display:none}
+.folio-app.inspector-collapsed .folio-workspace{grid-template-columns:minmax(206px,248px) minmax(0,1fr)}
+.folio-app.navigation-collapsed .folio-workspace{grid-template-columns:minmax(0,1fr) minmax(252px,310px)}
+.folio-app.navigation-collapsed.inspector-collapsed .folio-workspace{grid-template-columns:minmax(0,1fr)}
+@media(prefers-color-scheme:dark){
+ .folio-app{--folio-bg:#181c1b;--folio-surface:#202524;--folio-raised:#262c29;--folio-nav:#1b201e;--folio-text:#e7ebe6;--folio-secondary:#b3bdb6;--folio-tertiary:#939f95;--folio-border:#38423c;--folio-accent:#a7d2b3;--folio-selection:#2a4235;--folio-danger:#ffabab}
+ .folio-app .folio-import{border-color:#526556}
+}
+@media(max-width:1100px){
+ .folio-app .folio-workspace{height:auto;min-height:100dvh;grid-template-columns:216px minmax(0,1fr)}
+ .folio-app .folio-workspace-main{overflow:visible}
+ .folio-app .folio-content{height:auto;min-height:100dvh;overflow:visible}
+ .folio-app .folio-inspector{grid-column:2;border-left:0;border-top:1px solid var(--folio-border)}
+ .folio-app .folio-reader iframe{height:70dvh;min-height:360px}
+ .folio-app.inspector-collapsed .folio-workspace{grid-template-columns:216px minmax(0,1fr)}
+ .folio-app.navigation-collapsed .folio-workspace{grid-template-columns:minmax(0,1fr)}
+ .folio-app.navigation-collapsed .folio-inspector{grid-column:1}
+}
+@media(max-width:700px){
+ .folio-app .folio-workspace,.folio-app.inspector-collapsed .folio-workspace,.folio-app.navigation-collapsed .folio-workspace{display:block;min-height:100dvh}
+ .folio-app .folio-navigation{padding:15px 16px}
+ .folio-app .folio-brand{padding-bottom:14px}
+ .folio-app .folio-inspector{padding:20px 16px}
+ .folio-app .folio-toolbar{padding:12px 16px}
+ .folio-app .folio-library-home{width:calc(100% - 32px)}
+ .folio-app .folio-import{padding:18px;align-items:flex-start}
+ .folio-app .folio-import label{width:100%}
+ .folio-app .folio-reader-heading{padding:16px}
+ .folio-app .folio-pdf-controls{padding:12px 16px}
+ .folio-app .folio-pdf-reader iframe{width:calc(100% - 24px);margin:12px;height:60dvh!important;min-height:310px}
+ .folio-app .folio-preview-note{margin:12px 16px}
+ .folio-app .folio-document-row{gap:8px;padding:12px 10px}
+ .folio-app .folio-document-detail>button{font-size:.82rem}
+ .folio-app .folio-epub-book .folio-epub-page{height:58dvh!important;min-height:290px}
+}
+@media(prefers-reduced-motion:reduce){
+ .folio-app .folio-chrome-action,.folio-app .folio-navigation-back{transition:none}
+}
+@media(prefers-contrast:more){
+ .folio-app .folio-import,.folio-app .folio-document-list,.folio-app .folio-document-row{border-color:currentColor}
+}
