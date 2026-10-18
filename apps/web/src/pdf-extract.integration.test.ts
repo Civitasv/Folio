@@ -1,9 +1,12 @@
 import {expect,it} from 'vitest';
 import {parseLocalPdf} from './pdf-extract';
 import * as pdfjs from 'pdfjs-dist';
-// PDF.js uses a fake Worker in Vitest's Node environment. Point it to the locally
-// installed worker file; the shipped web app continues to use the Vite ?url asset.
-pdfjs.GlobalWorkerOptions.workerSrc=new URL('../node_modules/pdfjs-dist/build/pdf.worker.min.mjs',import.meta.url).href;
+import {createRequire} from 'node:module';
+import {pathToFileURL} from 'node:url';
+// Resolve the actual pnpm installation path for Node's PDF.js fake worker.
+// The shipped web app still bundles its worker through Vite's local ?url import.
+const localRequire=createRequire(import.meta.url);
+pdfjs.GlobalWorkerOptions.workerSrc=pathToFileURL(localRequire.resolve('pdfjs-dist/build/pdf.worker.min.mjs')).href;
 
 /** A real, deterministic, redistributable selectable-text PDF; no PDF.js mocks. */
 function fixturePdf():Uint8Array{
