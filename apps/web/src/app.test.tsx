@@ -492,3 +492,15 @@ it('preserves collapsible library and inspector on the existing EPUB path only',
  fireEvent.click(screen.getByRole('button',{name:'Close'}));
  expect(screen.getByText('Make room for understanding.')).toBeTruthy();
 });
+
+
+it('opens settings from the focused PDF header without adding a sidebar',async()=>{
+ const f=fixture([{id:'pdf:one',title:'Paper',progress:1}]);setupUrls();
+ const open=vi.fn();render(<App platform={f.platform} onOpenSettings={open}/>);
+ fireEvent.click(await screen.findByRole('button',{name:'Paper'}));
+ expect(await screen.findByTitle('PDF document')).toBeTruthy();
+ fireEvent.click(screen.getByRole('button',{name:'Settings'}));
+ expect(open).toHaveBeenCalledOnce();
+ expect(document.activeElement).toBe(screen.getByRole('button',{name:'Settings'}));
+ expect(screen.queryByRole('complementary',{name:'Context inspector'})).toBeNull();
+});
