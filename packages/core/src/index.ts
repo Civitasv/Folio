@@ -26,7 +26,7 @@ export type { ParsedEpub, EpubChapter } from './epub-book';
 export { decideImport, normalizeProgress } from './library';
 export type { LocalDocument, ImportDecision } from './library';
 
-export { buildPdfIR, readingPairs } from './pdf-ir';
+export { buildPdfIR, readingPairs, boundedReadingIR, MAX_TRANSLATION_UNIT_CHARS } from './pdf-ir';
 export type { PdfBlockKind, PdfRect, PdfTextSpan, PdfPageInput, PdfBlock, PdfDocumentIR, ReadingPair, ReadingMode } from './pdf-ir';
 
 export {scientificRegions,belongsToScientificRegion,scientificAssetId,sourceMediaKind} from './pdf-layout';
