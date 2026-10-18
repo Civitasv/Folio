@@ -255,3 +255,20 @@ it('retains printed table caption when grid evidence is insufficient rather than
  expect(p.ir.warnings.some(w=>w.includes('PDF table grid'))).toBe(true);
  await p.destroy();
 });
+
+
+it('exposes the live PDF before page-by-page graphics work completes and reports page progress',async()=>{
+ const opened=vi.fn(),progress=vi.fn();
+ const parsed=await parseLocalPdf('source:first',new Uint8Array(1),undefined,undefined,opened,progress);
+ expect(opened).toHaveBeenCalledOnce();
+ expect(opened.mock.calls[0][0]).toHaveProperty('numPages',1);
+ expect(progress).toHaveBeenCalledWith(1,1);
+ expect(parsed.originalDocument).toBe(opened.mock.calls[0][0]);
+ await parsed.destroy();
+});
+it('does not publish a source document when opening has already been cancelled',async()=>{
+ const cancelled=new AbortController();cancelled.abort();
+ const opened=vi.fn();
+ await expect(parseLocalPdf('abort:before',new Uint8Array(1),cancelled.signal,undefined,opened)).rejects.toThrow('PDF processing cancelled.');
+ expect(opened).not.toHaveBeenCalled();
+});
