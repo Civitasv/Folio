@@ -169,7 +169,7 @@ export function NativePdfReader({doc,bytes,platform,provider,onLocation,modeStor
     <button type="button" onClick={()=>void reviewPage(1)}>Inspect original page</button></div>}
    {mode==='parallel'?<div className="folio-native-parallel" style={{gridTemplateColumns:`minmax(0,${layout.ratio}fr) minmax(0,${100-layout.ratio}fr)`}}>
     <div className="folio-native-column folio-native-original-column" style={{order:layout.swapped?2:1}} ref={source} role="region" aria-label="Original article"><div className="folio-native-column-title">ORIGINAL · PDF</div>
-     {sourceDocument?<PdfOriginalPane document={sourceDocument} page={originalPage} onPageChange={page=>{
+     {(sourceDocument??parsed?.originalDocument)?<PdfOriginalPane document={(sourceDocument??parsed!.originalDocument)!} page={originalPage} onPageChange={page=>{
       setOriginalPage(page);onLocation?.(page);
       const candidate=content?.blocks.find(block=>block.page===page&&block.text.trim());
       if(candidate)target.current?.querySelector<HTMLElement>('[data-block-id="'+candidate.id+'"]')?.scrollIntoView?.({block:'nearest'});
