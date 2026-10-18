@@ -12,8 +12,7 @@ export function PdfOriginalPane({document,page=1,onPageChange,onError}:{
  const change=React.useRef(onPageChange),error=React.useRef(onError);
  change.current=onPageChange;error.current=onError;
  React.useEffect(()=>{
-  const container=host.current;
-  if(!container)return;
+  const container=host.current!;
   const area=window.document.createElement('div');
   area.className='pdfViewer';
   container.append(area);
@@ -25,14 +24,13 @@ export function PdfOriginalPane({document,page=1,onPageChange,onError}:{
   links.setViewer(reader);
   let live=true;
   const ready=()=>{
-   if(!live)return;
    reader.currentScaleValue='page-width';
    reader.currentPageNumber=Math.min(Math.max(1,Math.trunc(page)||1),document.numPages);
   };
   const changed=(event:{pageNumber:number})=>{if(live)change.current?.(event.pageNumber);};
   bus.on('pagesinit',ready);bus.on('pagechanging',changed);
   try{reader.setDocument(document);links.setDocument(document);}catch(cause){
-   if(live)error.current?.(cause instanceof Error?cause.message:'Original PDF viewer unavailable.');
+   error.current?.(cause instanceof Error?cause.message:'Original PDF viewer unavailable.');
   }
   const observer=typeof ResizeObserver==='undefined'?undefined:new ResizeObserver(()=>{
    if(live&&reader.pagesCount>0)reader.currentScaleValue='page-width';
