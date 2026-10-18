@@ -64,7 +64,7 @@ it('recognizes references as a section heading and treats whitespace-only pages 
   page(2,[span('    ',.1,.2)])]);
  expect(ir.blocks[0].kind).toBe('heading');
  expect(ir.blocks[1].text).toBe('Bibliography item');
- expect(ir.warnings).toContain('Page 2: no selectable prose text. Original page review required.');
+ expect(ir.warnings).toContain('Page 2: no selectable text. Original page review required.');
 });
 
 
