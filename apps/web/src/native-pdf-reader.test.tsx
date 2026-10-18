@@ -427,7 +427,7 @@ it('shows the authoritative PDF before ten-page scientific extraction completes,
  expect(screen.getAllByText('Extracting page 4 / 10 locally…').length).toBeGreaterThan(0);
  expect(screen.queryByText('Source paragraph.')).toBeNull();
  finish({...parsed,originalDocument:{numPages:10} as never});
- expect(await screen.findByText('Not translated')).toBeTruthy();
+ expect((await screen.findAllByText('Not translated')).length).toBeGreaterThan(0);
  expect(screen.getByRole('region',{name:'Original PDF pages'})).toBeTruthy();
  expect(vi.mocked(parseLocalPdf)).toHaveBeenCalledTimes(1);
 });
