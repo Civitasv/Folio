@@ -57,6 +57,6 @@ it('parses an actual local two-column PDF, never uploading content or embedding 
   expect(p.ir.blocks.every(b=>b.page===1&&b.rect.x>=0&&b.rect.x+b.rect.width<=1.01)).toBe(true);
   expect(text).toContain('Figure 1: Example chart.');
   expect(p.ir.blocks.find(b=>b.text.includes('Figure 1:'))?.kind).toBe('caption');
-  expect(p.ir.warnings.some(w=>w.includes('figure/table visuals'))).toBe(true);
+  expect(p.ir.warnings.some(w=>w.includes('Conservative reflow'))).toBe(true);
  }finally{await p.destroy();}
 });
