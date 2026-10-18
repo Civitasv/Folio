@@ -7,7 +7,7 @@ const mocks=vi.hoisted(()=>({
  buses:[] as Array<{on:ReturnType<typeof vi.fn>;off:ReturnType<typeof vi.fn>;emit:(name:string,event:unknown)=>void}>,
  viewers:[] as Array<{setDocument:ReturnType<typeof vi.fn>;pagesCount:number;currentScaleValue:string;currentPageNumber:number}>,
  links:[] as Array<{setViewer:ReturnType<typeof vi.fn>;setDocument:ReturnType<typeof vi.fn>}>,
- fail:false
+ fail:false as boolean|'string'
 }));
 vi.mock('pdfjs-dist/web/pdf_viewer.mjs',()=>({
  EventBus:class{
