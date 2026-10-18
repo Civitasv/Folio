@@ -55,7 +55,7 @@ export function NativePdfReader({doc,bytes,platform,provider,onLocation}:{doc:Do
  },[ready,ir,platform,doc.id,prefs.source,prefs.target,provider?.id,provider?.model]);
  const pairs=ir?readingPairs(ir,translations):[];
  const locate=(id:string)=>{
-  const node=(mode==='parallel'?target.current:feed.current)?.querySelector<HTMLElement>('[data-block-id="'+id+'"]');
+  const node=feed.current?.querySelector<HTMLElement>('[data-block-id="'+id+'"]');
   node?.scrollIntoView?.({behavior:'auto',block:'center'});
  };
  async function changeLanguage(value:string){
