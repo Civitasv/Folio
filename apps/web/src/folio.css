@@ -390,3 +390,9 @@ button:disabled{cursor:not-allowed;opacity:.52}
 @media(max-width:760px){.folio-native-tools{flex-wrap:wrap;padding:8px 10px;gap:7px}.folio-native-status{display:none}.folio-native-parallel{display:block;overflow:auto}.folio-native-parallel .folio-native-column{height:50%;min-height:260px}.folio-native-parallel .folio-native-column:first-child{border-right:0;border-bottom:1px solid var(--folio-border)}.folio-native-column article{width:calc(100% - 28px)}.folio-native-feed article{width:calc(100% - 30px)}}
 @media(prefers-reduced-motion:reduce){.folio-native-source-link{transition:none}}
 @media(prefers-contrast:more){.folio-native-pair,.folio-native-column:first-child{border-color:currentColor}.folio-native-source-link{opacity:1}}
+
+/* Preserved source-media assets: image and PDF overlay pixels are read-only. */
+.folio-native-figure-image{display:block;width:100%;height:auto;max-height:none;object-fit:contain;margin:5px auto 13px}
+.folio-native-media-copy{padding:6px 8px 15px}
+.folio-native-figure{background:transparent}
+.folio-native-figure .folio-native-source-link{opacity:1}
