@@ -1,6 +1,9 @@
 import React from 'react';
 // The real PDF.js viewer requires browser layout globals; its own component is tested separately.
-vi.mock('./pdf-original-pane',()=>({PdfOriginalPane:()=>React.createElement('div',{role:'region','aria-label':'Original PDF pages'})}));
+vi.mock('./pdf-original-pane',()=>({PdfOriginalPane:({onPageChange}:{onPageChange:(page:number)=>void})=>
+ React.createElement('div',{role:'region','aria-label':'Original PDF pages'},
+  React.createElement('button',{onClick:()=>onPageChange(2)},'Move source to page 2'),
+  React.createElement('button',{onClick:()=>onPageChange(3)},'Move source to page 3'))}));
 import {afterEach,beforeEach,expect,it,vi} from 'vitest';
 import {cleanup,fireEvent,render,screen,waitFor,within} from '@testing-library/react';
 import {DEFAULT_LANGUAGE_PREFERENCES,type PdfDocumentIR,type DocumentSummary,type TranslationProvider} from '@folio/core';
@@ -360,4 +363,36 @@ it('uses the same live PDF.js source document for original Parallel pages when a
  fireEvent.click(screen.getByRole('button',{name:'Interleaved · 单栏'}));
  expect(screen.getByRole('region',{name:'Interleaved article'})).toBeTruthy();
  expect(vi.mocked(parseLocalPdf)).toHaveBeenCalledTimes(1);
+});
+
+it('persists a resized and swapped Parallel layout per paper without requesting translation',async()=>{
+ const stored={ratio:50,swapped:false};
+ const layoutStore={read:vi.fn(()=>stored),write:vi.fn()};
+ const p=platform();
+ render(<NativePdfReader doc={doc} bytes={bytes} platform={p} layoutStore={layoutStore}/>);
+ const original=await screen.findByRole('region',{name:'Original article'});
+ const target=screen.getByRole('region',{name:'Translated article'});
+ expect(original.getAttribute('style')).toContain('order: 1');
+ expect(target.getAttribute('style')).toContain('order: 2');
+ fireEvent.change(screen.getByRole('slider',{name:'Left pane width'}),{target:{value:'65'}});
+ expect(layoutStore.write).toHaveBeenCalledWith(doc.id,{ratio:65,swapped:false});
+ expect(screen.getByText('65%')).toBeTruthy();
+ fireEvent.click(screen.getByRole('button',{name:'Swap source and translation panes'}));
+ expect(layoutStore.write).toHaveBeenCalledWith(doc.id,{ratio:65,swapped:true});
+ expect(original.getAttribute('style')).toContain('order: 2');
+ expect(target.getAttribute('style')).toContain('order: 1');
+ fireEvent.click(screen.getByRole('button',{name:'Interleaved · 单栏'}));
+ expect(screen.queryByRole('slider',{name:'Left pane width'})).toBeNull();
+ expect(p.translate).not.toHaveBeenCalled();
+});
+it('uses PDF.js page movement as source-anchored translation navigation when available',async()=>{
+ vi.mocked(parseLocalPdf).mockResolvedValueOnce({...parsed,originalDocument:{numPages:2} as never});
+ const onLocation=vi.fn();
+ render(<NativePdfReader doc={doc} bytes={bytes} onLocation={onLocation}/>);
+ await screen.findByRole('region',{name:'Original PDF pages'});
+ fireEvent.click(screen.getByRole('button',{name:'Move source to page 2'}));
+ expect(onLocation).toHaveBeenCalledWith(2);
+ expect(screen.getByRole('region',{name:'Translated article'})).toBeTruthy();
+ fireEvent.click(screen.getByRole('button',{name:'Move source to page 3'}));
+ expect(onLocation).toHaveBeenCalledWith(3);
 });
