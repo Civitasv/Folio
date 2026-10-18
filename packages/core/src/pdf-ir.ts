@@ -26,8 +26,8 @@ function lines(spans:PdfTextSpan[]):Line[]{
   const line=result.find(l=>Math.abs(l.rect.y-s.rect.y)<=Math.min(l.rect.height,s.rect.height)*.35 && Math.abs(l.fontSize-s.fontSize)<Math.max(.006,l.fontSize*.23) &&
    s.rect.x<=l.rect.x+l.rect.width+.05&&l.rect.x<=s.rect.x+s.rect.width+.05);
   if(!line){result.push({text:s.text.trim(),rect:{...s.rect},fontSize:s.fontSize});continue;}
-  const before=s.rect.x<line.rect.x;
-  line.text=before?s.text.trim()+' '+line.text:line.text+' '+s.text.trim();
+  // sorted input means every newly joined span lies after the preceding one.
+  line.text+=' '+s.text.trim();
   line.rect=union(line.rect,s.rect);
  }
  return result.sort((a,b)=>a.rect.y-b.rect.y||a.rect.x-b.rect.x);
@@ -56,7 +56,6 @@ function classify(text:string,fontSize:number,median:number,first:boolean):PdfBl
  if(/^references\s*$/i.test(text))return 'heading';
  if(first&&fontSize>median*1.38)return 'title';
  if(fontSize>median*1.14&&text.length<120)return 'heading';
- if(!text.trim())return 'unknown';
  return 'paragraph';
 }
 /** Pure conservative text reflow: unsupported scientific assets are flagged, never reconstructed by guessing. */
