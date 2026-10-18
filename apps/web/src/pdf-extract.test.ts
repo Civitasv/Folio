@@ -69,8 +69,11 @@ it('supports explicit signal lifetime and uses a safe font-ascent fallback on ma
 });
 it('aborts between pages and cleans up a failed signal-bound PDF task',async()=>{
  const ctrl=new AbortController();numPages=2;
- const base=getPage.getMockImplementation()!;
- getPage.mockImplementationOnce(async()=>{const p=await base();ctrl.abort();return p;});
+ getPage.mockImplementationOnce(async()=>{
+  ctrl.abort();
+  return {getViewport:()=>({width:600,height:800,transform:[1,0,0,1,0,0]}),
+   getTextContent:async()=>({items,styles:{f:{ascent:.8}}}),cleanup,render};
+ });
  await expect(parseLocalPdf('id',new Uint8Array(1),ctrl.signal)).rejects.toThrow('PDF processing cancelled.');
  expect(destroy).toHaveBeenCalled();
  const other=new AbortController();failRead=true;
