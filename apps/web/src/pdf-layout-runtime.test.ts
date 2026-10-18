@@ -1,7 +1,7 @@
 import {afterEach,beforeEach,expect,it,vi} from 'vitest';
 import type {PDFPageProxy} from 'pdfjs-dist/legacy/build/pdf.mjs';
 import {detectLocalPageLayout,type LocalLayoutRecognizer} from './pdf-layout-runtime';
-const cancel=vi.fn(),render=vi.fn(()=>({promise:Promise.resolve(),cancel}));
+const cancel=vi.fn(),render=vi.fn((_options:unknown)=>({promise:Promise.resolve(),cancel}));
 const view=vi.fn(({scale}:{scale:number})=>({width:600*scale,height:800*scale}));
 const page={getViewport:view,render} as unknown as PDFPageProxy;
 const read=vi.fn(()=>({data:new Uint8ClampedArray(4),width:1,height:1}));
