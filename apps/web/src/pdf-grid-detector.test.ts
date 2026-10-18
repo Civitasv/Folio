@@ -86,3 +86,26 @@ it('rejects three extremely close, non-overlapping header strokes as a whole tab
  p.line(35,46,95,46);
  expect(findSourceTableGrids(p.image(),[cap])).toEqual([]);
 });
+
+it('detects light-gray anti-aliased table grid lines from scientific PDFs',()=>{
+ const p=pixels();
+ for(const y of [42,62,82,102])p.line(35,y,192,y);
+ for(const x of [35,93,192])p.line(x,42,x,102);
+ // PDF renderers can paint thin table rules around RGB 196 instead of dark ink.
+ for(let i=0;i<p.data.length;i+=4)if(p.data[i]===0){
+  p.data[i]=196;p.data[i+1]=196;p.data[i+2]=196;
+ }
+ const region=findSourceTableGrids(p.image(),[cap]);
+ expect(region).toHaveLength(1);
+ expect(region[0].rect.y).toBeCloseTo(40/180);
+});
+it('never stretches the last table into a distant full-width page-footer rule',()=>{
+ const p=pixels();
+ for(const y of [111,125,140,160])p.line(35,y,192,y);
+ for(const x of [35,93,192])p.line(x,111,x,160);
+ p.line(10,172,230,172); // printed footer divider on same source page
+ const nearBottom={x:.14,y:.5,width:.35,height:.06};
+ const table=findSourceTableGrids(p.image(),[nearBottom]);
+ expect(table).toHaveLength(1);
+ expect(table[0].rect.y+table[0].rect.height).toBeLessThan(.93);
+});

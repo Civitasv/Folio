@@ -8,7 +8,9 @@ export function findSourceTableGrids(pixels:ImageData,captions:readonly PdfRect[
   data.length<w*h*4||!captions.length)return [];
  const ink=(x:number,y:number)=>{
   const pos=(y*w+x)*4;
-  return data[pos+3]>=128&&data[pos]+data[pos+1]+data[pos+2]<450;
+  // Original scientific table rules are often anti-aliased light gray (e.g. RGB 196).
+  // A dark-only cutoff silently drops the complete grid.
+  return data[pos+3]>=128&&data[pos]+data[pos+1]+data[pos+2]<630;
  };
  const rows:{y:number,x0:number,x1:number}[]=[];
  for(let y=0;y<h;y++){
@@ -20,6 +22,8 @@ export function findSourceTableGrids(pixels:ImageData,captions:readonly PdfRect[
     start=-1;
    }
   }
+  // Do not consume the long page-furniture rule as a distant table bottom border.
+  if(y>h*.93&&bestEnd-bestStart>w*.75)continue;
   if(bestEnd-bestStart>=w*.22){
    const previous=rows.at(-1);
    if(previous&&y-previous.y<=2&&Math.min(bestEnd,previous.x1)-Math.max(bestStart,previous.x0)>w*.15){
