@@ -55,3 +55,31 @@ it('fails clearly when native canvas is unavailable',async()=>{
  await expect(pdf.pageImage(1)).rejects.toThrow('Canvas rendering unavailable.');
  await pdf.destroy();
 });
+
+
+it('supports explicit signal lifetime and uses a safe font-ascent fallback on malformed PDF fonts',async()=>{
+ const ctrl=new AbortController();
+ items=[{missing:'str'}, {str:'Fallback metrics',fontName:'missing',transform:[1,0,0,20,100,700],width:100}];
+ const p=await parseLocalPdf('id',new Uint8Array(1),ctrl.signal);
+ expect(p.ir.blocks).toHaveLength(1);
+ expect(p.ir.blocks[0].text).toBe('Fallback metrics');
+ await p.destroy();
+ expect(destroy).toHaveBeenCalledOnce();
+ ctrl.abort();expect(destroy).toHaveBeenCalledOnce();
+});
+it('aborts between pages and cleans up a failed signal-bound PDF task',async()=>{
+ const ctrl=new AbortController();numPages=2;
+ const base=getPage.getMockImplementation()!;
+ getPage.mockImplementationOnce(async(...args)=>{const p=await base(...args);ctrl.abort();return p;});
+ await expect(parseLocalPdf('id',new Uint8Array(1),ctrl.signal)).rejects.toThrow('PDF processing cancelled.');
+ expect(destroy).toHaveBeenCalled();
+ const other=new AbortController();failRead=true;
+ await expect(parseLocalPdf('id',new Uint8Array(1),other.signal)).rejects.toThrow('read failed');
+});
+it('releases a source page after a failed canvas rasterization',async()=>{
+ const p=await parseLocalPdf('id',new Uint8Array(1));
+ render.mockImplementationOnce(()=>({promise:Promise.reject(new Error('raster failure'))}));
+ await expect(p.pageImage(1)).rejects.toThrow('raster failure');
+ expect(cleanup).toHaveBeenCalled();
+ await p.destroy();
+});
