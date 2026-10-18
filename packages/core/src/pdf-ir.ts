@@ -39,7 +39,13 @@ function order(lines:Line[]):Line[]{
  // Reflow each actual column within a continuous vertical band. A large vertical
  // gap can delimit a full-width float/caption even when its font footprint is narrow.
  const vertical=[...lines].sort((a,b)=>a.rect.y-b.rect.y||a.rect.x-b.rect.x);
- const afterGap=new Set(vertical.filter((line,i)=>i>0&&line.rect.y-vertical[i-1].rect.y>.12));
+ const afterGap=new Set(vertical.filter((line,i)=>{
+  if(i===0||line.rect.y-vertical[i-1].rect.y<=.12)return false;
+  const before=vertical.slice(0,i);
+  // A title-to-first-body gap is not a float boundary; require established
+  // text in both columns before treating a later isolated region as a break.
+  return before.filter(x=>x.rect.x<.49).length>=2&&before.filter(x=>x.rect.x>=.49).length>=2;
+ }));
  const wide=lines.filter(l=>l.rect.width>=.56||l.rect.x<.49&&l.rect.x+l.rect.width>.56||afterGap.has(l))
   .sort((a,b)=>a.rect.y-b.rect.y);
  const result:Line[]=[],used=new Set<Line>();
