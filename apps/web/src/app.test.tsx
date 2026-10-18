@@ -55,7 +55,7 @@ it('imports, reads locally reflowed PDF, persists focused page, reopens and dele
  expect(await screen.findByRole('region',{name:'Structured paper reader'})).toBeTruthy();
  expect(screen.queryByTitle('PDF document')).toBeNull();
  expect(screen.getByRole('button',{name:'Parallel · 双栏'}).getAttribute('aria-pressed')).toBe('true');
- expect(screen.getByRole('region',{name:'Original article'})).toBeTruthy();
+ expect(await screen.findByRole('region',{name:'Original article'})).toBeTruthy();
  fireEvent.focus(await screen.findByText('Next paragraph'));
  await waitFor(()=>expect(platform.setProgress).toHaveBeenCalledWith('sha256:a',2));
  fireEvent.click(screen.getByRole('button',{name:'Interleaved · 单栏'}));
@@ -359,7 +359,7 @@ it('displays source and translation from shared content blocks',async()=>{
  fireEvent.click(await screen.findByRole('button',{name:'Paper'}));
  const source=await screen.findByRole('region',{name:'Original article'});
  expect(within(source).getByText('Paper quote')).toBeTruthy();
- expect(screen.getByRole('region',{name:'Translated article'})).toBeTruthy();
+ expect(await screen.findByRole('region',{name:'Translated article'})).toBeTruthy();
  fireEvent.click(screen.getByRole('button',{name:'Interleaved · 单栏'}));
  const feed=screen.getByRole('region',{name:'Interleaved article'});
  expect(within(feed).getAllByText('Not translated')).toHaveLength(2);
@@ -401,8 +401,8 @@ it('opens native PDF in full-window Parallel without the stacked Library',async(
  expect(await screen.findByRole('region',{name:'Structured paper reader'})).toBeTruthy();
  expect(screen.queryByText('Make room for understanding.')).toBeNull();
  expect(screen.queryByRole('region',{name:'Import PDF'})).toBeNull();
- expect(screen.getByRole('region',{name:'Original article'})).toBeTruthy();
- expect(screen.getByRole('region',{name:'Translated article'})).toBeTruthy();
+ expect(await screen.findByRole('region',{name:'Original article'})).toBeTruthy();
+ expect(await screen.findByRole('region',{name:'Translated article'})).toBeTruthy();
  fireEvent.click(screen.getByRole('button',{name:'Back to library'}));
  expect(screen.getByText('Make room for understanding.')).toBeTruthy();
 });
