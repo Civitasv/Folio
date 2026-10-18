@@ -8,6 +8,7 @@ it('keeps immutable source blocks and joins only nearby paragraph lines',()=>{
  expect(ir.version).toBe(1);expect(ir.documentId).toBe('sha256:a');
  expect(ir.pages).toBe(1);
  expect(ir.blocks.map(b=>b.kind)).toEqual(['paragraph','heading','paragraph']);
+ expect(ir.warnings).toContain('Text-only reflow preview: original scientific figures, tables and equations are not reconstructed yet. Check the original PDF page before relying on this article view.');
  expect(ir.blocks[0].text).toBe('A long introduction that continues');
  expect(ir.blocks.map(b=>b.id)).toEqual(['p1-b1','p1-b2','p1-b3']);
  expect(ir.blocks[1].confidence).toBe(.65);
