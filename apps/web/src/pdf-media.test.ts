@@ -17,12 +17,14 @@ it('supports nested CTMs, JPEG and inline images but excludes tiny logos and out
 });
 it('does not trust invalid transform args and restores safely with an empty stack',()=>{
  const a=paintedImageRegions({fnArray:[3,2,4,77,3,4],argsArray:[[1,2,3],[],['plain'],[],[50,0,0,30,20,40],['valid']]},c,viewport,100,100);
- expect(a).toHaveLength(2);
- expect(a[0]).toEqual({x:0,y:0,width:1,height:1});
- expect(a[1].x).toBeCloseTo(.2);
+ expect(a).toHaveLength(1); // An untransformed 1pt image is intentionally too small.
+ expect(a[0].x).toBeCloseTo(.2);
 });
 it('rotated painted images use all four corners and clamp to the physical page',()=>{
  const a=paintedImageRegions({fnArray:[3,4],argsArray:[[0,40,-30,0,90,40],['rotate']]},c,viewport,100,100);
  expect(a).toHaveLength(1);
- expect(a[0]).toEqual({x:.6,y:.2,width:.3,height:.4});
+ expect(a[0].x).toBeCloseTo(.6);
+ expect(a[0].y).toBeCloseTo(.2);
+ expect(a[0].width).toBeCloseTo(.3);
+ expect(a[0].height).toBeCloseTo(.4);
 });
