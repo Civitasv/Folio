@@ -16,6 +16,7 @@ export function sourceIdentity(doc:DocumentSummary,block:PdfBlock,prefs:Language
 export function NativePdfReader({doc,bytes,platform,provider,onLocation,modeStore=browserReaderModeStore,layoutStore=browserReaderLayoutStore}:{doc:DocumentSummary;bytes:Uint8Array;
  platform?:ReaderTranslationPlatform;provider?:TranslationProvider;onLocation?:(page:number)=>void;modeStore?:ReaderModeStore;layoutStore?:ReaderLayoutStore}){
  const [parsed,setParsed]=React.useState<ParsedPdf>();
+ const [firstPage,setFirstPage]=React.useState<PdfDocumentIR>();
  const [sourceDocument,setSourceDocument]=React.useState<NonNullable<ParsedPdf['originalDocument']>>();
  const [pageProgress,setPageProgress]=React.useState('');
  const [parseError,setParseError]=React.useState('');
@@ -42,10 +43,11 @@ export function NativePdfReader({doc,bytes,platform,provider,onLocation,modeStor
  const source=React.useRef<HTMLDivElement>(null),target=React.useRef<HTMLDivElement>(null),feed=React.useRef<HTMLDivElement>(null);
  React.useEffect(()=>{
   let live=true,docRef:ParsedPdf|undefined;const ctrl=new AbortController();
-  setParsed(undefined);setSourceDocument(undefined);setPageProgress('');setParseError('');setTranslations(new Map());setMedia(new Map());setReview(undefined);setSelectedBlockId('');
+  setParsed(undefined);setFirstPage(undefined);setSourceDocument(undefined);setPageProgress('');setParseError('');setTranslations(new Map());setMedia(new Map());setReview(undefined);setSelectedBlockId('');
   void parseLocalPdf(doc.id,bytes,ctrl.signal,undefined,
    opened=>{if(live)setSourceDocument(opened);},
-   (page,total)=>{if(live)setPageProgress('Extracting page '+page+' / '+total+' locally…');}).then(result=>{
+   (page,total)=>{if(live)setPageProgress('Extracting page '+page+' / '+total+' locally…');},
+   preview=>{if(live)setFirstPage(preview);}).then(result=>{
    docRef=result;
    if(live){setParsed(result);setPageProgress('');}else void result.destroy();
   }).catch(error=>{
@@ -59,7 +61,7 @@ export function NativePdfReader({doc,bytes,platform,provider,onLocation,modeStor
   void platform.getLanguages().then(p=>{if(live){setPrefs(p);setReady(true);}}).catch(()=>{if(live){setError('Cannot load saved language settings.');setReady(true);}});
   return ()=>{live=false;};
  },[platform,doc.id]);
- const ir=parsed?.ir;
+ const ir=parsed?.ir??firstPage;
  const content=React.useMemo(()=>ir?boundedReadingIR(ir):undefined,[ir]);
  React.useEffect(()=>{
   if(!parsed||!ir)return;
@@ -165,7 +167,7 @@ export function NativePdfReader({doc,bytes,platform,provider,onLocation,modeStor
    {platform&&<label>Target <select aria-label="Target language" value={prefs.target} onChange={e=>void changeLanguage(e.target.value)}>
     {LANGUAGE_OPTIONS.filter(x=>x.tag!=='auto').map(x=><option key={x.tag} value={x.tag}>{x.label}</option>)}
    </select></label>}
-   <span className="folio-native-status">{content?content.blocks.length+' source blocks · local':parseError||pageProgress||'Opening local PDF…'}</span>
+   <span className="folio-native-status">{parsed&&content?content.blocks.length+' source blocks · local':pageProgress||parseError||'Opening local PDF…'}</span>
    {selectedBlock&&<div role="status" aria-live="polite" className="folio-selected-block-status" title={blockLabel(selectedBlock)}>
     Selected · p. {selectedBlock.page} · {blockLabel(selectedBlock)}
     <button type="button" onClick={()=>{setOriginalPage(selectedBlock.page);void reviewPage(selectedBlock.page);}}>Check source</button>
@@ -190,7 +192,7 @@ export function NativePdfReader({doc,bytes,platform,provider,onLocation,modeStor
       <article>{pairs.map(p=><div key={p.block.id} onClick={()=>focus(p.block,'source')}>{blockView(p.block)}</div>)}</article>}
     </div>
     <div className="folio-native-column" style={{order:layout.swapped?1:2}} ref={target} role="region" aria-label="Translated article"><div className="folio-native-column-title">TRANSLATION</div>
-     {ir?<article>{pairs.map(p=><div key={p.block.id} onClick={()=>focus(p.block,'target')}
+     {ir?<article>{!parsed&&<p role="status" className="folio-native-progress">First-page blocks ready · {pageProgress}</p>}{pairs.map(p=><div key={p.block.id} onClick={()=>focus(p.block,'target')}
        onKeyDown={event=>{if(event.target===event.currentTarget&&(event.key==='Enter'||event.key===' ')){event.preventDefault();focus(p.block,'target');}}}
        role="group" aria-label={'Translation block '+blockLabel(p.block)} tabIndex={0} data-selected={selectedBlockId===p.block.id?'true':undefined}>{targetView(p.block,p.target)}</div>)}</article>:
       <p role="status" className="folio-native-loading">{pageProgress||'Preparing the structured translation…'}</p>}
