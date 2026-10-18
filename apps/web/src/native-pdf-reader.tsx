@@ -59,33 +59,30 @@ export function NativePdfReader({doc,bytes,platform,provider,onLocation}:{doc:Do
   node?.scrollIntoView?.({behavior:'auto',block:'center'});
  };
  async function changeLanguage(value:string){
-  if(!platform)return;
   setError('');
-  try{setPrefs(await platform.setLanguages({...prefs,target:value}));}
+  try{setPrefs(await platform!.setLanguages({...prefs,target:value}));}
   catch{setError('Unable to save target language.');}
  }
  const submit=async(block:PdfBlock,kind:'manual'|'provider')=>{
-  if(!platform||block.text.length>4000)return;
-  if(kind==='provider'&&!provider)return;
+  // Rendered actions already require a supported unit and configured adapter.
   if(kind==='provider'&&!window.confirm('Send only this original block to '+provider!.id+'? '+(provider!.dataFlow??'This provider may use a remote service.')))return;
   const ctrl=new AbortController();controller.current=ctrl;setBusy(block.id);setError('');
   try{
    const identity=sourceIdentity(doc,block,prefs,kind==='provider'?provider:undefined);
-   const saved=kind==='provider'?await platform.translate(identity,provider!,ctrl.signal):
-    await platform.saveManualTranslation(identity,drafts[block.id]??'');
+   const saved=kind==='provider'?await platform!.translate(identity,provider!,ctrl.signal):
+    await platform!.saveManualTranslation(identity,drafts[block.id]);
    if(ctrl.signal.aborted){setError('Translation cancelled.');return;}
    setTranslations(old=>new Map(old).set(block.id,saved.translatedText));
   }catch{setError(ctrl.signal.aborted?'Translation cancelled.':'Unable to save or generate this block translation.');}
   finally{controller.current=null;setBusy('');}
  };
  const reviewPage=async(page:number)=>{
-  if(!parsed)return;
   setError('');
-  try{const image=await parsed.pageImage(page);setReview({page,image});}
+  try{const image=await parsed!.pageImage(page);setReview({page,image});}
   catch{setError('Original page could not be rendered.');}
  };
  const blockView=(block:PdfBlock)=> <div className={'folio-native-block folio-native-'+block.kind} key={block.id} data-block-id={block.id}
-  onFocus={()=>onLocation?.(block.page)} tabIndex={0}>
+  onFocus={()=>onLocation?.(block.page)} onClick={()=>{if(mode==='interleaved')focus(block,'source');}} tabIndex={0}>
   {block.kind==='title'?<h2>{block.text}</h2>:block.kind==='heading'?<h3>{block.text}</h3>:<p>{block.text}</p>}
   <button className="folio-native-source-link" type="button" aria-label={'Review original page '+block.page+' for '+block.id}
    onClick={()=>void reviewPage(block.page)}>p. {block.page} · Check source</button>
