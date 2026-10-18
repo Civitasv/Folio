@@ -126,7 +126,7 @@ export function App({ platform = universalPlatform,translationProvider,onOpenSet
   return <div className={'folio-app'+(active?' folio-app--reading':'')+(!navigationOpen?' navigation-collapsed':'')+(!inspectorOpen?' inspector-collapsed':'')}>
     <WorkspaceShell navigation={<div className="folio-navigation-content">
       <div className="folio-brand"><h1>Folio<span>.</span></h1><p>Read deeper. Think further.</p></div>
-      {active&&<button className="folio-navigation-back" type="button" onClick={()=>setActive(null)}>← Back to library</button>}
+      {active&&<button className="folio-navigation-back" aria-label="Back to library" type="button" onClick={()=>setActive(null)}>← Back to library</button>}
       <nav aria-label="Library filters" className="folio-library-filters">
         <SidebarItem active={kindFilter==='all'} label="All items" onClick={()=>{setKindFilter('all');setActive(null);}}/>
         <SidebarItem active={kindFilter==='pdf'} label="PDF" onClick={()=>{setKindFilter('pdf');setActive(null);}}/>
