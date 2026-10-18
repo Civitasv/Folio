@@ -124,6 +124,38 @@ export function App({ platform = universalPlatform,translationProvider,onOpenSet
       </li>)}</ul>:<p className="folio-empty-list">{query?'No matching documents.':'Your library is empty. Import a PDF to begin.'}</p>}
     </section>;
   }
+  if(active && active.kind!=='reference' && active.kind!=='epub') return <div className="folio-app folio-app--pdf-focus">
+    <header className="folio-focus-header">
+      <button className="folio-focus-back" type="button" aria-label="Back to library" onClick={returnToLibrary}>← Library</button>
+      <h1 title={active.title}>{active.title}</h1>
+      <span className="folio-focus-local">Local-first</span>
+      <details className="folio-focus-more"><summary>More</summary><div>
+        <label>Add a document {picker}</label>
+        <button type="button" aria-label={'Delete '+active.title} onClick={()=>void remove(active)}>Delete document</button>
+      </div></details>
+      {onOpenSettings&&<button className="folio-settings-trigger" type="button" onClick={event=>{event.currentTarget.focus();onOpenSettings();}}>Settings</button>}
+    </header>
+    {(busy||error||notice)&&<div className="folio-focus-feedback">
+      {busy&&<p role="status">Importing locally…</p>}{error&&<p role="alert">{error}</p>}{notice&&<p role="status">{notice}</p>}
+    </div>}
+    <main className="folio-pdf-focus" aria-label="PDF reader">
+      <section className="folio-focus-source" aria-label="Original PDF">
+        <div className="folio-focus-pane-heading"><strong>Original PDF</strong><div>
+          <label>Page <input aria-label="Saved page" inputMode="numeric" type="number" min="1" step="1" value={page}
+            onChange={event=>setPage(event.target.value)}/></label>
+          <button type="button" onClick={()=>void savePage(active)}>Save page</button>
+        </div></div>
+        {reader?.id===active.id?<iframe title="PDF document" src={reader.url+'#page='+active.progress}/>:
+          <p className="folio-focus-placeholder">Loading local PDF…</p>}
+      </section>
+      <section className="folio-focus-target" aria-label="Target translation pane">
+        {platform.getLanguages&&platform.setLanguages&&platform.findTranslation&&platform.saveManualTranslation&&platform.translate&&platform.deleteTranslations?
+          <TranslationPanel doc={active} platform={platform as TranslationPlatform} provider={translationProvider} layout="target-pane"/>:
+          <div className="folio-focus-placeholder"><h2>Translation unavailable</h2><p>This platform does not provide a translation store. The original PDF remains readable.</p></div>}
+      </section>
+    </main>
+  </div>;
+
   return <div className={'folio-app'+(active?' folio-app--reading':'')+(!navigationOpen?' navigation-collapsed':'')+(!inspectorOpen?' inspector-collapsed':'')}>
     <WorkspaceShell navigation={<div className="folio-navigation-content">
       <div className="folio-brand"><h1>Folio<span>.</span></h1><p>Read deeper. Think further.</p></div>
@@ -146,9 +178,7 @@ export function App({ platform = universalPlatform,translationProvider,onOpenSet
         <p>Open a document to read. Context and translation tools appear alongside the source, only when available.</p>
         <p>Local files remain on this device.</p></div>}
       {active?.kind==='epub'&&<div className="folio-translation-slot" ref={setTranslationHost}/>}
-      {active&&active.kind!=='reference'&&active.kind!=='epub'&&
-        platform.getLanguages&&platform.setLanguages&&platform.findTranslation&&platform.saveManualTranslation&&platform.translate&&platform.deleteTranslations&&
-        <div className="folio-translation-slot"><TranslationPanel doc={active} platform={platform as TranslationPlatform} provider={translationProvider}/></div>}
+
     </div>}>
     <main className={active?'folio-content has-active-reader':'folio-content'}>
       <WorkspaceToolbar title={active?'Reading workspace':'Library'} actions={<>
@@ -175,18 +205,8 @@ export function App({ platform = universalPlatform,translationProvider,onOpenSet
             onRefresh={async()=>setDocuments(await platform.listDocuments())}
             translationPlatform={platform.getLanguages&&platform.setLanguages&&platform.findTranslation&&platform.saveManualTranslation&&platform.translate&&platform.deleteTranslations?platform as TranslationPlatform:undefined}
             translationProvider={translationProvider} translationHost={translationHost}/>
-        </section>:active?
-        <section className="folio-pdf-reader folio-reader" aria-label="PDF reader">
-          <div className="folio-reader-heading"><div><p className="folio-eyebrow">PDF · LOCAL DOCUMENT</p><h2>Reading: {active.title}</h2></div>
-            <div className="folio-reader-actions"><button onClick={returnToLibrary}>Close</button>
-              <label className="folio-inline-import">Add a document {picker}</label></div></div>
-          <div className="folio-pdf-controls"><label>Page <input aria-label="Saved page" inputMode="numeric" type="number" min="1" step="1" value={page}
-            onChange={event=>setPage(event.target.value)}/></label>
-            <button onClick={()=>void savePage(active)}>Save page</button><span>Browser preview · manual position</span></div>
-          {reader?.id===active.id?<iframe title="PDF document" src={reader.url+'#page='+active.progress}/>:
-            <p>Loading local PDF…</p>}
-          <p className="folio-preview-note">This preview currently uses your browser's PDF viewer. Save the page manually. Native text selection, automatic position tracking and parallel reading are separate engine work.</p>
         </section>:
+
         <div className="folio-library-home">
           <header className="folio-library-hero"><p className="folio-eyebrow">YOUR READING WORKSPACE</p>
             <h2>Make room for understanding.</h2>
