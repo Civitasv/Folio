@@ -218,7 +218,7 @@ it('retains source reading after an installed local recognizer fails',async()=>{
  const detector={modelId:'absent',recognize:vi.fn(async()=>{throw Error('model unavailable');})};
  const parsed=await parseLocalPdf('science:fallback',new Uint8Array(1),undefined,detector);
  expect(parsed.ir.blocks[0].text).toBe('First source line');
- expect(parsed.ir.warnings).toContain('Page 1: local layout detector unavailable; fallback source reading retained.');
+ expect(parsed.ir.warnings).toContain('Page 1: local layout detection unavailable; fallback source reading retained.');
  await parsed.destroy();
 });
 it('does not swallow explicit cancellation during local detector inference',async()=>{
@@ -227,4 +227,31 @@ it('does not swallow explicit cancellation during local detector inference',asyn
  vi.spyOn(HTMLCanvasElement.prototype,'getContext').mockReturnValue(context as unknown as CanvasRenderingContext2D);
  const detector={modelId:'local',recognize:vi.fn(async()=>{controller.abort();throw Error('stopped locally');})};
  await expect(parseLocalPdf('science:abort',new Uint8Array(1),controller.signal,detector)).rejects.toThrow('PDF processing cancelled.');
+});
+
+it('preserves a real vector grid as one original-region table asset when caption evidence exists',async()=>{
+ const width=600,height=800,data=new Uint8ClampedArray(width*height*4);data.fill(255);
+ const ink=(x:number,y:number)=>{const pos=(y*width+x)*4;data[pos]=0;data[pos+1]=0;data[pos+2]=0;};
+ for(const y of [120,140,160,180])for(let x=80;x<=450;x++)ink(x,y);
+ for(const x of [80,240,450])for(let y=120;y<=180;y++)ink(x,y);
+ vi.spyOn(HTMLCanvasElement.prototype,'getContext').mockReturnValue({
+  getImageData:()=>({width,height,data})
+ } as unknown as CanvasRenderingContext2D);
+ items=[{str:'Table 7. Duration of disease',fontName:'f',transform:[1,0,0,20,70,105],width:240}];
+ const p=await parseLocalPdf('table-with-grid',new Uint8Array(1));
+ expect(p.ir.blocks.some(block=>block.kind==='table'&&block.mediaRect!.width>.5)).toBe(true);
+ expect(p.ir.blocks.some(block=>block.kind==='caption'&&block.text.startsWith('Table 7'))).toBe(true);
+ expect(p.ir.warnings.some(w=>w.includes('PDF table grid is not yet reconstructed'))).toBe(false);
+ await p.destroy();
+});
+it('retains printed table caption when grid evidence is insufficient rather than guessing scientific cells',async()=>{
+ vi.spyOn(HTMLCanvasElement.prototype,'getContext').mockReturnValue({
+  getImageData:()=>({width:600,height:800,data:new Uint8ClampedArray(600*800*4)})
+ } as unknown as CanvasRenderingContext2D);
+ items=[{str:'Table 4. Measured values',fontName:'f',transform:[1,0,0,20,70,105],width:240}];
+ const p=await parseLocalPdf('table-without-grid',new Uint8Array(1));
+ expect(p.ir.blocks.some(block=>block.kind==='table')).toBe(false);
+ expect(p.ir.blocks.some(block=>block.kind==='caption')).toBe(true);
+ expect(p.ir.warnings.some(w=>w.includes('PDF table grid'))).toBe(true);
+ await p.destroy();
 });
