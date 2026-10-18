@@ -56,7 +56,7 @@ export function NativePdfReader({doc,bytes,platform,provider,onLocation}:{doc:Do
  const pairs=ir?readingPairs(ir,translations):[];
  const locate=(id:string)=>{
   const node=(mode==='parallel'?target.current:feed.current)?.querySelector<HTMLElement>('[data-block-id="'+id+'"]');
-  node?.scrollIntoView({behavior:'auto',block:'center'});
+  node?.scrollIntoView?.({behavior:'auto',block:'center'});
  };
  async function changeLanguage(value:string){
   if(!platform)return;
@@ -106,7 +106,7 @@ export function NativePdfReader({doc,bytes,platform,provider,onLocation}:{doc:Do
   onLocation?.(block.page);
   if(mode==='parallel'){
    const other=(side==='source'?target:source).current?.querySelector<HTMLElement>('[data-block-id="'+block.id+'"]');
-   other?.scrollIntoView({block:'center'});
+   other?.scrollIntoView?.({block:'center'});
   }else locate(block.id);
  };
  return <section className="folio-native-reader" aria-label="Structured paper reader">
@@ -126,13 +126,13 @@ export function NativePdfReader({doc,bytes,platform,provider,onLocation}:{doc:Do
    {!pairs.length&&<div className="folio-native-empty"><p>No selectable text detected. Scanned documents need an explicit OCR engine.</p>
     <button type="button" onClick={()=>void reviewPage(1)}>Inspect original page</button></div>}
    {mode==='parallel'?<div className="folio-native-parallel">
-    <div className="folio-native-column" ref={source} aria-label="Original article"><div className="folio-native-column-title">ORIGINAL</div>
+    <div className="folio-native-column" ref={source} role="region" aria-label="Original article"><div className="folio-native-column-title">ORIGINAL</div>
      <article>{pairs.map(p=><div key={p.block.id} onClick={()=>focus(p.block,'source')}>{blockView(p.block)}</div>)}</article>
     </div>
-    <div className="folio-native-column" ref={target} aria-label="Translated article"><div className="folio-native-column-title">TRANSLATION</div>
+    <div className="folio-native-column" ref={target} role="region" aria-label="Translated article"><div className="folio-native-column-title">TRANSLATION</div>
      <article>{pairs.map(p=><div key={p.block.id} onClick={()=>focus(p.block,'target')}>{targetView(p.block,p.target)}</div>)}</article>
     </div>
-   </div>:<div className="folio-native-feed" ref={feed} aria-label="Interleaved article"><article>{pairs.map(p=><section key={p.block.id} className="folio-native-pair">
+   </div>:<div className="folio-native-feed" ref={feed} role="region" aria-label="Interleaved article"><article>{pairs.map(p=><section key={p.block.id} className="folio-native-pair">
      <span className="folio-native-pair-label">ORIGINAL</span>{blockView(p.block)}
      <span className="folio-native-pair-label">TRANSLATION</span>{targetView(p.block,p.target)}
     </section>)}</article></div>}
