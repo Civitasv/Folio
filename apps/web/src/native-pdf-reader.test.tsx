@@ -415,11 +415,11 @@ it('uses PDF.js page movement as source-anchored translation navigation when ava
 
 
 it('shows the authoritative PDF before ten-page scientific extraction completes, then fills the translation',async()=>{
- let finish!:(value:typeof parsed)=>void;
+ let finish!:(value:Awaited<ReturnType<typeof parseLocalPdf>>)=>void;
  vi.mocked(parseLocalPdf).mockImplementationOnce(async(_id,_bytes,_signal,_recognizer,onOpened,onProgress)=>{
   onOpened?.({numPages:10} as never);
   onProgress?.(4,10);
-  return new Promise<typeof parsed>(resolve=>{finish=resolve;});
+  return new Promise<Awaited<ReturnType<typeof parseLocalPdf>>>(resolve=>{finish=resolve;});
  });
  render(<NativePdfReader doc={doc} bytes={bytes}/>);
  expect(await screen.findByRole('region',{name:'Original PDF pages'})).toBeTruthy();
