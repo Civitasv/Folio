@@ -31,3 +31,10 @@ it('rejects invalid pointer positions, pages, geometry and unrelated fallback hi
  expect(pickPdfBlockAtPoint([{...good,rect:{x:.1,y:.2,width:0,height:.1}}],1,.2,.22)).toBeUndefined();
  expect(pickPdfBlockAtPoint([good],1,.2,.6)).toBeUndefined();
 });
+
+it('prefers a precise hit over an earlier padded near miss when areas and page overlap',()=>{
+ const padded=block('padded',1,.11,.2,.18,.08);
+ const exact=block('exact',1,.1,.2,.18,.08);
+ expect(pickPdfBlockAtPoint([padded,exact],1,.102,.24)?.id).toBe('exact');
+ expect(pickPdfBlockAtPoint([exact,padded],1,.102,.24)?.id).toBe('exact');
+});
