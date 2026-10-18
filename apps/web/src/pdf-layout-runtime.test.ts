@@ -46,7 +46,7 @@ it('retains a render failure and propagates a detector failure without retrying 
 });
 it('cancels an in-flight local render and propagates a cancellation after inference',async()=>{
  const controller=new AbortController();
- render.mockImplementationOnce(()=>({promise:(async()=>{controller.abort();return;})(),cancel}));
+ render.mockImplementationOnce(()=>({promise:Promise.resolve().then(()=>{controller.abort();}),cancel}));
  await expect(detectLocalPageLayout(page,engine,controller.signal)).rejects.toThrow('PDF processing cancelled.');
  expect(cancel).toHaveBeenCalledOnce();
  const next=new AbortController();
