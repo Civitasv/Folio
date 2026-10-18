@@ -32,12 +32,12 @@ export function findSourceTableGrids(pixels:ImageData,captions:readonly PdfRect[
   .sort((a,b)=>a.y-b.y);
  for(let i=0;i<ordered.length;i++){
   const cap=ordered[i],from=Math.ceil((cap.y+cap.height)*h);
-  const to=Math.min(h-1,Math.floor(Math.min(cap.y+.43,ordered[i+1]?.y??1)*h));
+  const to=Math.min(h-1,Math.floor(Math.min(cap.y+.55,ordered[i+1]?.y??1)*h));
   const eligible=rows.filter(row=>row.y>=from&&row.y<=to&&
    Math.min(row.x1,(cap.x+cap.width)*w)-Math.max(row.x0,cap.x*w)>0);
   const group:typeof eligible=[];
   for(const row of eligible){
-   if(group.length&&row.y-group.at(-1)!.y>h*.10)break;
+   if(group.length&&row.y-group.at(-1)!.y>h*.15)break;
    group.push(row);
   }
   if(group.length<3)continue;
