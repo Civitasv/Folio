@@ -35,7 +35,7 @@ function setupUrls() {
   vi.stubGlobal('URL',Object.assign(URL,{createObjectURL:create,revokeObjectURL:revoke}));
   return {create,revoke};
 }
-afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
+afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals(); localStorage.clear(); });
 it('renders local library, search, drag-and-drop empty guards and file input empty guard', async () => {
   const {platform}=fixture();
   const {container}=render(<App platform={platform}/>);
