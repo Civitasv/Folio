@@ -25,7 +25,7 @@ function platform(){
  translate:vi.fn(async(identity)=>({key:'provider',identity,sourceHash:'hash',translatedText:'模型译文。',provenance:'provider' as const}))};
 }
 beforeEach(()=>{vi.mocked(parseLocalPdf).mockReset();vi.mocked(parseLocalPdf).mockResolvedValue(parsed);destroy.mockClear();pageImage.mockClear();});
-afterEach(()=>{cleanup();vi.restoreAllMocks()});
+afterEach(()=>{cleanup();vi.restoreAllMocks();localStorage.clear();});
 it('derives an exact page/block translation identity independent of presentation',()=>{
  expect(sourceIdentity(doc,blocks[1],langs)).toMatchObject({documentId:doc.id,target:'zh-Hans',providerId:'manual',
   unit:{anchor:{kind:'pdf',page:1},unitIndex:2,text:'Source paragraph.'}});
@@ -274,4 +274,17 @@ it('shows a saved local draft when the optional provider has no corresponding re
  expect(p.findTranslation).toHaveBeenCalledWith(expect.objectContaining({providerId:'api'}));
  expect(p.findTranslation).toHaveBeenCalledWith(expect.objectContaining({providerId:'manual'}));
  expect(p.translate).not.toHaveBeenCalled();
+});
+
+it('remembers explicit reading mode when the same PDF is reopened, without affecting a different PDF',async()=>{
+ const original=render(<NativePdfReader doc={doc} bytes={bytes}/>);
+ await screen.findByRole('region',{name:'Original article'});
+ fireEvent.click(screen.getByRole('button',{name:'Interleaved · 单栏'}));
+ expect(localStorage.getItem('folio:reader-mode:v1:sha256%3Aa')).toBe('interleaved');
+ original.unmount();
+ const reopened=render(<NativePdfReader doc={doc} bytes={bytes}/>);
+ expect(await screen.findByRole('region',{name:'Interleaved article'})).toBeTruthy();
+ reopened.unmount();
+ render(<NativePdfReader doc={{...doc,id:'another'}} bytes={bytes}/>);
+ expect(await screen.findByRole('region',{name:'Original article'})).toBeTruthy();
 });
