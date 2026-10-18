@@ -341,3 +341,52 @@ button:disabled{cursor:not-allowed;opacity:.52}
 .folio-target-advanced label{display:grid;gap:5px}
 .folio-target-advanced button{width:100%}
 @media(max-width:420px){.folio-target-preferences{grid-template-columns:minmax(0,1fr)}}
+
+/* F02b/c — native semantic paper reading: no embedded preview or page-width artifice. */
+.folio-app--pdf-focus .folio-pdf-focus{display:flex;flex:1;min-height:0;width:100%;overflow:hidden}
+.folio-native-reader{position:relative;display:flex;flex-direction:column;min-width:0;min-height:0;flex:1;background:var(--folio-surface);color:var(--folio-text)}
+.folio-native-tools{display:flex;align-items:center;gap:16px;padding:9px 18px;min-height:49px;flex:none;border-bottom:1px solid var(--folio-border);background:var(--folio-raised)}
+.folio-native-tools [role=group]{display:flex;align-items:center;border:1px solid var(--folio-border);border-radius:8px;padding:3px;gap:2px;flex:none}
+.folio-native-tools [role=group] button{border:0;background:transparent;border-radius:6px;padding:7px 12px;cursor:pointer;color:var(--folio-secondary);font-size:.76rem;font-weight:580}
+.folio-native-tools [role=group] button[aria-pressed=true]{background:var(--folio-surface);color:var(--folio-text);box-shadow:0 1px 5px #0000000b}
+.folio-native-tools label{display:flex;align-items:center;gap:6px;font-size:.72rem;color:var(--folio-secondary)}
+.folio-native-tools select{max-width:135px;min-height:32px;padding:4px;border:1px solid var(--folio-border);border-radius:6px;background:var(--folio-surface);color:var(--folio-text)}
+.folio-native-status{font-size:.71rem;color:var(--folio-tertiary);margin-left:auto}
+.folio-native-parallel{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);min-height:0;flex:1;overflow:hidden}
+.folio-native-column{min-width:0;min-height:0;overflow-y:auto;overscroll-behavior:contain;scrollbar-gutter:stable}
+.folio-native-column:first-child{border-right:1px solid var(--folio-border)}
+.folio-native-column-title{position:sticky;top:0;z-index:1;background:var(--folio-surface);padding:18px clamp(18px,3vw,44px) 12px;font-size:.65rem;font-weight:720;letter-spacing:.1em;color:var(--folio-tertiary)}
+.folio-native-column article{width:min(100% - 42px,660px);margin:5px auto 90px}
+.folio-native-feed{overflow-y:auto;overscroll-behavior:contain;scrollbar-gutter:stable;min-height:0;flex:1}
+.folio-native-feed article{max-width:790px;width:calc(100% - 44px);margin:30px auto 100px}
+.folio-native-pair{margin:0 0 28px;padding:0 0 23px;border-bottom:1px solid var(--folio-border)}
+.folio-native-pair-label{display:block;margin:6px 0 9px;font-size:.61rem;letter-spacing:.09em;color:var(--folio-tertiary);font-weight:700}
+.folio-native-pair-label:not(:first-child){margin-top:14px}
+.folio-native-block{position:relative;outline:0;padding:6px 8px;border-radius:6px}
+.folio-native-block:focus-visible,.folio-native-block:hover{background:var(--folio-selection)}
+.folio-native-block h2{font-size:1.75rem;line-height:1.26;letter-spacing:-.045em;margin:4px 0 15px;font-weight:700}
+.folio-native-block h3{font-size:1.15rem;line-height:1.38;letter-spacing:-.015em;font-weight:650;margin:18px 0 9px}
+.folio-native-block p,.folio-native-target-block>p{font-family:ui-serif,Georgia,"Songti SC",serif;font-size:1rem;line-height:1.79;overflow-wrap:anywhere;margin:0 0 10px;white-space:pre-wrap}
+.folio-native-caption p{font-size:.85rem;line-height:1.6;color:var(--folio-secondary)}
+.folio-native-source-link{opacity:0;transition:opacity 120ms;border:0;background:transparent;color:var(--folio-accent);font-size:.66rem;cursor:pointer;padding:4px 0}
+.folio-native-block:hover .folio-native-source-link,.folio-native-block:focus-within .folio-native-source-link,.folio-native-source-link:focus-visible{opacity:1}
+.folio-native-target-block{padding:7px 8px 11px;min-height:54px}
+.folio-native-pair .folio-native-target-block{border-left:2px solid var(--folio-border);margin-left:8px;padding-left:16px}
+.folio-native-missing{color:var(--folio-tertiary);font-size:.78rem;display:grid;gap:8px}
+.folio-native-missing details{display:grid;gap:10px;padding:8px 0}
+.folio-native-missing summary{cursor:pointer;color:var(--folio-accent);font-weight:600}
+.folio-native-missing label{display:grid;gap:6px;margin:9px 0}
+.folio-native-missing textarea{width:100%;min-height:80px;border:1px solid var(--folio-border);border-radius:6px;padding:9px;background:var(--folio-surface);color:var(--folio-text)}
+.folio-native-missing button{border:1px solid var(--folio-border);border-radius:6px;background:var(--folio-raised);color:var(--folio-text);padding:6px 10px;cursor:pointer;margin:3px 6px 3px 0}
+.folio-native-missing button:disabled{opacity:.45;cursor:not-allowed}
+.folio-native-warnings{flex:none;max-height:72px;overflow:auto;background:var(--folio-raised);font-size:.69rem;color:var(--folio-secondary)}
+.folio-native-warnings p{margin:4px 16px}
+.folio-native-loading,.folio-native-empty,.folio-native-error{padding:28px;line-height:1.6;color:var(--folio-secondary)}
+.folio-native-error{color:var(--folio-danger)}
+.folio-native-review{position:absolute;inset:0;z-index:8;background:var(--folio-bg);overflow:auto;padding:14px}
+.folio-native-review>div{display:flex;justify-content:space-between;gap:12px;align-items:center;position:sticky;top:0;background:var(--folio-bg);padding:8px}
+.folio-native-review button{background:var(--folio-surface);border:1px solid var(--folio-border);border-radius:6px;padding:7px 12px;color:var(--folio-text)}
+.folio-native-review img{display:block;max-width:min(100%,1000px);height:auto;margin:8px auto 30px;box-shadow:var(--folio-shadow)}
+@media(max-width:760px){.folio-native-tools{flex-wrap:wrap;padding:8px 10px;gap:7px}.folio-native-status{display:none}.folio-native-parallel{display:block;overflow:auto}.folio-native-parallel .folio-native-column{height:50%;min-height:260px}.folio-native-parallel .folio-native-column:first-child{border-right:0;border-bottom:1px solid var(--folio-border)}.folio-native-column article{width:calc(100% - 28px)}.folio-native-feed article{width:calc(100% - 30px)}}
+@media(prefers-reduced-motion:reduce){.folio-native-source-link{transition:none}}
+@media(prefers-contrast:more){.folio-native-pair,.folio-native-column:first-child{border-color:currentColor}.folio-native-source-link{opacity:1}}
