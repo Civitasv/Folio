@@ -70,7 +70,6 @@ export function buildPdfIR(documentId:string,pages:PdfPageInput[]):PdfDocumentIR
   let n=0;
   for(const line of all){
    const t=line.text.replace(/\s+/g,' ').trim();
-   if(!t)continue;
    if(/^\d{1,4}$/.test(t)&&(line.rect.y<.06||line.rect.y>.92))continue;
    const kind=classify(t,line.fontSize,median,blocks.length===0);
    const last=blocks.at(-1);
