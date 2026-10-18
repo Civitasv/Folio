@@ -150,3 +150,33 @@ it('repaints block marks when rendered source pages arrive late, without reiniti
  expect(mocks.viewers).toHaveLength(1);
  view.unmount();
 });
+
+it('rejects unrendered zero-width or zero-height PDF pages and invalid source overlays',()=>{
+ const choose=vi.fn(),valid={id:'p1-good',page:1,kind:'paragraph' as const,text:'Good',confidence:1,rect:{x:.1,y:.2,width:.5,height:.07}};
+ const invalid={...valid,id:'bad',rect:{x:.1,y:.2,width:0,height:.04}};
+ const view=render(<PdfOriginalPane document={pdf} blocks={[valid,invalid]} onSelectBlock={choose}/>);
+ const host=screen.getByRole('region',{name:'Original PDF pages'}),area=host.querySelector('.pdfViewer')!;
+ const page=document.createElement('div');page.className='page';page.dataset.pageNumber='1';area.append(page);
+ mocks.buses[0].emit('pagerendered',{});
+ expect(page.querySelectorAll('.folio-pdf-block-region')).toHaveLength(1);
+ const rect=vi.spyOn(page,'getBoundingClientRect');
+ rect.mockReturnValue({left:0,top:0,width:0,height:500,right:0,bottom:500,x:0,y:0,toJSON:()=>({})});
+ fireEvent.click(page,{clientX:100,clientY:110});expect(choose).not.toHaveBeenCalled();
+ rect.mockReturnValue({left:0,top:0,width:500,height:0,right:500,bottom:0,x:0,y:0,toJSON:()=>({})});
+ fireEvent.click(page,{clientX:100,clientY:110});expect(choose).not.toHaveBeenCalled();
+ view.unmount();
+});
+it('clears a hovered block when pointer leaves its geometry and does not call an omitted selection callback',()=>{
+ const a={id:'p1-b1',page:1,kind:'paragraph' as const,text:'Source',confidence:1,rect:{x:.1,y:.2,width:.4,height:.1}};
+ const view=render(<PdfOriginalPane document={pdf} blocks={[a]}/>);
+ const host=screen.getByRole('region',{name:'Original PDF pages'}),page=document.createElement('div');
+ page.className='page';page.dataset.pageNumber='1';host.querySelector('.pdfViewer')!.append(page);
+ vi.spyOn(page,'getBoundingClientRect').mockReturnValue({left:0,top:0,width:500,height:500,right:500,bottom:500,x:0,y:0,toJSON:()=>({})});
+ mocks.buses[0].emit('pagerendered',{});
+ fireEvent.mouseMove(page,{clientX:100,clientY:115});
+ expect(page.querySelector('[data-hovered=true]')).toBeTruthy();
+ fireEvent.mouseMove(page,{clientX:450,clientY:450});
+ expect(page.querySelector('[data-hovered=true]')).toBeNull();
+ fireEvent.click(page,{clientX:100,clientY:115});
+ view.unmount();
+});
