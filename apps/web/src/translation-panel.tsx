@@ -100,7 +100,7 @@ export function TranslationPanel({doc,units,platform,provider,layout='standard'}
     {provider&&<label>Method <select aria-label="Translation method" value={mode} onChange={e=>setMode(e.target.value as 'manual'|'provider')}>
       <option value="manual">Local manual draft</option><option value="provider">{provider.id} / {provider.model}</option>
     </select></label>}
-    {!provider&&<p>AI provider unavailable in this preview. API and CLI adapters follow in F01e/F01f; manual drafts stay on-device.</p>}
+    {!provider&&<p>{layout==='target-pane'?'Manual drafts stay on this device. To request AI translation, configure and select a provider in Settings.':'AI provider unavailable in this preview. API and CLI adapters follow in F01e/F01f; manual drafts stay on-device.'}</p>}
     {layout==='standard'&&prefs.view!=='translation'&&<div><strong>Original</strong><p data-testid="translation-original">{unit.text}</p></div>}
     {(layout==='target-pane'||prefs.view!=='original')&&<div className={layout==='target-pane'?'folio-target-result':undefined}><strong>{entry?.provenance==='provider'?'Provider translation':entry?.provenance==='manual'?'Local draft':'Translation'}</strong>
       <p data-testid="translation-result">{entry?.translatedText??(layout==='target-pane'?'No translation yet. Add a source passage, then translate it or write a local draft.':'No cached translation for this exact text and settings.')}</p></div>}
