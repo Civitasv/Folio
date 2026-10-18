@@ -1,28 +1,28 @@
-# F02a — Reader-first visual and navigation reset
+# F02a — Full-window, two-pane PDF reading
 
-Status: implementation | Parent: F02 Folio product definition
+Status: implementation | Parent: F02 Folio product definition | Standalone App first
 
-## User problem
-The existing Library page is a sparse administrative form; the import dropzone and document list remain vertically stacked above an open book, and the right DOI form dominates empty state. PDF remains an explicit browser preview pending F02b. F02a only changes the visual shell and navigation: **no fake PDF text extraction, AI, annotations or parallel mode**.
+## Decision
+Keep the library as a separate landing surface. Opening a PDF changes the *entire* application into a focused two-pane reader: **left original PDF; right target-language translated content**. No persistent left library navigation, inspector, cards, AI chat or settings form inside the reading canvas. The app's window is the full-screen reading workspace (not a forced OS fullscreen request).
 
-## Scope and behavior
-- Distinct Library and Reading canvases. The Reader opens immediately in main when a document is selected. Import/search/list moves to a compact secondary navigation while reading, preserving deletion and search.
-- Library landing: strong product identity, purposeful import action, lightweight searchable document rows with clear format/progress/creator, metadata-only DOI visually separated from full text. A metadata lookup remains explicit, never auto-triggered.
-- Reader: document title and format; back to Library and contextual actions; preserve PDF iframe temporary fallback and manual page save until F02b; preserve sandboxed EPUB chapter, local progress, chapter preferences, current translation/consent and cache.
-- Responsive navigation/inspector behavior; avoid an always-on DOI inspector dominating the Library by providing a separate explicit DOI acquisition state while keeping its existing user journey working.
-- Light/dark tokens, consistent form styling, focus-visible, 200% zoom, reduced-motion/transparency/high contrast.
-- Existing local documents and adapter method signatures must remain unchanged; no persistence migration.
+### Scope
+- Thin shared header with Back to Library, truncated document title, explicit page position and low-frequency Settings / More actions. Source and target panes fill remaining window height and split roughly 50/50. Each pane scrolls independently; long file names do not squeeze content.
+- Left: original local PDF, unmodified browser PDF preview until F02b. Preserve object URL lifecycle, manual saved page, error and loading state. No claim of PDF text selection or automatic page detection.
+- Right: **translated output is the primary reading typography**, with target language visibly selectable; original text is never duplicated as a second output block. Before a translation exists, an honest empty state gives the user an explicit action to paste a bounded source excerpt from the current PDF page. The source excerpt/settings editor can expand when needed; it is not a permanent third pane. Translation uses existing language preferences, page anchor, exact-text cache, manual draft, optional configured provider, explicit remote consent and cancellation. No translation fires on document open or target-language change.
+- Unsupported translation platform: right pane remains visible with clear diagnostic and Settings entry, never invents translated content.
+- EPUB and metadata-only references keep their existing independent behavior in this slice; app settings remains separate.
+- Library import/search/filter/delete/DOI acquisition remain available on returning to Library; contextual More menu may expose deletion while in reading mode.
 
-## Non-goals
-PDF.js, automatic PDF progress, actual side-by-side source/translation, new AI/annotation/storage methods and source-manager adapters belong to later slices. Do not label the F02a shell as completed parallel reading.
+### Later F02b/F02c, not included
+Use bundled PDF.js to extract normal PDF text locally and render source text layer; then feed exact anchored source units to translation on demand, eventually aligning PDF blocks, figures and formulas. Existing iframe and manual excerpt are a **temporary functional bridge**, not full-paper translation. Avoid CDN/implicit network to fetch PDF rendering code.
 
-## Acceptance
-1. No document: import discoverable, no faux reader actions, search and DOI remain explicitly accessible.
-2. Document selected: reader precedes everything in main; no permanent import/dropzone/library list above the reader; secondary library affordances stay accessible.
-3. PDF load/error/save/reopen/object-URL lifecycle works exactly as before; EPUB TOC/navigation/theme and sanitized iframe are untouched.
-4. Long, multilingual and metadata-only rows wrap properly; keyboard reaches import/search/delete/back/settings/translation.
-5. Tests cover transition Library→Reader→Library, active reading does not stack Library above reader, and import while reader active.
-6. Run pnpm check, cargo check/test; visual checks at 1440/1280/1024/768/390 and 200% zoom remain manual acceptance, not inferred from tests.
+### Acceptance
+1. PDF opening removes old three-column library/inspector chrome completely and shows two equal, full-height panes titled Original PDF / Translation. Exiting returns to Library.
+2. Native PDF preview is only in left pane, no import/dropzone/library table stacked above it. Translation result is only in right pane. Right pane retains its place even with provider unavailable.
+3. Changing page changes the page anchor of subsequent excerpt translation only after explicit save; previously cached translations are looked up only with matching source/target/page/provider.
+4. No auto-network requests; exact excerpt confirmation before optional provider operation; manual drafts clearly labelled; user can cancel an in-flight provider request.
+5. Keep import, progress, DOI, EPUB, deletion, object URL cleanup and provider settings regressions. Tests assert absence of reading chrome, live language selection, manual saving and alternate no-provider state.
+6. CI: pnpm check / cargo check/test. Real PDF/EPUB, native shell, long/CJK document, light/dark, 1440/1280/1024/768/390 and 200% keyboard/visual QA must be recorded before merge. CI does not constitute visual acceptance.
 
-## Risks and rollback
-Conditional locations must never remount an in-flight provider panel or trigger remote work. The selected document is the sole mode source of truth; no URL/schema mutations. Revert F02a if visual/manual acceptance fails without touching document or translation stores. D01 prior visual acceptance issue remains open until real screenshots are reviewed.
+## Risk / rollback
+No schema/storage migration and no new document upload path. Refactor is UI-only, leaving platform abstraction intact; rollback reverts the PDF focused-reader surface without deleting local data. Do not silently mark F02b or F02c complete.
