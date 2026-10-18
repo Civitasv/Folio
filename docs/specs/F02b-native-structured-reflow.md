@@ -6,16 +6,20 @@ Decision: a PDF is immutable input data, **not the reader UI**.
 
 ## 1. User-visible goal
 
-Opening a paper goes directly into an uncluttered, full-window, 50/50 source/translation reader:
+Opening a paper goes directly into an uncluttered, full-window reader with **two presentation modes over the same validated content model**: Parallel (source left, translation right) and Interleaved (a source block immediately followed by its translated counterpart). Parallel defaults to a 50/50 source/translation split:
 - **Left: Original**, rebuilt from extracted PDF content using Folio's own semantic typography, not an iframe, embedded browser PDF viewer or permanently visible paper-page screenshot.
 - **Right: Translation**, reconstructed from the same ordered structural blocks. A block with no translated output has a truthful pending/error/not-requested state rather than fake translation.
 - Title, authors, affiliations, abstract, headings, paragraphs, lists, figures, captions, tables, equations, references and footnotes occupy the correct logical order when recognized; preserve source order and provenance.
-- Both halves share the same block IDs and can scroll/jump by block with no pixel-perfect scroll coupling. Each scrolls independently; source focus highlights its corresponding translated unit. No always-open library, inspector or chat.
-- Reading typography (font, size, line height, width, theme) is Folio-controlled, including separate target-language typography. Preserve source mathematical meaning and data. Source page/location remains available for audit as an **in-app original-page fidelity view** on demand, never as the main reading surface.
+- Both views share the same block IDs and can scroll/jump by block, with no pixel-perfect scroll coupling. In Parallel the panes scroll independently and can follow by block; in Interleaved there is **one continuous scrollbar**, with each source block followed immediately by its matching translation. Neither mode mounts a permanent Library, Inspector or chat.
+- Reading typography (font, size, line height, width, theme) is Folio-controlled, including separate target-language typography. Both presentation modes keep source mathematical meaning and data; mode changes never change the parser results, original block order or translation payloads. Source page/location remains available for audit as an **in-app original-page fidelity view** on demand, never as the main reading surface.
 - Source text and assets are read and processed on device. OCR/model enhancement must be explicitly installed/initiated, not assumed.
 
 ### Non-goal: “convert PDF to its original HTML”
 PDF usually describes positioned drawing instructions; logical title/paragraph/table/figure relationships often have to be inferred. Folio stores confidence/provenance for these inferences, supports correction and provides fidelity fallback rather than asserting perfect reconstruction. Do not silently edit scientific data or let translation rewrite the source.
+
+### Stable pair identity (required by both reading modes)
+
+Content is ordered once in `DocumentIR.readingOrder`. Each original `ContentBlock.id` is the shared source of truth. A derived `ReadingPair` joins a source block (or stable sub-unit) and zero/one validated target translation entries; neither view creates new semantic blocks, merges unrelated paragraphs or persists mode-dependent IDs. View choice lives in separate versioned reader preferences, **never in the PDF parser or translation identity**. On mode switch, capture the topmost/focused semantic `blockId` and intra-block fraction, render the other mode, then restore the same semantic reading position without reparse, retranslation or annotation remapping. The full detailed contract and scientific-media exceptions are defined in `F02c-dual-and-interleaved-reading.md`.
 
 ## 2. Content and display contract
 
@@ -48,9 +52,11 @@ Immutable local PDF bytes + content SHA-256
    -> Folio layout recognizer (geometry/rules + per-page/page-crossing analysis)
        -> ordered semantic Document IR with confidence and source coordinates
        -> quality gate / local optional advanced recognizer adapter
-   -> Folio native semantic renderer (React, sanitized text/asset URLs)
-       -> Original block view                 -> Target block view
-       -> source provenance / correction      -> translation keyed by block/sub-unit
+   -> Folio native semantic renderers (React, sanitized text/asset URLs)
+       -> reusable SourceBlock / TranslationBlock keyed by the SAME BlockPair identity
+       -> Parallel: source article | translation article (two scrollers)
+       -> Interleaved: [source block -> translation block] repeated (one scroller)
+       -> source provenance / correction + translation keyed by block/sub-unit
    -> local cache/versioned persistence via @folio/platform
 ```
 
@@ -110,11 +116,11 @@ Exact representation and source coordinate conventions require an approved imple
 
 ## 6. Design and accessibility
 
-- Main experience: 56-ish-pixel thin Folio header, two reading columns, minimal central divider, source/translation heading, target language, visible translation status. Both columns use semantic article typography and have their own continuous scrollbars; width/size/line-height configurable independently, with no artificial paper-page border.
-- Same stable block ID appears in both renderers. Clicking a source section focuses/scrolls the corresponding target block and vice versa; no scroll feedback loops. A figure anchors its translated caption as well as the shared image.
+- Main experience: 56-ish-pixel thin Folio header, explicit **Parallel / Interleaved** segmented switch, source/translation heading, target language and visible translation status. Parallel has original on left and translated article on right with two independent scrollers and a minimal adjustable divider. Interleaved has one centered semantic article column and a single scroller: source block then translated counterpart, repeated in document order. Both use the same safe block components, user typography preferences and local assets; no artificial paper-page border.
+- Same stable block ID appears in both presentations. In Parallel, click/hover on source or translation can locate/highlight the corresponding block with owner-aware scroll suppression; in Interleaved, the pair is already adjacent so focus highlights the pair without a second scroll. Figure/caption/equation pairs follow the fidelity rules in the presentation contract; display mode never affects anchors, notes or stored translation.
 - Placeholder UI is non-scholarly and visibly labeled; do not turn a confidence guess into an apparent fact.
 - Source fidelity/reading order review is a deliberate in-app overlay on a block/page, not an always-on PDF preview or third column.
-- At too-narrow widths (e.g. 390), tabs/vertical stacking of two semantic articles is permitted; 200% zoom, dark/light/paper themes, reduced motion, contrast, CJK, RTL/bidi, selectable text, copy and keyboard/assistive tech required.
+- At too-narrow widths (e.g. 390), preserve the user's explicit mode and offer Interleaved as the natural one-column option. If Parallel is selected, clearly labelled source/translation tabs are acceptable as a responsive presentation; do **not** silently replace it with Interleaved or stack the entire original article before the entire translation. 200% zoom, dark/light/paper themes, reduced motion, contrast, CJK, RTL/bidi, selectable text, copy and keyboard/assistive tech required.
 - Do not expose source HTML from PDF directly through `dangerouslySetInnerHTML`; plain text nodes plus validated semantic components and bounded local assets only.
 
 ## 7. Implementation slices and dependency gates
@@ -123,14 +129,14 @@ Exact representation and source coordinate conventions require an approved imple
 - **F02b1 — IR and extraction:** PDF.js dependency/workers and security configuration; typed IR, versioned cache, page-block provenance, basic headings/paragraphs/two-column order, cancellation and honest quality failures.
 - **F02b2 — Native reflow renderer:** replace iframe with Folio semantic article; heading/paragraph/list/reference presentation; source fidelity overlay and recorded source location; safe original-page fallback where required.
 - **F02b3 — Figures, captions, tables and math fidelity:** original region crops and association; table semantic mode only on validated extraction; formula/number correctness via source-region fallback; fixture regression.
-- **F02c — Aligned translation:** target renderer from the same IR, per-block cache/translation, independent style and block sync, opt-in bounded batches, errors/cancel/swap/mode as supported. Remove manual-paste as the ordinary path only once local text-unit extraction is proven.
+- **F02c — Two presentation modes and aligned translation:** source/target renderers from the same IR with shared block IDs, Parallel and Interleaved presentations, per-block cache/translation, independent style and block-focused sync, opt-in bounded batches, errors/cancel and layout-only mode switch. See `F02c-dual-and-interleaved-reading.md`. Remove manual-paste as the ordinary path only once local text-unit extraction is proven.
 - **F02b4 (conditional) — local advanced layout/OCR adapter:** only after feasibility results, licenses, model/installer footprint, download privacy, offline packaging and performance have been approved. Its absence must not break regular text PDFs.
 
 Do not merge F02b2 into main or remove the original-page fallback until the quality gate passes representative paper types. F02a focused shell remains a separately reviewable predecessor.
 
 ## 8. Acceptance / definition of done
 
-**Functional:** open a locally stored ordinary text PDF without an iframe and without pasting text; title/abstract/heading/body/captions appear as structured source; at least a complex two-column article follows correct reading order; copied text follows readable article order; figures retain legible axes/labels and correct captions; formulae and numerical tables never silently change. Open and navigate the original page at the block's exact source region. Read/explain/translate only exact bounded units.
+**Functional:** open a locally stored ordinary text PDF without an iframe and without pasting text; title/abstract/heading/body/captions appear as structured source; at least a complex two-column article follows correct reading order; copied text follows readable article order; figures retain legible axes/labels and correct captions; formulae and numerical tables never silently change. Open and navigate the original page at the block's exact source region. Read/explain/translate only exact bounded units. Rendering contracts must permit **Parallel** (left source / right target) and **Interleaved** (source block then matching translation block, one continuous feed) using the identical parsed IR, figure assets, note anchors and translation cache.
 
 **Engineering:** no network access during PDF open/parse/reflow; no remote model except explicit consent; no external model download on startup; bounded memory, lazy asset generation, cancellation at any page and worker cleanup. Original PDF and old reading state survive parsing error, app restart, partial cache write and failed migration.
 
