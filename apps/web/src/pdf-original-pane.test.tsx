@@ -1,6 +1,6 @@
 import React from 'react';
 import {afterEach,beforeEach,expect,it,vi} from 'vitest';
-import {cleanup,render,screen} from '@testing-library/react';
+import {cleanup,fireEvent,render,screen} from '@testing-library/react';
 import type {ParsedPdf} from './pdf-extract';
 import {PdfOriginalPane} from './pdf-original-pane';
 const mocks=vi.hoisted(()=>({
@@ -102,4 +102,51 @@ it('normalizes non-Error PDF.js initialization failures for the user',()=>{
  const v=render(<PdfOriginalPane document={pdf} onError={onError}/>);
  expect(onError).toHaveBeenCalledWith('Original PDF viewer unavailable.');
  v.unmount();
+});
+
+it('picks the source block from original PDF page coordinates and highlights the same ID',()=>{
+ const a={id:'p1-b1',page:1,kind:'paragraph' as const,text:'Source paragraph',confidence:.9,rect:{x:.1,y:.2,width:.5,height:.07}};
+ const choose=vi.fn();
+ const view=render(<PdfOriginalPane document={pdf} page={1} blocks={[a]} onSelectBlock={choose}/>);
+ const host=screen.getByRole('region',{name:'Original PDF pages'}),area=host.querySelector('.pdfViewer')!;
+ const page=document.createElement('div');page.className='page';page.dataset.pageNumber='1';area.append(page);
+ vi.spyOn(page,'getBoundingClientRect').mockReturnValue({left:50,top:100,width:600,height:800,right:650,bottom:900,x:50,y:100,toJSON:()=>({})});
+ mocks.buses[0].emit('pagerendered',{pageNumber:1});
+ expect(page.querySelector('.folio-pdf-block-region')?.getAttribute('data-block-id')).toBe('p1-b1');
+ fireEvent.mouseMove(page,{clientX:170,clientY:285});
+ expect(page.querySelector('[data-hovered=true]')).toBeTruthy();
+ fireEvent.click(page,{clientX:170,clientY:285});
+ expect(choose).toHaveBeenCalledWith(a);
+ view.rerender(<PdfOriginalPane document={pdf} blocks={[a]} selectedBlockId="p1-b1" onSelectBlock={choose}/>);
+ expect(page.querySelector('[data-selected=true]')).toBeTruthy();
+ expect(page.querySelector('.folio-pdf-block-regions')?.getAttribute('aria-hidden')).toBe('true');
+ fireEvent.mouseLeave(host);
+ expect(page.querySelector('[data-hovered=true]')).toBeNull();
+ view.unmount();
+});
+it('keeps text dragging/copy selection native, and ignores unrecognized page clicks',()=>{
+ const a={id:'p1-b1',page:1,kind:'paragraph' as const,text:'Source paragraph',confidence:.9,rect:{x:.1,y:.2,width:.5,height:.07}};
+ const choose=vi.fn(),view=render(<PdfOriginalPane document={pdf} blocks={[a]} onSelectBlock={choose}/>);
+ const host=screen.getByRole('region',{name:'Original PDF pages'}),area=host.querySelector('.pdfViewer')!;
+ const page=document.createElement('div');page.className='page';page.dataset.pageNumber='1';area.append(page);
+ vi.spyOn(page,'getBoundingClientRect').mockReturnValue({left:0,top:0,width:500,height:500,right:500,bottom:500,x:0,y:0,toJSON:()=>({})});
+ const selection=vi.spyOn(window,'getSelection').mockReturnValue({isCollapsed:false,anchorNode:page} as Selection);
+ fireEvent.click(page,{clientX:100,clientY:110});expect(choose).not.toHaveBeenCalled();
+ selection.mockReturnValue(null);
+ fireEvent.click(page,{clientX:400,clientY:400});expect(choose).not.toHaveBeenCalled();
+ page.dataset.pageNumber='2';
+ fireEvent.click(page,{clientX:100,clientY:110});expect(choose).not.toHaveBeenCalled();
+ view.unmount();
+});
+it('repaints block marks when rendered source pages arrive late, without reinitializing PDFViewer',()=>{
+ const a={id:'p2-b1',page:2,kind:'caption' as const,text:'Figure 1',confidence:.9,rect:{x:.1,y:.2,width:.5,height:.07}};
+ const view=render(<PdfOriginalPane document={pdf} blocks={[a]} selectedBlockId={a.id}/>);
+ const host=screen.getByRole('region',{name:'Original PDF pages'}),page=document.createElement('div');
+ page.className='page';page.dataset.pageNumber='2';host.querySelector('.pdfViewer')!.append(page);
+ mocks.buses[0].emit('pagesinit',{});
+ expect(page.querySelector('[data-selected=true]')?.getAttribute('data-block-id')).toBe('p2-b1');
+ view.rerender(<PdfOriginalPane document={pdf} blocks={[]} selectedBlockId=""/>);
+ expect(page.querySelectorAll('.folio-pdf-block-region')).toHaveLength(0);
+ expect(mocks.viewers).toHaveLength(1);
+ view.unmount();
 });
