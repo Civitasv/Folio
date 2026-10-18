@@ -98,7 +98,7 @@ export function buildPdfIR(documentId:string,pages:PdfPageInput[]):PdfDocumentIR
   // Associate *visible painted* image regions with the immediately preceding Figure
   // caption. A publisher logo without an explicit caption is not a science figure.
   // Crop regions are immutable source evidence; never translate embedded graph labels.
-  const figures=blocks.filter(block=>block.page===page.page&&block.kind==='caption'&&/^fig(?:ure)?\\.?\\s*\\d+/i.test(block.text));
+  const figures=blocks.filter(block=>block.page===page.page&&block.kind==='caption'&&/^fig(?:ure)?\.?\s*\d+/i.test(block.text));
   const grouped=new Map<string,PdfRect>();
   let unpaired=0;
   for(const image of page.images??[]){
@@ -116,12 +116,12 @@ export function buildPdfIR(documentId:string,pages:PdfPageInput[]):PdfDocumentIR
   for(const caption of figures){
    const region=grouped.get(caption.id);
    if(!region)continue;
-   const number=caption.text.match(/^fig(?:ure)?\\.?\\s*(\\d+)/i)?.[1];
+   const number=caption.text.match(/^fig(?:ure)?\.?\s*(\d+)/i)?.[1];
    const idx=blocks.indexOf(caption);
    blocks.splice(idx,0,{id:'p'+page.page+'-figure-'+number,kind:'figure',page:page.page,
     text:'',rect:region,mediaRect:region,confidence:.9});
   }
-  if(blocks.some(block=>block.page===page.page&&block.kind==='caption'&&/^table\\s/i.test(block.text)))
+  if(blocks.some(block=>block.page===page.page&&block.kind==='caption'&&/^table\s/i.test(block.text)))
    warnings.push('Page '+page.page+': PDF table grid is not yet reconstructed; do not rely on flattened table cells. Check original-page evidence.');
  }
  if(pages.length)warnings.push('Conservative reflow: only caption-associated bitmap figures are restored. Vector overlays, table grids and equations need original-page fidelity review.');
