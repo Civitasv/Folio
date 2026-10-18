@@ -396,3 +396,13 @@ button:disabled{cursor:not-allowed;opacity:.52}
 .folio-native-media-copy{padding:6px 8px 15px}
 .folio-native-figure{background:transparent}
 .folio-native-figure .folio-native-source-link{opacity:1}
+
+/* F02i1: actual selectable PDF.js original pages, not a browser preview/iframe. */
+.folio-native-original-column{display:flex;flex-direction:column;overflow:hidden;background:var(--folio-bg)}
+.folio-native-original-column .folio-native-column-title{position:relative;flex:none;background:var(--folio-surface)}
+.folio-original-pdf{position:relative;flex:1;min-height:0;overflow:auto;overscroll-behavior:contain;scrollbar-gutter:stable;outline-offset:-3px}
+.folio-original-pdf .pdfViewer{padding:18px 12px 36px}
+.folio-original-pdf .pdfViewer .page{margin:0 auto 16px;box-shadow:0 3px 16px rgba(0,0,0,.13);background:#fff}
+.folio-original-pdf .textLayer{user-select:text}
+@media(max-width:760px){.folio-native-original-column{overflow:hidden!important}}
+@media(prefers-contrast:more){.folio-original-pdf .pdfViewer .page{outline:1px solid currentColor}}
