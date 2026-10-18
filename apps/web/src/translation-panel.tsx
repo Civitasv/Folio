@@ -70,7 +70,7 @@ export function TranslationPanel({doc,units,platform,provider,layout='standard'}
  const targetPicker=<label>Target language <select aria-label="Target language" value={prefs.target} disabled={busy}
   onChange={e=>void update({...prefs,target:e.target.value})}>
   {LANGUAGE_OPTIONS.filter(x=>x.tag!=='auto').map(lang=><option key={lang.tag} value={lang.tag}>{lang.label}</option>)}
-  {prefs.recentTargets.filter(tag=>!LANGUAGE_OPTIONS.some(lang=>lang.tag===tag)).map(tag=><option key={tag} value={tag}>{tag} (recent)</option>}
+  {prefs.recentTargets.filter(tag=>!LANGUAGE_OPTIONS.some(lang=>lang.tag===tag)).map(tag=><option key={tag} value={tag}>{tag} (recent)</option>)}
  </select></label>;
  const customTargetPicker=<><label>Custom target language <input aria-label="Custom target language" value={customTarget} placeholder="e.g. ko-KR" onChange={e=>setCustomTarget(e.target.value)}/></label>
   <button disabled={!customTarget.trim()||busy} onClick={()=>void update({...prefs,target:customTarget.trim()})}>Use target language</button></>;
