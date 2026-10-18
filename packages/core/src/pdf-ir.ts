@@ -35,9 +35,12 @@ function lines(spans:PdfTextSpan[]):Line[]{
 function order(lines:Line[]):Line[]{
  const narrow=lines.filter(l=>l.rect.width<.56&&l.rect.x<.49||l.rect.width<.56&&l.rect.x>.49);
  const left=narrow.filter(l=>l.rect.x<.49),right=narrow.filter(l=>l.rect.x>.49);
- if(left.length<3||right.length<3)return lines;
- // Full-width title/heading regions split the column flow into independent bands.
- const wide=lines.filter(l=>l.rect.width>=.56||l.rect.x<.49&&l.rect.x+l.rect.width>.56)
+ if(left.length<2||right.length<2)return lines;
+ // Reflow each actual column within a continuous vertical band. A large vertical
+ // gap can delimit a full-width float/caption even when its font footprint is narrow.
+ const vertical=[...lines].sort((a,b)=>a.rect.y-b.rect.y||a.rect.x-b.rect.x);
+ const afterGap=new Set(vertical.filter((line,i)=>i>0&&line.rect.y-vertical[i-1].rect.y>.12));
+ const wide=lines.filter(l=>l.rect.width>=.56||l.rect.x<.49&&l.rect.x+l.rect.width>.56||afterGap.has(l))
   .sort((a,b)=>a.rect.y-b.rect.y);
  const result:Line[]=[],used=new Set<Line>();
  let start=-1;
