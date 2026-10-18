@@ -82,7 +82,7 @@ it('aborts between pages and cleans up a failed signal-bound PDF task',async()=>
 });
 it('releases a source page after a failed canvas rasterization',async()=>{
  const p=await parseLocalPdf('id',new Uint8Array(1));
- render.mockImplementationOnce(()=>({promise:Promise.reject(new Error('raster failure'))}));
+ render.mockImplementationOnce(()=>({promise:Promise.reject(new Error('raster failure')),cancel:cancelRender}));
  await expect(p.pageImage(1)).rejects.toThrow('raster failure');
  expect(cleanup).toHaveBeenCalled();
  await p.destroy();
@@ -126,7 +126,7 @@ it('renders an exact normalized media region from the source page and validates 
 it('cleans region-render canvas even when source rendering fails',async()=>{
  const p=await parseLocalPdf('figure',new Uint8Array(1));
  const rect={x:.1,y:.2,width:.3,height:.4};
- render.mockImplementationOnce(()=>({promise:Promise.reject(new Error('region failed'))}));
+ render.mockImplementationOnce(()=>({promise:Promise.reject(new Error('region failed')),cancel:cancelRender}));
  await expect(p.regionImage(1,rect)).rejects.toThrow('region failed');
  expect(cleanup).toHaveBeenCalled();
  vi.spyOn(HTMLCanvasElement.prototype,'getContext').mockReturnValueOnce(null);
