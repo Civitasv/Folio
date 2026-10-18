@@ -118,7 +118,8 @@ export function NativePdfReader({doc,bytes,platform,provider,onLocation,modeStor
  };
  const reviewPage=async(page:number)=>{
   setError('');
-  try{const image=await parsed!.pageImage(page);setReview({page,image});}
+  if(!parsed){setOriginalPage(page);return;}
+  try{const image=await parsed.pageImage(page);setReview({page,image});}
   catch{setError('Original page could not be rendered.');}
  };
  const blockView=(block:PdfBlock)=> <div className={'folio-native-block folio-native-'+block.kind} key={block.id} data-block-id={block.id}
