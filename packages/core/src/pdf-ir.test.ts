@@ -8,7 +8,7 @@ it('keeps immutable source blocks and joins only nearby paragraph lines',()=>{
  expect(ir.version).toBe(1);expect(ir.documentId).toBe('sha256:a');
  expect(ir.pages).toBe(1);
  expect(ir.blocks.map(b=>b.kind)).toEqual(['paragraph','heading','paragraph']);
- expect(ir.warnings).toContain('Text-only reflow preview: original scientific figures, tables and equations are not reconstructed yet. Check the original PDF page before relying on this article view.');
+ expect(ir.warnings).toContain('Conservative reflow: only caption-associated bitmap figures are restored. Vector overlays, table grids and equations need original-page fidelity review.');
  expect(ir.blocks[0].text).toBe('A long introduction that continues');
  expect(ir.blocks.map(b=>b.id)).toEqual(['p1-b1','p1-b2','p1-b3']);
  expect(ir.blocks[1].confidence).toBe(.65);
@@ -31,7 +31,7 @@ it('orders a double-column page by reading lane and preserves wider title and ca
  expect(ir.blocks[0].kind).toBe('title');
  expect(ir.blocks.map(x=>x.text)).toEqual(['Study of Drylands','L1','L2','L3','R1','R2','R3','Fig. 1: Full original graph remains auditable']);
  expect(ir.blocks.at(-1)?.kind).toBe('caption');
- expect(ir.warnings.some(x=>x.includes('figure/table visuals'))).toBe(true);
+ expect(ir.warnings.some(x=>x.includes('Conservative reflow'))).toBe(true);
 });
 it('reports missing pages, invalid rectangles, empty inputs and nonempty cross-page order',()=>{
  const invalid=span('bad',-1,0);
@@ -72,4 +72,29 @@ it('uses a defensive font median when embedded PDF metrics are zero',()=>{
  const ir=buildPdfIR('zero-font',[page(1,[span('Text with unavailable font size',.1,.2,.4,0)])]);
  expect(ir.blocks).toHaveLength(1);
  expect(ir.blocks[0].kind).toBe('paragraph');
+});
+
+it('associates the supplied-paper-style Figure captions with source media, but never mislabels a publisher logo',()=>{
+ const p1={...page(1,[span('Title',.1,.2,.5,.04)]),images:[{x:.63,y:.043,width:.31,height:.066}]};
+ const p2={...page(2,[span('Figure 1. Clinical panels',.06,.436,.7),span('Figure 2. Four clinical panels',.06,.652,.8)]),
+  images:[{x:.188,y:.460,width:.625,height:.181},{x:.244,y:.708,width:.513,height:.238}]};
+ const ir=buildPdfIR('fixture',[p1,p2]);
+ expect(ir.blocks.filter(b=>b.kind==='figure')).toHaveLength(2);
+ expect(ir.blocks.filter(b=>b.kind==='figure').map(b=>b.id)).toEqual(['p2-figure-1','p2-figure-2']);
+ const figure=ir.blocks.find(b=>b.id==='p2-figure-1')!;
+ expect(figure.mediaRect).toEqual(p2.images[0]);
+ expect(ir.blocks.indexOf(figure)).toBeLessThan(ir.blocks.findIndex(b=>b.text.startsWith('Figure 1.')));
+ expect(ir.blocks.some(b=>b.kind==='figure'&&b.page===1)).toBe(false);
+ expect(ir.warnings.some(w=>w.includes('Page 1: 1 unpaired'))).toBe(true);
+ expect(readingPairs(ir,new Map()).find(p=>p.block.id==='p2-figure-1')?.status).toBe('source-only');
+});
+it('groups adjacent image panels under one figure while preserving caption and table warnings',()=>{
+ const p={...page(4,[span('Figure 3. Flowchart',.06,.15,.67),span('Table 1. Data',.06,.55,.45)]),
+ images:[{x:.15,y:.18,width:.30,height:.28},{x:.48,y:.18,width:.34,height:.28},{x:.10,y:.70,width:.22,height:.09}]};
+ const ir=buildPdfIR('doc',[p]);
+ const figure=ir.blocks.find(b=>b.kind==='figure')!;
+ expect(figure.mediaRect).toMatchObject({x:.15,y:.18});
+ expect(figure.mediaRect!.width).toBeCloseTo(.67);
+ expect(ir.warnings.some(w=>w.includes('unpaired embedded image'))).toBe(true);
+ expect(ir.warnings.some(w=>w.includes('PDF table grid'))).toBe(true);
 });
