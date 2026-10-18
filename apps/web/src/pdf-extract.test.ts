@@ -6,13 +6,14 @@ let failRead=false;
 const getPage=vi.fn(async()=>({
  getViewport:()=>({width:600,height:800,transform:[1,0,0,1,0,0]}),
  getTextContent:async()=>{if(failRead)throw Error('read failed');return {items,styles:{f:{ascent:.8}}};},
- cleanup,render
+ getOperatorList:async()=>({fnArray:[],argsArray:[]}),cleanup,render
 }));
 const task=()=>({promise:Promise.resolve({numPages,getPage}),destroy});
 vi.mock('pdfjs-dist/legacy/build/pdf.mjs',()=>({
  GlobalWorkerOptions:{workerSrc:''},
  Util:{transform:(_viewport:unknown,t:unknown)=>t},
  AnnotationMode:{DISABLE:0},
+ OPS:{save:1,restore:2,transform:3,paintImageXObject:4,paintInlineImageXObject:5},
  getDocument:vi.fn(()=>task())
 }));
 beforeEach(()=>{
@@ -72,7 +73,7 @@ it('aborts between pages and cleans up a failed signal-bound PDF task',async()=>
  getPage.mockImplementationOnce(async()=>{
   ctrl.abort();
   return {getViewport:()=>({width:600,height:800,transform:[1,0,0,1,0,0]}),
-   getTextContent:async()=>({items,styles:{f:{ascent:.8}}}),cleanup,render};
+   getTextContent:async()=>({items,styles:{f:{ascent:.8}}}),getOperatorList:async()=>({fnArray:[],argsArray:[]}),cleanup,render};
  });
  await expect(parseLocalPdf('id',new Uint8Array(1),ctrl.signal)).rejects.toThrow('PDF processing cancelled.');
  expect(destroy).toHaveBeenCalled();
@@ -103,4 +104,32 @@ it('provides Promise.try synchronous-call and rejection semantics only when miss
   if(original)Object.defineProperty(Promise,'try',original);
   else Reflect.deleteProperty(Promise,'try');
  }
+});
+
+it('renders an exact normalized media region from the source page and validates requested crop bounds',async()=>{
+ const p=await parseLocalPdf('figure',new Uint8Array(1));
+ const rect={x:.1,y:.2,width:.3,height:.4};
+ expect(await p.regionImage(1,rect)).toBe('data:image/png;base64,AA==');
+ expect(render).toHaveBeenCalledWith(expect.objectContaining({
+  transform:expect.any(Array),
+  annotationMode:0
+ }));
+ for(const invalid of [
+  {x:-.1,y:.1,width:.3,height:.2},{x:0,y:0,width:0,height:.2},
+  {x:.9,y:0,width:.3,height:.2},{x:0,y:0,width:NaN,height:.2}
+ ])await expect(p.regionImage(1,invalid)).rejects.toThrow('Source image region unavailable.');
+ await expect(p.regionImage(2,rect)).rejects.toThrow('Source image region unavailable.');
+ await expect(p.regionImage(1.4,rect)).rejects.toThrow('Source image region unavailable.');
+ await p.destroy();
+ await expect(p.regionImage(1,rect)).rejects.toThrow('Source image region unavailable.');
+});
+it('cleans region-render canvas even when source rendering fails',async()=>{
+ const p=await parseLocalPdf('figure',new Uint8Array(1));
+ const rect={x:.1,y:.2,width:.3,height:.4};
+ render.mockImplementationOnce(()=>({promise:Promise.reject(new Error('region failed'))}));
+ await expect(p.regionImage(1,rect)).rejects.toThrow('region failed');
+ expect(cleanup).toHaveBeenCalled();
+ vi.spyOn(HTMLCanvasElement.prototype,'getContext').mockReturnValueOnce(null);
+ await expect(p.regionImage(1,rect)).rejects.toThrow('Canvas rendering unavailable.');
+ await p.destroy();
 });
