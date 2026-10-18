@@ -45,3 +45,15 @@ Figure visuals must remain identical source evidence across reading layouts. In 
 - Compare actual rendered Fig 1–5 bounds and caption associations against the **local file** when present, ignoring the publisher logo. Tables 1–7 must remain full-grid audit assets or validated structured cells, not flattened lines masquerading as article prose.
 - Assert left-column before right-column for pages 2, 4, 7–10 when continuous columns are present; keep explicit full-width figure/table bands and citation/ref numbering.
 - The 8–12 file corpus and macOS screenshot verification remain open; **one supplied sample is 1/8–12**, not proof of >=95% paragraph-order quality, multilingual, formula/OCR or comprehensive scientific fidelity.
+
+
+## F02i3 local original-paper table raster check (18 October 2026)
+
+This is a **private/offline engineering preflight**, not an installed macOS visual acceptance. The user-provided 10-page original was rasterized at the same 1100px-page-height cap as Folio's bounded detector; a separate local Python reproduction of the grid-row and vertical-stroke gates was compared against manually reviewed original page rules. No source PDF pixels or document bytes are committed.
+
+- Initial dark-only RGB-sum cutoff (`<450`) found **0/7** of Tables 1–7 because thin gray source strokes rasterize near RGB 196. Real scientific data was omitted from semantic reflow despite the PDF being intact.
+- Conservative adjusted light-gray cutoff (`<630`) found candidate source-grid regions for **7/7** numbered tables on pages 4–6 in the independent local preflight, without interpreting or modifying any cell values. Synthetic gray-rule regression is CI-safe.
+- A long horizontal footer divider at y≈806pt on page 5 could be falsely grouped with Table 5. The adjusted rule excludes only unusually wide rules in the bottom 7% of the page. The original-page visual remains the definitive reference for figures/tables.
+- Preflight uses PyMuPDF rasterization/geometry rather than Folio's actual PDF.js/WebView render; **7/7 preflight is not a shipping-quality acceptance claim**. Verify on actual macOS Folio against all seven source table screenshots and the privacy-preserving corpus gate. Long/partial/borderless tables and non-gray grids remain potential misses, never fabricate their cells.
+
+Do not hardcode this particular clinical article's tables/coordinates/p-values into generic runtime code. Keep the full original-page audit and warn on unmatched tables.
