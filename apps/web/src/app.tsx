@@ -4,12 +4,13 @@ import { universalPlatform, type EpubReaderPlatform, type DoiPlatform, type Tran
 import { DoiPanel } from './doi-panel';
 import { EpubReader } from './epub-reader';
 import { TranslationPanel } from './translation-panel';
+import { NativePdfReader } from './native-pdf-reader';
 import {WorkspaceShell, WorkspaceToolbar, SidebarItem, Surface} from '@folio/ui';
 
 export function App({ platform = universalPlatform,translationProvider,onOpenSettings }: { platform?: ReaderPlatform & Partial<EpubReaderPlatform> & Partial<DoiPlatform> & Partial<TranslationPlatform>;translationProvider?:TranslationProvider;onOpenSettings?:()=>void }) {
   const [documents, setDocuments] = React.useState<DocumentSummary[]>([]);
   const [active, setActive] = React.useState<DocumentSummary | null>(null);
-  const [reader, setReader] = React.useState<{ id: string; url: string } | null>(null);
+  const [reader, setReader] = React.useState<{ id: string; bytes: Uint8Array } | null>(null);
   const [page, setPage] = React.useState('1');
   const [query, setQuery] = React.useState('');
   const [kindFilter,setKindFilter] = React.useState<'all'|'pdf'|'epub'|'reference'>('all');
@@ -28,17 +29,11 @@ export function App({ platform = universalPlatform,translationProvider,onOpenSet
   React.useEffect(() => {
     if (!active || active.kind === 'epub' || active.kind === 'reference') { setReader(null); return; }
     let disposed = false;
-    let objectUrl: string | undefined;
     setReader(null);
     void platform.readPdf(active.id).then(bytes => {
-      if (disposed) return;
-      objectUrl = URL.createObjectURL(new Blob([new Uint8Array(bytes)], { type: 'application/pdf' }));
-      setReader({ id: active.id, url: objectUrl });
+      if (!disposed) setReader({ id:active.id,bytes:new Uint8Array(bytes) });
     }).catch(() => { if (!disposed) setError('Unable to open this PDF.'); });
-    return () => {
-      disposed = true;
-      if (objectUrl) URL.revokeObjectURL(objectUrl);
-    };
+    return () => { disposed = true; };
   }, [active?.id, active?.kind, platform]);
   async function importFile(file: File) {
     setError(''); setNotice(''); setBusy(true);
@@ -91,6 +86,10 @@ export function App({ platform = universalPlatform,translationProvider,onOpenSet
       setError(''); setNotice('Reading position saved.');
     } catch { setError('Could not save reading position.'); }
   }
+  async function savePageAt(doc:DocumentSummary,number:number){
+    try{await platform.setProgress(doc.id,number);setActive(previous=>previous?.id===doc.id?{...previous,progress:number}:previous);}
+    catch{setError('Could not save reading position.');}
+  }
   const filtered = documents.filter(doc => (
     (kindFilter === 'all' || (kindFilter === 'pdf' ? doc.kind !== 'epub' && doc.kind !== 'reference' : doc.kind === kindFilter)) &&
     (doc.title + ' ' + (doc.creators??[]).join(' ') + ' ' + (doc.doi??'')).toLocaleLowerCase().includes(query.toLocaleLowerCase())
@@ -139,20 +138,11 @@ export function App({ platform = universalPlatform,translationProvider,onOpenSet
       {busy&&<p role="status">Importing locally…</p>}{error&&<p role="alert">{error}</p>}{notice&&<p role="status">{notice}</p>}
     </div>}
     <main className="folio-pdf-focus" aria-label="PDF reader">
-      <section className="folio-focus-source" aria-label="Original PDF">
-        <div className="folio-focus-pane-heading"><strong>Original PDF</strong><div>
-          <label>Page <input aria-label="Saved page" inputMode="numeric" type="number" min="1" step="1" value={page}
-            onChange={event=>setPage(event.target.value)}/></label>
-          <button type="button" onClick={()=>void savePage(active)}>Save page</button>
-        </div></div>
-        {reader?.id===active.id?<iframe title="PDF document" src={reader.url+'#page='+active.progress}/>:
-          <p className="folio-focus-placeholder">Loading local PDF…</p>}
-      </section>
-      <section className="folio-focus-target" aria-label="Target translation pane">
-        {platform.getLanguages&&platform.setLanguages&&platform.findTranslation&&platform.saveManualTranslation&&platform.translate&&platform.deleteTranslations?
-          <TranslationPanel doc={active} platform={platform as TranslationPlatform} provider={translationProvider} layout="target-pane"/>:
-          <div className="folio-focus-placeholder"><h2>Translation unavailable</h2><p>This platform does not provide a translation store. The original PDF remains readable.</p></div>}
-      </section>
+      {reader?.id===active.id?<NativePdfReader key={active.id} doc={active} bytes={reader.bytes}
+        platform={platform.getLanguages&&platform.setLanguages&&platform.findTranslation&&platform.saveManualTranslation&&platform.translate?platform as TranslationPlatform:undefined}
+        provider={translationProvider}
+        onLocation={number=>{if(number!==active.progress)void savePageAt(active,number);}}/>:
+        <p className="folio-focus-placeholder">Loading local PDF…</p>}
     </main>
   </div>;
 
