@@ -331,3 +331,13 @@ button:disabled{cursor:not-allowed;opacity:.52}
 }
 @media(max-width:420px){.folio-focus-pane-heading{padding:6px 10px}.folio-focus-pane-heading>strong{font-size:.72rem}.folio-focus-pane-heading>div{gap:4px}.folio-focus-pane-heading label{font-size:.65rem}.folio-focus-pane-heading input{width:49px}}
 @media(prefers-contrast:more){.folio-focus-source,.folio-focus-target,.folio-target-result{border-color:currentColor}}
+
+/* Only the target language stays visible; infrequent settings expand on demand. */
+.folio-target-preferences{grid-template-columns:minmax(150px,1fr) minmax(115px,1fr);align-items:end}
+.folio-target-advanced{min-width:0;position:relative}
+.folio-target-advanced>summary{list-style:none;cursor:pointer;min-height:33px;display:flex;align-items:center;padding:6px 10px;border:1px solid var(--folio-border);border-radius:6px;font-size:.73rem;color:var(--folio-secondary)}
+.folio-target-advanced>summary::-webkit-details-marker{display:none}
+.folio-target-advanced>div{position:relative;display:grid;gap:9px;padding:12px 0 0}
+.folio-target-advanced label{display:grid;gap:5px}
+.folio-target-advanced button{width:100%}
+@media(max-width:420px){.folio-target-preferences{grid-template-columns:minmax(0,1fr)}}
