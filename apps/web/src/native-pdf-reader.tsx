@@ -25,12 +25,13 @@ export function NativePdfReader({doc,bytes,platform,provider,onLocation,modeStor
  const [busy,setBusy]=React.useState('');
  const [error,setError]=React.useState('');
  const [review,setReview]=React.useState<{page:number;image:string}>();
+ const [media,setMedia]=React.useState<Map<string,string>>(new Map());
  const controller=React.useRef<AbortController|null>(null);
  const generation=React.useRef(0);
  const source=React.useRef<HTMLDivElement>(null),target=React.useRef<HTMLDivElement>(null),feed=React.useRef<HTMLDivElement>(null);
  React.useEffect(()=>{
   let live=true,docRef:ParsedPdf|undefined;const ctrl=new AbortController();
-  setParsed(undefined);setParseError('');setTranslations(new Map());setReview(undefined);
+  setParsed(undefined);setParseError('');setTranslations(new Map());setMedia(new Map());setReview(undefined);
   void parseLocalPdf(doc.id,bytes,ctrl.signal).then(result=>{
    docRef=result;
    if(live)setParsed(result);else void result.destroy();
@@ -45,10 +46,19 @@ export function NativePdfReader({doc,bytes,platform,provider,onLocation,modeStor
  },[platform,doc.id]);
  const ir=parsed?.ir;
  React.useEffect(()=>{
+  if(!parsed||!ir)return;
+  let live=true;setMedia(new Map());
+  void Promise.all(ir.blocks.filter(block=>block.kind==='figure'&&block.mediaRect).map(async block=>{
+   try{return [block.id,await parsed.regionImage(block.page,block.mediaRect!)] as const;}
+   catch{return undefined;}
+  })).then(items=>{if(live)setMedia(new Map(items.filter((x):x is readonly [string,string]=>!!x)));});
+  return ()=>{live=false;};
+ },[parsed,ir]);
+ React.useEffect(()=>{
   if(!ready||!ir||!platform)return;
   let live=true;setTranslations(new Map());
   void Promise.all(ir.blocks.map(async block=>{
-   if(block.text.length>4000)return undefined;
+   if(block.kind==='figure'||block.text.length>4000)return undefined;
    const identity=sourceIdentity(doc,block,prefs,provider);
    try{
     const result=(await platform.findTranslation(identity))??(provider?await platform.findTranslation(sourceIdentity(doc,block,prefs)):undefined);
@@ -93,11 +103,16 @@ export function NativePdfReader({doc,bytes,platform,provider,onLocation,modeStor
  };
  const blockView=(block:PdfBlock)=> <div className={'folio-native-block folio-native-'+block.kind} key={block.id} data-block-id={block.id}
   onFocus={()=>onLocation?.(block.page)} onClick={()=>{if(mode==='interleaved')focus(block,'source');}} tabIndex={0}>
-  {block.kind==='title'?<h2>{block.text}</h2>:block.kind==='heading'?<h3>{block.text}</h3>:<p>{block.text}</p>}
+  {block.kind==='figure'?media.has(block.id)?<img className="folio-native-figure-image" src={media.get(block.id)} alt={'Original scientific figure '+block.id}/>:<p role="status">Original figure region is loading or unavailable. Inspect the original page.</p>:
+   block.kind==='title'?<h2>{block.text}</h2>:block.kind==='heading'?<h3>{block.text}</h3>:<p>{block.text}</p>}
   <button className="folio-native-source-link" type="button" aria-label={'Review original page '+block.page+' for '+block.id}
    onClick={()=>void reviewPage(block.page)}>p. {block.page} · Check source</button>
  </div>;
- const targetView=(block:PdfBlock,targetText?:string)=> <div key={block.id} className="folio-native-target-block" data-block-id={block.id}>
+ const targetView=(block:PdfBlock,targetText?:string)=> block.kind==='figure'?
+  mode==='interleaved'?null:<div key={block.id} className="folio-native-target-block folio-native-media-copy" data-block-id={block.id}>
+   {media.has(block.id)?<img className="folio-native-figure-image" src={media.get(block.id)} alt={'Unmodified scientific figure '+block.id}/>:<p role="status">Original figure region is loading or unavailable.</p>}
+  </div>:
+  <div key={block.id} className="folio-native-target-block" data-block-id={block.id}>
   {targetText?<p lang={prefs.target} dir="auto">{targetText}</p>:<div className="folio-native-missing">
    <span>{block.text.length>4000?'Long passage requires a smaller verified unit.':busy===block.id?'Translating…':'Not translated'}</span>
    {platform&&block.text.length<=4000&&<details open={activeBlock===block.id} onToggle={e=>setActiveBlock(e.currentTarget.open?block.id:'')}>
