@@ -105,3 +105,77 @@ it('reports empty scans and parse errors without fabricating source text',async(
  render(<NativePdfReader doc={doc} bytes={bytes}/>);
  expect(await screen.findByRole('alert')).toHaveProperty('textContent','Cannot rebuild this PDF. The original file remains safely stored.');
 });
+
+
+it('reports preference load/save, cache lookup and original-page rendering errors independently',async()=>{
+ const p=platform();
+ p.getLanguages.mockRejectedValueOnce(new Error('settings'));
+ p.findTranslation.mockRejectedValue(new Error('cache'));
+ p.setLanguages.mockRejectedValueOnce(new Error('disk'));
+ pageImage.mockRejectedValueOnce(new Error('canvas'));
+ render(<NativePdfReader doc={doc} bytes={bytes} platform={p}/>);
+ expect(await screen.findByRole('alert')).toHaveProperty('textContent','Cannot load saved language settings.');
+ fireEvent.change(screen.getByLabelText('Target language'),{target:{value:'ja'}});
+ expect(await screen.findByRole('alert')).toHaveProperty('textContent','Unable to save target language.');
+ fireEvent.click(await screen.findByRole('button',{name:'Review original page 1 for p1-b1'}));
+ expect(await screen.findByRole('alert')).toHaveProperty('textContent','Original page could not be rendered.');
+ expect(screen.queryByRole('dialog')).toBeNull();
+});
+it('reports translation failure and cancellation without inventing translated output',async()=>{
+ const p=platform();p.findTranslation.mockResolvedValue(undefined);
+ p.saveManualTranslation.mockRejectedValueOnce(new Error('quota'));
+ const provider:TranslationProvider={id:'api',model:'m',supportsAutoSource:true,translate:vi.fn(async()=> 'ok')};
+ let finish!:(value:ReturnType<typeof p.translate> extends Promise<infer T>?T:never)=>void;
+ p.translate.mockImplementationOnce(()=>new Promise(resolve=>{finish=resolve;}));
+ vi.spyOn(window,'confirm').mockReturnValue(true);
+ render(<NativePdfReader doc={doc} bytes={bytes} platform={p} provider={provider}/>);
+ const view=await screen.findByRole('region',{name:'Translated article'});
+ fireEvent.click(within(view).getAllByText('Translate this block')[0]);
+ fireEvent.change(within(view).getByLabelText('Local translation p1-b1'),{target:{value:'Local'}});
+ fireEvent.click(within(view).getAllByText('Save local translation')[0]);
+ expect(await screen.findByRole('alert')).toHaveProperty('textContent','Unable to save or generate this block translation.');
+ fireEvent.click(within(view).getAllByText('Translate with api')[0]);
+ expect(within(view).getByText('Cancel')).toBeTruthy();
+ fireEvent.click(within(view).getByText('Cancel'));
+ finish({key:'provider',identity:sourceIdentity(doc,blocks[0],langs,provider),translatedText:'Should not persist',sourceHash:'h',provenance:'provider'});
+ expect(await screen.findByRole('alert')).toHaveProperty('textContent','Translation cancelled.');
+ expect(within(view).queryByText('Should not persist')).toBeNull();
+});
+it('reports a long untranslatable source unit honestly and preserves one-column layout',async()=>{
+ const long={...blocks[0],id:'other',text:'x'.repeat(4001)};
+ vi.mocked(parseLocalPdf).mockResolvedValueOnce({...parsed,ir:{...ir,blocks:[long]}});
+ const p=platform();render(<NativePdfReader doc={doc} bytes={bytes} platform={p}/>);
+ const view=await screen.findByRole('region',{name:'Translated article'});
+ expect(within(view).getByText('Long passage requires a smaller verified unit.')).toBeTruthy();
+ expect(within(view).queryByText('Translate this block')).toBeNull();
+ fireEvent.click(screen.getByRole('button',{name:'Interleaved · 单栏'}));
+ expect(screen.getByRole('region',{name:'Interleaved article'})).toBeTruthy();
+ expect(sourceIdentity(doc,long,langs).unit.unitIndex).toBe(0);
+});
+it('does not resuscitate a parsed result or late language preferences after unmount',async()=>{
+ let complete!:(value:typeof parsed)=>void;
+ vi.mocked(parseLocalPdf).mockImplementationOnce(()=>new Promise(resolve=>{complete=resolve;}));
+ const p=platform();
+ let setPrefs!:(value:typeof langs)=>void;
+ p.getLanguages.mockImplementationOnce(()=>new Promise(resolve=>{setPrefs=resolve;}));
+ const view=render(<NativePdfReader doc={doc} bytes={bytes} platform={p}/>);
+ view.unmount();
+ complete(parsed);setPrefs(langs);
+ await waitFor(()=>expect(destroy).toHaveBeenCalled());
+});
+it('focuses matching blocks across two panes and within the one-column feed',async()=>{
+ const onLocation=vi.fn(),scroll=vi.fn();
+ vi.stubGlobal('scrollTo',scroll);
+ const original=HTMLElement.prototype.scrollIntoView;
+ HTMLElement.prototype.scrollIntoView=scroll;
+ try{
+  render(<NativePdfReader doc={doc} bytes={bytes} onLocation={onLocation}/>);
+  const source=await screen.findByRole('region',{name:'Original article'});
+  fireEvent.click(within(source).getByText('Source paragraph.'));
+  expect(onLocation).toHaveBeenCalledWith(1);
+  fireEvent.click(screen.getByRole('button',{name:'Interleaved · 单栏'}));
+  const feed=screen.getByRole('region',{name:'Interleaved article'});
+  fireEvent.click(within(feed).getByText('Source paragraph.'));
+  expect(scroll).toHaveBeenCalled();
+ }finally{HTMLElement.prototype.scrollIntoView=original;}
+});
