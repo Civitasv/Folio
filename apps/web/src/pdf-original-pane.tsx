@@ -50,5 +50,5 @@ export function PdfOriginalPane({document,page=1,onPageChange,onError}:{
   const v=viewer.current!;
   if(v.pagesCount)v.currentPageNumber=Math.min(Math.max(1,Math.trunc(page)||1),v.pagesCount);
  },[page,document]);
- return <div className="folio-original-pdf" ref={host} aria-label="Original PDF pages" role="region" tabIndex={0}/>;
+ return <div className="folio-original-pdf-shell"><div className="folio-original-pdf" ref={host} aria-label="Original PDF pages" role="region" tabIndex={0}/></div>;
 }
