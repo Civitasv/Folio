@@ -37,6 +37,7 @@ it('derives an exact page/block translation identity independent of presentation
   unit:{anchor:{kind:'pdf',page:1},unitIndex:2,text:'Source paragraph.'}});
  const provider:TranslationProvider={id:'codex',model:'test',supportsAutoSource:true,translate:vi.fn(async()=> 'ok')};
  expect(sourceIdentity(doc,blocks[2],langs,provider)).toMatchObject({providerId:'codex',model:'test',unit:{unitIndex:1}});
+ expect(sourceIdentity(doc,{...blocks[0],id:'fallback-title'},langs).unit.unitIndex).toBe(0);
 });
 it('renders two semantic article streams and a single alternating stream without requesting AI on switch',async()=>{
  const p=platform(),onLocation=vi.fn();
@@ -147,16 +148,29 @@ it('reports translation failure and cancellation without inventing translated ou
  expect(await screen.findByRole('alert')).toHaveProperty('textContent','Translation cancelled.');
  expect(within(view).queryByText('Should not persist')).toBeNull();
 });
-it('reports a long untranslatable source unit honestly and preserves one-column layout',async()=>{
- const long={...blocks[0],id:'other',text:'x'.repeat(4001)};
+it('keeps exact long original excerpts accessible as independent bounded translation units',async()=>{
+ const long={...blocks[0],kind:'paragraph' as const,id:'p1-b8',text:'x'.repeat(4001)};
  vi.mocked(parseLocalPdf).mockResolvedValueOnce({...parsed,ir:{...ir,blocks:[long]}});
- const p=platform();render(<NativePdfReader doc={doc} bytes={bytes} platform={p}/>);
+ const p=platform();p.findTranslation.mockResolvedValue(undefined);
+ render(<NativePdfReader doc={doc} bytes={bytes} platform={p}/>);
  const view=await screen.findByRole('region',{name:'Translated article'});
- expect(within(view).getByText('Long passage requires a smaller verified unit.')).toBeTruthy();
- expect(within(view).queryByText('Translate this block')).toBeNull();
+ await waitFor(()=>expect(within(view).getAllByText('Not translated')).toHaveLength(2));
+ expect(within(view).getAllByText('Translate this block')).toHaveLength(2);
+ const first={...long,id:'p1-b8-chunk0',parentId:'p1-b8',chunkIndex:0,text:'x'.repeat(4000)};
+ const second={...long,id:'p1-b8-chunk1',parentId:'p1-b8',chunkIndex:1,text:'x'};
+ expect(sourceIdentity(doc,long,langs).unit.unitIndex).toBe(8);
+ expect(sourceIdentity(doc,first,langs).unit).toMatchObject({unitIndex:800001,text:'x'.repeat(4000)});
+ expect(sourceIdentity(doc,second,langs).unit).toMatchObject({unitIndex:800002,text:'x'});
+ expect(p.findTranslation.mock.calls.map(([identity])=>identity.unit.text).sort()).toEqual(['x','x'.repeat(4000)].sort());
+ fireEvent.change(screen.getByRole('textbox',{name:'Local translation p1-b8-chunk0'}),{target:{value:'第一段译文'}});
+ fireEvent.click(within(view).getAllByText('Save local translation')[0]);
+ expect(p.saveManualTranslation).toHaveBeenCalledWith(expect.objectContaining({
+  unit:expect.objectContaining({unitIndex:800001,text:'x'.repeat(4000)})
+ }), '第一段译文');
  fireEvent.click(screen.getByRole('button',{name:'Interleaved · 单栏'}));
- expect(screen.getByRole('region',{name:'Interleaved article'})).toBeTruthy();
- expect(sourceIdentity(doc,long,langs).unit.unitIndex).toBe(0);
+ expect(screen.getByRole('region',{name:'Interleaved article'}).querySelectorAll('.folio-native-pair')).toHaveLength(2);
+ expect(vi.mocked(parseLocalPdf)).toHaveBeenCalledTimes(1);
+ expect(p.translate).not.toHaveBeenCalled();
 });
 it('does not resuscitate a parsed result or late language preferences after unmount',async()=>{
  let complete!:(value:typeof parsed)=>void;

@@ -1,5 +1,5 @@
 import React from 'react';
-import { DEFAULT_LANGUAGE_PREFERENCES, LANGUAGE_OPTIONS, TRANSLATION_PROMPT_VERSION,readingPairs,sourceMediaKind,
+import { DEFAULT_LANGUAGE_PREFERENCES, LANGUAGE_OPTIONS, TRANSLATION_PROMPT_VERSION,readingPairs,sourceMediaKind,boundedReadingIR,
  type PdfBlock,type PdfDocumentIR,type ReadingMode,type DocumentSummary,type TranslationProvider,
  type LanguagePreferences,type TranslationIdentity} from '@folio/core';
 import {browserReaderModeStore,browserReaderLayoutStore,type ReaderModeStore,type ReaderLayoutStore,type TranslationPlatform} from '@folio/platform';
@@ -8,9 +8,10 @@ import {PdfOriginalPane} from './pdf-original-pane';
 
 type ReaderTranslationPlatform=Pick<TranslationPlatform,'getLanguages'|'setLanguages'|'findTranslation'|'saveManualTranslation'|'translate'>;
 export function sourceIdentity(doc:DocumentSummary,block:PdfBlock,prefs:LanguagePreferences,provider?:TranslationProvider):TranslationIdentity{
+ const parentIndex=Number(block.id.match(/-b(\d+)/)?.[1]??0);
  return {documentId:doc.id,source:prefs.source,target:prefs.target,providerId:provider?.id??'manual',
   model:provider?.model??'local-draft',promptVersion:TRANSLATION_PROMPT_VERSION,
-  unit:{anchor:{kind:'pdf',page:block.page},unitIndex:Number(block.id.split('-b')[1])||0,text:block.text}};
+  unit:{anchor:{kind:'pdf',page:block.page},unitIndex:block.chunkIndex===undefined?parentIndex:parentIndex*100000+block.chunkIndex+1,text:block.text}};
 }
 export function NativePdfReader({doc,bytes,platform,provider,onLocation,modeStore=browserReaderModeStore,layoutStore=browserReaderLayoutStore}:{doc:DocumentSummary;bytes:Uint8Array;
  platform?:ReaderTranslationPlatform;provider?:TranslationProvider;onLocation?:(page:number)=>void;modeStore?:ReaderModeStore;layoutStore?:ReaderLayoutStore}){
@@ -54,6 +55,7 @@ export function NativePdfReader({doc,bytes,platform,provider,onLocation,modeStor
   return ()=>{live=false;};
  },[platform,doc.id]);
  const ir=parsed?.ir;
+ const content=React.useMemo(()=>ir?boundedReadingIR(ir):undefined,[ir]);
  React.useEffect(()=>{
   if(!parsed||!ir)return;
   let live=true;setMedia(new Map());
@@ -64,10 +66,10 @@ export function NativePdfReader({doc,bytes,platform,provider,onLocation,modeStor
   return ()=>{live=false;};
  },[parsed,ir]);
  React.useEffect(()=>{
-  if(!ready||!ir||!platform)return;
+  if(!ready||!content||!platform)return;
   let live=true;setTranslations(new Map());
-  void Promise.all(ir.blocks.map(async block=>{
-   if(sourceMediaKind(block.kind)||block.text.length>4000)return undefined;
+  void Promise.all(content.blocks.map(async block=>{
+   if(sourceMediaKind(block.kind))return undefined;
    const identity=sourceIdentity(doc,block,prefs,provider);
    try{
     const result=(await platform.findTranslation(identity))??(provider?await platform.findTranslation(sourceIdentity(doc,block,prefs)):undefined);
@@ -76,8 +78,8 @@ export function NativePdfReader({doc,bytes,platform,provider,onLocation,modeStor
    catch{return undefined;}
   })).then(items=>{if(live)setTranslations(new Map(items.filter((x):x is readonly [string,string]=>!!x)));});
   return ()=>{live=false;};
- },[ready,ir,platform,doc.id,prefs.source,prefs.target,provider?.id,provider?.model]);
- const pairs=ir?readingPairs(ir,translations):[];
+ },[ready,content,platform,doc.id,prefs.source,prefs.target,provider?.id,provider?.model]);
+ const pairs=content?readingPairs(content,translations):[];
  const locate=(id:string)=>{
   const node=feed.current?.querySelector<HTMLElement>('[data-block-id="'+id+'"]');
   node?.scrollIntoView?.({behavior:'auto',block:'center'});
@@ -123,8 +125,8 @@ export function NativePdfReader({doc,bytes,platform,provider,onLocation,modeStor
   </div>:
   <div key={block.id} className="folio-native-target-block" data-block-id={block.id}>
   {targetText?<p lang={prefs.target} dir="auto">{targetText}</p>:<div className="folio-native-missing">
-   <span>{block.text.length>4000?'Long passage requires a smaller verified unit.':busy===block.id?'Translating…':'Not translated'}</span>
-   {platform&&block.text.length<=4000&&<details open={activeBlock===block.id} onToggle={e=>setActiveBlock(e.currentTarget.open?block.id:'')}>
+   <span>{busy===block.id?'Translating…':'Not translated'}</span>
+   {platform&&<details open={activeBlock===block.id} onToggle={e=>setActiveBlock(e.currentTarget.open?block.id:'')}>
     <summary>Translate this block</summary>
     <label>Write translation <textarea aria-label={'Local translation '+block.id} value={drafts[block.id]??''}
       onChange={e=>setDrafts(old=>({...old,[block.id]:e.target.value}))}/></label>
@@ -151,7 +153,7 @@ export function NativePdfReader({doc,bytes,platform,provider,onLocation,modeStor
    {platform&&<label>Target <select aria-label="Target language" value={prefs.target} onChange={e=>void changeLanguage(e.target.value)}>
     {LANGUAGE_OPTIONS.filter(x=>x.tag!=='auto').map(x=><option key={x.tag} value={x.tag}>{x.label}</option>)}
    </select></label>}
-   <span className="folio-native-status">{ir?ir.blocks.length+' source blocks · local':parseError||'Reading local PDF…'}</span>
+   <span className="folio-native-status">{content?content.blocks.length+' source blocks · local':parseError||'Reading local PDF…'}</span>
    {mode==='parallel'&&<><label>Left pane width <input aria-label="Left pane width" type="range" min={30} max={70} step={5} value={layout.ratio}
     onChange={e=>updateLayout(Number(e.target.value),layout.swapped)}/><span>{layout.ratio}%</span></label>
     <button type="button" aria-label="Swap source and translation panes" onClick={()=>updateLayout(layout.ratio,!layout.swapped)}>Swap sides</button></>}
@@ -165,7 +167,7 @@ export function NativePdfReader({doc,bytes,platform,provider,onLocation,modeStor
     <div className="folio-native-column folio-native-original-column" style={{order:layout.swapped?2:1}} ref={source} role="region" aria-label="Original article"><div className="folio-native-column-title">ORIGINAL · PDF</div>
      {parsed?.originalDocument?<PdfOriginalPane document={parsed.originalDocument} page={originalPage} onPageChange={page=>{
       setOriginalPage(page);onLocation?.(page);
-      const candidate=ir.blocks.find(block=>block.page===page&&block.text.trim());
+      const candidate=content?.blocks.find(block=>block.page===page&&block.text.trim());
       if(candidate)target.current?.querySelector<HTMLElement>('[data-block-id="'+candidate.id+'"]')?.scrollIntoView?.({block:'nearest'});
      }} onError={setError}/>:
       <article>{pairs.map(p=><div key={p.block.id} onClick={()=>focus(p.block,'source')}>{blockView(p.block)}</div>)}</article>}
