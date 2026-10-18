@@ -2,6 +2,17 @@ import * as pdfjs from 'pdfjs-dist';
 import workerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import {buildPdfIR,type PdfDocumentIR,type PdfPageInput} from '@folio/core';
 
+// PDF.js 6 uses Promise.try during fake-worker setup. Older desktop WebViews and
+// Node 22 do not guarantee it; provide the standard synchronous-call semantics.
+export function ensurePromiseTry():void{
+ const ctor=Promise as PromiseConstructor & {try?: (...args:unknown[])=>Promise<unknown>};
+ if(ctor.try)return;
+ Object.defineProperty(Promise,'try',{configurable:true,writable:true,value:
+  (fn:(...args:unknown[])=>unknown,...args:unknown[])=>new Promise((resolve,reject)=>{
+   try{resolve(fn(...args));}catch(error){reject(error);}
+  })
+ });
+}
 pdfjs.GlobalWorkerOptions.workerSrc=workerUrl;
 export interface ParsedPdf {
  ir:PdfDocumentIR;
@@ -11,6 +22,7 @@ export interface ParsedPdf {
 }
 export async function parseLocalPdf(id:string,bytes:Uint8Array,signal?:AbortSignal):Promise<ParsedPdf>{
  if(signal?.aborted)throw new Error('PDF processing cancelled.');
+ ensurePromiseTry();
  const task=pdfjs.getDocument({data:new Uint8Array(bytes),useSystemFonts:true});
  const abort=()=>{void task.destroy();};
  signal?.addEventListener('abort',abort,{once:true});
