@@ -458,3 +458,18 @@ it('can import a new document while reading without restoring the stacked librar
  expect(screen.queryByRole('region',{name:'Import PDF'})).toBeNull();
  expect(screen.getByRole('region',{name:'PDF reader'})).toBeTruthy();
 });
+
+it('restores navigation and inspector after closing a document with both panels collapsed',async()=>{
+ const f=fixture([{id:'sha256:a',title:'Paper',progress:1}]);setupUrls();
+ render(<App platform={f.platform}/>);
+ fireEvent.click(await screen.findByRole('button',{name:'Paper'}));
+ await screen.findByTitle('PDF document');
+ fireEvent.click(screen.getByRole('button',{name:'Hide library'}));
+ fireEvent.click(screen.getByRole('button',{name:'Hide details'}));
+ fireEvent.click(screen.getByRole('button',{name:'Close'}));
+ const app=document.querySelector('.folio-app')!;
+ expect(app.classList.contains('navigation-collapsed')).toBe(false);
+ expect(app.classList.contains('inspector-collapsed')).toBe(false);
+ expect(screen.getByText('Make room for understanding.')).toBeTruthy();
+ expect(screen.getByRole('navigation',{name:'Library filters'})).toBeTruthy();
+});
