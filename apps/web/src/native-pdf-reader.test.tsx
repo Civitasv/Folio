@@ -243,3 +243,35 @@ it('closes expanded per-block translation controls without changing the reading 
  await waitFor(()=>expect(summary.closest('details')?.open).toBe(false));
  expect(screen.getByRole('button',{name:'Parallel · 双栏'}).getAttribute('aria-pressed')).toBe('true');
 });
+
+
+it('aborts old-language translation and rejects a late old-language result after target changes',async()=>{
+ const p=platform();p.findTranslation.mockResolvedValue(undefined);
+ let finish!:(entry:Awaited<ReturnType<typeof p.translate>>)=>void;
+ p.translate.mockImplementationOnce(()=>new Promise(resolve=>{finish=resolve;}));
+ const provider:TranslationProvider={id:'api',model:'m',supportsAutoSource:true,translate:vi.fn(async()=> 'x')};
+ vi.spyOn(window,'confirm').mockReturnValue(true);
+ render(<NativePdfReader doc={doc} bytes={bytes} platform={p} provider={provider}/>);
+ const t=await screen.findByRole('region',{name:'Translated article'});
+ fireEvent.click(within(t).getAllByText('Translate this block')[0]);
+ fireEvent.click(within(t).getAllByText('Translate with api')[0]);
+ const request=p.translate.mock.calls[0] as unknown as [unknown,unknown,AbortSignal];
+ fireEvent.change(screen.getByLabelText('Target language'),{target:{value:'ja'}});
+ await waitFor(()=>expect(request[2].aborted).toBe(true));
+ await waitFor(()=>expect(p.setLanguages).toHaveBeenCalledWith(expect.objectContaining({target:'ja'})));
+ finish({key:'old',identity:sourceIdentity(doc,blocks[0],langs,provider),translatedText:'Old language should never show',sourceHash:'hash',provenance:'provider'});
+ await waitFor(()=>expect(t.querySelector('.folio-native-missing')).toBeTruthy());
+ expect(within(t).queryByText('Old language should never show')).toBeNull();
+});
+it('shows a saved local draft when the optional provider has no corresponding result',async()=>{
+ const p=platform();p.findTranslation.mockImplementation(async identity=>identity.providerId==='manual'&&identity.unit.text==='Source paragraph.'?{
+  key:'manual',identity,sourceHash:'hash',translatedText:'本地草稿',provenance:'manual' as const
+ }:undefined);
+ const provider:TranslationProvider={id:'api',model:'m',supportsAutoSource:true,translate:vi.fn(async()=> 'x')};
+ render(<NativePdfReader doc={doc} bytes={bytes} platform={p} provider={provider}/>);
+ const t=await screen.findByRole('region',{name:'Translated article'});
+ expect(await within(t).findByText('本地草稿')).toBeTruthy();
+ expect(p.findTranslation).toHaveBeenCalledWith(expect.objectContaining({providerId:'api'}));
+ expect(p.findTranslation).toHaveBeenCalledWith(expect.objectContaining({providerId:'manual'}));
+ expect(p.translate).not.toHaveBeenCalled();
+});
