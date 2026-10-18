@@ -288,7 +288,7 @@ it('updates the PDF library and reader only after explicit DOI OA import',async(
  fireEvent.click(screen.getByText('Import open-access PDF'));
  await waitFor(()=>expect(platform.importOpenPdf).toHaveBeenCalledOnce());
  expect(await screen.findByTitle('PDF document')).toBeTruthy();
- expect(screen.getAllByRole('button',{name:'OA paper'})).toHaveLength(1);
+ expect(screen.getAllByRole('button',{name:'OA paper'})).toHaveLength(2);
 });
 
 it('integrates PDF translation excerpt and cleans document cache on deletion',async()=>{
