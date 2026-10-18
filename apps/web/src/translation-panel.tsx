@@ -60,27 +60,36 @@ export function TranslationPanel({doc,units,platform,provider,layout='standard'}
   }catch{setError(pending.signal.aborted?'Translation cancelled.':'Provider translation failed. Retry or use a local draft.');}
   finally{controller.current=null;setBusy(false);}
  }
+ const sourcePicker=<label>Source language <select aria-label="Source language" value={prefs.source} disabled={busy}
+  onChange={e=>void update({...prefs,source:e.target.value})}>
+  {LANGUAGE_OPTIONS.map(lang=><option key={lang.tag} value={lang.tag}>{lang.label}</option>)}
+  {!LANGUAGE_OPTIONS.some(lang=>lang.tag===prefs.source)&&<option value={prefs.source}>{prefs.source}</option>}
+ </select></label>;
+ const customSourcePicker=<><label>Custom source language <input aria-label="Custom source language" value={customSource} placeholder="e.g. pt-BR" onChange={e=>setCustomSource(e.target.value)}/></label>
+  <button disabled={!customSource.trim()||busy} onClick={()=>void update({...prefs,source:customSource.trim()})}>Use source language</button></>;
+ const targetPicker=<label>Target language <select aria-label="Target language" value={prefs.target} disabled={busy}
+  onChange={e=>void update({...prefs,target:e.target.value})}>
+  {LANGUAGE_OPTIONS.filter(x=>x.tag!=='auto').map(lang=><option key={lang.tag} value={lang.tag}>{lang.label}</option>)}
+  {prefs.recentTargets.filter(tag=>!LANGUAGE_OPTIONS.some(lang=>lang.tag===tag)).map(tag=><option key={tag} value={tag}>{tag} (recent)</option>}
+ </select></label>;
+ const customTargetPicker=<><label>Custom target language <input aria-label="Custom target language" value={customTarget} placeholder="e.g. ko-KR" onChange={e=>setCustomTarget(e.target.value)}/></label>
+  <button disabled={!customTarget.trim()||busy} onClick={()=>void update({...prefs,target:customTarget.trim()})}>Use target language</button></>;
  return <section aria-label={layout==='target-pane'?'Target translation':'Translation'} className={layout==='target-pane'?'folio-target-content':undefined}>
   {layout==='target-pane'?<header className="folio-target-heading"><p>TRANSLATION</p><h2>Target text</h2></header>:<h3>Translation · {doc.title}</h3>}
   {!ready&&<p>Loading translation settings…</p>}
   {ready&&<>
    {layout==='target-pane'&&<p className="folio-target-guidance">Translated passages for the current PDF page will appear here. Nothing is sent to a provider until you request it.</p>}
    <div className={layout==='target-pane'?'folio-target-preferences':undefined}>
-    <label>Source language <select aria-label="Source language" value={prefs.source} disabled={busy}
-      onChange={e=>void update({...prefs,source:e.target.value})}>
-      {LANGUAGE_OPTIONS.map(lang=><option key={lang.tag} value={lang.tag}>{lang.label}</option>)}
-      {!LANGUAGE_OPTIONS.some(lang=>lang.tag===prefs.source)&&<option value={prefs.source}>{prefs.source}</option>}</select></label>
-    <label>Custom source language <input aria-label="Custom source language" value={customSource} placeholder="e.g. pt-BR" onChange={e=>setCustomSource(e.target.value)}/></label>
-    <button disabled={!customSource.trim()||busy} onClick={()=>void update({...prefs,source:customSource.trim()})}>Use source language</button>
-    <label>Target language <select aria-label="Target language" value={prefs.target} disabled={busy}
-      onChange={e=>void update({...prefs,target:e.target.value})}>
-      {LANGUAGE_OPTIONS.filter(x=>x.tag!=='auto').map(lang=><option key={lang.tag} value={lang.tag}>{lang.label}</option>)}
-      {prefs.recentTargets.filter(tag=>!LANGUAGE_OPTIONS.some(lang=>lang.tag===tag)).map(tag=><option key={tag} value={tag}>{tag} (recent)</option>)}</select></label>
-    <label>Custom target language <input aria-label="Custom target language" value={customTarget} placeholder="e.g. ko-KR" onChange={e=>setCustomTarget(e.target.value)}/></label>
-    <button disabled={!customTarget.trim()||busy} onClick={()=>void update({...prefs,target:customTarget.trim()})}>Use target language</button>
-    {layout==='standard'&&<label>View <select aria-label="Translation view" value={prefs.view} onChange={e=>void update({...prefs,view:e.target.value as LanguagePreferences['view']})}>
-      <option value="original">Original only</option><option value="bilingual">Bilingual</option><option value="translation">Translation only</option>
-    </select></label>}
+    {layout==='target-pane'?
+      <>
+        {targetPicker}
+        <details className="folio-target-advanced"><summary>Language options</summary><div>{sourcePicker}{customSourcePicker}{customTargetPicker}</div></details>
+      </>:
+      <>{sourcePicker}{customSourcePicker}{targetPicker}{customTargetPicker}
+        <label>View <select aria-label="Translation view" value={prefs.view} onChange={e=>void update({...prefs,view:e.target.value as LanguagePreferences['view']})}>
+          <option value="original">Original only</option><option value="bilingual">Bilingual</option><option value="translation">Translation only</option>
+        </select></label>
+      </>}
    </div>
    {units?<label>Content unit <select aria-label="Content unit" value={unitIndex} onChange={e=>setUnitIndex(Number(e.target.value))}>
     {units.map((u,i)=><option key={u.unitIndex} value={i}>{u.text.slice(0,70)}</option>)}</select></label>:
