@@ -34,7 +34,7 @@ export function findSourceTableGrids(pixels:ImageData,captions:readonly PdfRect[
   const cap=ordered[i],from=Math.ceil((cap.y+cap.height)*h);
   const to=Math.min(h-1,Math.floor(Math.min(cap.y+.55,ordered[i+1]?.y??1)*h));
   const eligible=rows.filter(row=>row.y>=from&&row.y<=to&&
-   Math.min(row.x1,(cap.x+cap.width)*w)-Math.max(row.x0,cap.x*w)>0);
+   Math.min(row.x1,(cap.x+cap.width)*w)-Math.max(row.x0,cap.x*w)>Math.max(w*.04,cap.width*w*.20));
   const group:typeof eligible=[];
   for(const row of eligible){
    if(group.length&&row.y-group.at(-1)!.y>h*.15)break;
