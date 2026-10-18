@@ -88,5 +88,6 @@ export function buildPdfIR(documentId:string,pages:PdfPageInput[]):PdfDocumentIR
   if(blocks.some(b=>b.page===page.page&&b.kind==='caption'))
    warnings.push('Page '+page.page+': review figure/table visuals against the original page; text extraction alone cannot reconstruct them.');
  }
+ if(pages.length)warnings.push('Text-only reflow preview: original scientific figures, tables and equations are not reconstructed yet. Check the original PDF page before relying on this article view.');
  return {version:1,documentId,pages:pages.length?Math.max(...pages.map(p=>p.page)):0,blocks,warnings};
 }
