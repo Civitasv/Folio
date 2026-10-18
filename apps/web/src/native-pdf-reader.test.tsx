@@ -1,4 +1,6 @@
 import React from 'react';
+// The real PDF.js viewer requires browser layout globals; its own component is tested separately.
+vi.mock('./pdf-original-pane',()=>({PdfOriginalPane:()=>null}));
 import {afterEach,beforeEach,expect,it,vi} from 'vitest';
 import {cleanup,fireEvent,render,screen,waitFor,within} from '@testing-library/react';
 import {DEFAULT_LANGUAGE_PREFERENCES,type PdfDocumentIR,type DocumentSummary,type TranslationProvider} from '@folio/core';
