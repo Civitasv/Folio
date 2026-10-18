@@ -4,7 +4,7 @@ export type PdfBlockKind = 'title'|'heading'|'paragraph'|'caption'|'reference'|'
 export interface PdfRect { x:number;y:number;width:number;height:number }
 export interface PdfTextSpan { text:string;rect:PdfRect;fontSize:number }
 export interface PdfPageInput { page:number;spans:PdfTextSpan[];width:number;height:number;images?:PdfRect[];layoutRegions?:LayoutObservation[] }
-export interface PdfBlock { id:string;kind:PdfBlockKind;page:number;text:string;rect:PdfRect;confidence:number;mediaRect?:PdfRect;sourceText?:string }
+export interface PdfBlock { id:string;kind:PdfBlockKind;page:number;text:string;rect:PdfRect;confidence:number;mediaRect?:PdfRect;sourceText?:string;parentId?:string;chunkIndex?:number }
 export interface PdfDocumentIR {version:1;documentId:string;pages:number;blocks:PdfBlock[];warnings:string[]}
 export interface ReadingPair { block:PdfBlock;target?:string;status:'ready'|'missing'|'source-only' }
 export type ReadingMode = 'parallel'|'interleaved';
@@ -14,6 +14,28 @@ export function readingPairs(ir:PdfDocumentIR, translations:ReadonlyMap<string,s
   const target=translations.get(block.id);
   return target?.trim()?{block,target,status:'ready'}:{block,status:'missing'};
  });
+}
+/** Exact excerpt chunking for local/manual/API translation. Original source blocks/bytes stay untouched. */
+export const MAX_TRANSLATION_UNIT_CHARS=4000;
+export function boundedReadingIR(ir:PdfDocumentIR):PdfDocumentIR{
+ const blocks=ir.blocks.flatMap(block=>{
+  if(sourceMediaKind(block.kind)||block.text.length<=MAX_TRANSLATION_UNIT_CHARS)return [block];
+  const output:PdfBlock[]=[];
+  let start=0;
+  while(start<block.text.length){
+   let end=Math.min(block.text.length,start+MAX_TRANSLATION_UNIT_CHARS);
+   if(end<block.text.length){
+    const space=block.text.lastIndexOf(' ',end-1);
+    if(space>=start+MAX_TRANSLATION_UNIT_CHARS/2)end=space+1;
+    else if(block.text.charCodeAt(end-1)>=0xD800&&block.text.charCodeAt(end-1)<=0xDBFF)end--;
+   }
+   output.push({...block,id:block.id+'-chunk'+output.length,
+    parentId:block.id,chunkIndex:output.length,text:block.text.slice(start,end)});
+   start=end;
+  }
+  return output;
+ });
+ return {...ir,blocks};
 }
 interface Line { text:string;rect:PdfRect;fontSize:number }
 function union(a:PdfRect,b:PdfRect):PdfRect{
