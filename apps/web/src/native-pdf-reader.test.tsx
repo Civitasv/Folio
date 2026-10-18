@@ -431,3 +431,20 @@ it('shows the authoritative PDF before ten-page scientific extraction completes,
  expect(screen.getByRole('region',{name:'Original PDF pages'})).toBeTruthy();
  expect(vi.mocked(parseLocalPdf)).toHaveBeenCalledTimes(1);
 });
+
+
+it('keeps both reading modes informative between initial PDF open and first extraction progress',async()=>{
+ let finish!:(value:Awaited<ReturnType<typeof parseLocalPdf>>)=>void;
+ vi.mocked(parseLocalPdf).mockImplementationOnce(async(_id,_bytes,_signal,_recognizer,onOpened)=>{
+  onOpened?.({numPages:10} as never);
+  return new Promise<Awaited<ReturnType<typeof parseLocalPdf>>>(resolve=>{finish=resolve;});
+ });
+ render(<NativePdfReader doc={doc} bytes={bytes}/>);
+ expect(await screen.findByRole('region',{name:'Original PDF pages'})).toBeTruthy();
+ expect(screen.getByText('Preparing the structured translation…')).toBeTruthy();
+ fireEvent.click(screen.getByRole('button',{name:'Interleaved · 单栏'}));
+ expect(screen.getByText('Preparing interleaved reading…')).toBeTruthy();
+ fireEvent.click(screen.getByRole('button',{name:'Parallel · 双栏'}));
+ finish({...parsed,originalDocument:{numPages:10} as never});
+ expect((await screen.findAllByText('Not translated')).length).toBeGreaterThan(0);
+});
