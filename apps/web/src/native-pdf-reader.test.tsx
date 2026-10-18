@@ -4,7 +4,7 @@ import {cleanup,fireEvent,render,screen,waitFor,within} from '@testing-library/r
 import {DEFAULT_LANGUAGE_PREFERENCES,type PdfDocumentIR,type DocumentSummary,type TranslationProvider} from '@folio/core';
 import {parseLocalPdf} from './pdf-extract';
 import {NativePdfReader,sourceIdentity} from './native-pdf-reader';
-vi.mock('./pdf-extract',()=>({parseLocalPdf:vi.fn()}));
+vi.mock('./pdf-extract',()=>({parseLocalPdf:vi.fn(),pdfFailureMessage:(error:unknown)=>'Unable to rebuild this PDF. '+(error instanceof Error?error.message:'Unknown PDF engine error')+'. The original file remains stored locally.'}));
 const doc:DocumentSummary={id:'sha256:a',title:'Paper',progress:1};
 const bytes=new Uint8Array([37,80,68,70]);
 const blocks=[
@@ -104,7 +104,7 @@ it('reports empty scans and parse errors without fabricating source text',async(
  a.unmount();
  vi.mocked(parseLocalPdf).mockRejectedValueOnce(new Error('corrupt'));
  render(<NativePdfReader doc={doc} bytes={bytes}/>);
- expect(await screen.findByRole('alert')).toHaveProperty('textContent','Cannot rebuild this PDF. The original file remains safely stored.');
+ expect(await screen.findByRole('alert')).toHaveProperty('textContent',expect.stringContaining('corrupt'));
 });
 
 
@@ -204,7 +204,7 @@ it('does not surface a parsing error that arrives after the reading view unmount
  const view=render(<NativePdfReader doc={doc} bytes={bytes}/>);
  view.unmount();
  reject(new Error('late parsing error'));
- expect(screen.queryByText('Cannot rebuild this PDF. The original file remains safely stored.')).toBeNull();
+ expect(screen.queryByText(/Unable to rebuild this PDF/)).toBeNull();
 });
 it('renders a semantic subheading and supports source focus without a page-save callback',async()=>{
  vi.mocked(parseLocalPdf).mockResolvedValueOnce({...parsed,ir:{...ir,blocks:[...blocks,
@@ -318,4 +318,19 @@ it('retains original-page evidence when a figure crop is unavailable',async()=>{
  expect(await within(source).findByText('Original figure region is loading or unavailable. Inspect the original page.')).toBeTruthy();
  fireEvent.click(within(source).getByRole('button',{name:'Review original page 2 for p2-figure-2'}));
  expect(await screen.findByRole('dialog',{name:'Original PDF page 2'})).toBeTruthy();
+});
+
+it('exposes a local parse failure and retries the stored PDF without reimporting or remote calls',async()=>{
+ vi.mocked(parseLocalPdf).mockRejectedValueOnce(new Error('PDF worker unavailable')).mockResolvedValueOnce(parsed);
+ const log=vi.spyOn(console,'error').mockImplementation(()=>{});
+ const p=platform();
+ render(<NativePdfReader doc={doc} bytes={bytes} platform={p}/>);
+ expect(await screen.findByRole('alert')).toHaveProperty('textContent',expect.stringContaining('PDF worker unavailable'));
+ expect(screen.getByRole('button',{name:'Retry local PDF reading'})).toBeTruthy();
+ fireEvent.click(screen.getByRole('button',{name:'Retry local PDF reading'}));
+ expect(await screen.findByRole('region',{name:'Original article'})).toBeTruthy();
+ expect(vi.mocked(parseLocalPdf)).toHaveBeenCalledTimes(2);
+ expect(vi.mocked(parseLocalPdf).mock.calls.every(([id,source])=>id===doc.id&&source===bytes)).toBe(true);
+ expect(p.translate).not.toHaveBeenCalled();
+ expect(log).toHaveBeenCalled();
 });
