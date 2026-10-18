@@ -134,7 +134,7 @@ export async function parseLocalPdf(id:string,bytes:Uint8Array,signal?:AbortSign
      return canvas.toDataURL('image/png');
     }finally{canvas.width=0;canvas.height=0;page.cleanup();}
    },
-   async destroy(){if(disposed)return;disposed=true;signal?.removeEventListener('abort',abort);await task.destroy();}
+   async destroy(){if(disposed)return;disposed=true;signal?.removeEventListener('abort',abort);await task!.destroy();}
   };
 
  }catch(error){
