@@ -2,6 +2,10 @@ import React from 'react';
 import { afterEach, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { App } from './app';
+vi.mock('./pdf-extract',()=>({parseLocalPdf:vi.fn(async(id:string)=>({ir:{version:1,documentId:id,pages:2,warnings:[],blocks:[
+ {id:'p1-b1',kind:'paragraph',page:1,text:'Paper quote',confidence:1,rect:{x:0,y:0,width:.5,height:.1}},
+ {id:'p2-b1',kind:'paragraph',page:2,text:'Next paragraph',confidence:1,rect:{x:0,y:0,width:.5,height:.1}}
+]},pageImage:vi.fn(async()=> 'data:image/png;base64,AA=='),destroy:vi.fn(async()=>{})}))}));
 import { MAX_PDF_BYTES, type DocumentSummary, type ReaderPlatform } from '@folio/core';
 
 const valid = new Uint8Array([37,80,68,70,45,49]);
@@ -43,30 +47,25 @@ it('renders local library, search, drag-and-drop empty guards and file input emp
   fireEvent.change(screen.getByLabelText('Import PDF file'),{target:{files:[]}});
   expect(container.querySelectorAll('iframe')).toHaveLength(0);
 });
-it('imports, reads full-window, saves page, reopens and confirms deletion',async()=>{
- const {platform}=fixture();const urls=setupUrls();
- vi.spyOn(window,'confirm').mockReturnValue(true);
- const {unmount}=render(<App platform={platform}/>);
+it('imports, reads locally reflowed PDF, persists focused page, reopens and deletes',async()=>{
+ const {platform}=fixture();vi.spyOn(window,'confirm').mockReturnValue(true);
+ render(<App platform={platform}/>);
  await screen.findByText('Your library is empty. Import a PDF to begin.');
  fireEvent.change(screen.getByLabelText('Import PDF file'),{target:{files:[file()]}});
- expect(await screen.findByText('PDF imported locally.')).toBeTruthy();
- expect(await screen.findByTitle('PDF document')).toHaveProperty('src','blob:folio#page=1');
- expect(screen.getByRole('region',{name:'Original PDF'})).toBeTruthy();
- expect(screen.getByRole('region',{name:'Target translation pane'})).toBeTruthy();
- fireEvent.change(screen.getByLabelText('Saved page'),{target:{value:'3'}});
- fireEvent.click(screen.getByText('Save page'));
- await waitFor(()=>expect(platform.setProgress).toHaveBeenCalledWith('sha256:a',3));
- expect(await screen.findByText('Reading position saved.')).toBeTruthy();
- expect(screen.getByTitle('PDF document')).toHaveProperty('src','blob:folio#page=3');
+ expect(await screen.findByRole('region',{name:'Structured paper reader'})).toBeTruthy();
+ expect(screen.queryByTitle('PDF document')).toBeNull();
+ expect(screen.getByRole('button',{name:'Parallel · 双栏'}).getAttribute('aria-pressed')).toBe('true');
+ expect(screen.getByRole('region',{name:'Original article'})).toBeTruthy();
+ fireEvent.focus(await screen.findByText('Next paragraph'));
+ await waitFor(()=>expect(platform.setProgress).toHaveBeenCalledWith('sha256:a',2));
+ fireEvent.click(screen.getByRole('button',{name:'Interleaved · 单栏'}));
+ expect(screen.getByRole('region',{name:'Interleaved article'})).toBeTruthy();
  fireEvent.click(screen.getByRole('button',{name:'Back to library'}));
- await waitFor(()=>expect(urls.revoke).toHaveBeenCalledWith('blob:folio'));
- fireEvent.change(screen.getByLabelText('Search titles'),{target:{value:'pap'}});
+ expect(screen.queryByRole('region',{name:'Structured paper reader'})).toBeNull();
  fireEvent.click(screen.getByRole('button',{name:'Paper'}));
- expect(await screen.findByTitle('PDF document')).toBeTruthy();
- fireEvent.click(screen.getByText('More'));
- fireEvent.click(screen.getByRole('button',{name:'Delete Paper'}));
- await waitFor(()=>expect(screen.getByText('PDF deleted from the local library.')).toBeTruthy());
- expect(screen.queryByTitle('PDF document')).toBeNull();unmount();
+ expect(await screen.findByRole('region',{name:'Structured paper reader'})).toBeTruthy();
+ fireEvent.click(screen.getByText('More'));fireEvent.click(screen.getByRole('button',{name:'Delete Paper'}));
+ expect(await screen.findByText('PDF deleted from the local library.')).toBeTruthy();
 });
 
 it('handles duplicate import, invalid bytes, oversized file and dragged PDF', async () => {
@@ -84,11 +83,11 @@ it('handles duplicate import, invalid bytes, oversized file and dragged PDF', as
   fireEvent.change(screen.getByLabelText('Import PDF file'),{target:{files:[large]}});
   expect(await screen.findByRole('alert')).toHaveProperty('textContent','PDF import rejected: too_large');
 });
-it('reports library load, import, reader, save and delete failures',async()=>{
- const {platform}=fixture([{id:'other',title:'Other',progress:1}]);setupUrls();
+it('reports library load, import, read, automatic location and delete failures',async()=>{
+ const {platform}=fixture([{id:'other',title:'Other',progress:1}]);
  vi.spyOn(window,'confirm').mockReturnValue(true);
  vi.spyOn(platform,'listDocuments').mockRejectedValueOnce(new Error('quota'));
- vi.spyOn(platform,'readPdf').mockRejectedValue(new Error('corrupt'));
+ vi.spyOn(platform,'readPdf').mockRejectedValueOnce(new Error('corrupt'));
  vi.spyOn(platform,'setProgress').mockRejectedValue(new Error('quota'));
  vi.spyOn(platform,'deletePdf').mockRejectedValue(new Error('locked'));
  render(<App platform={platform}/>);
@@ -96,14 +95,12 @@ it('reports library load, import, reader, save and delete failures',async()=>{
  fireEvent.change(screen.getByLabelText('Import PDF file'),{target:{files:[file()]}});
  expect(await screen.findByText('PDF imported locally.')).toBeTruthy();
  expect(await screen.findByRole('alert')).toHaveProperty('textContent','Unable to open this PDF.');
- fireEvent.change(screen.getByLabelText('Saved page'),{target:{value:'0'}});
- fireEvent.click(screen.getByText('Save page'));
- expect(screen.getByRole('alert')).toHaveProperty('textContent','Enter a valid page number (1 or greater).');
- fireEvent.change(screen.getByLabelText('Saved page'),{target:{value:'2'}});
- fireEvent.click(screen.getByText('Save page'));
+ fireEvent.click(screen.getByRole('button',{name:'Back to library'}));
+ fireEvent.click(screen.getByRole('button',{name:'Paper'}));
+ expect(await screen.findByRole('region',{name:'Structured paper reader'})).toBeTruthy();
+ fireEvent.focus(await screen.findByText('Next paragraph'));
  expect(await screen.findByRole('alert')).toHaveProperty('textContent','Could not save reading position.');
- fireEvent.click(screen.getByText('More'));
- fireEvent.click(screen.getByRole('button',{name:'Delete Paper'}));
+ fireEvent.click(screen.getByText('More'));fireEvent.click(screen.getByRole('button',{name:'Delete Paper'}));
  expect(await screen.findByRole('alert')).toHaveProperty('textContent','Unable to delete the local document.');
  vi.spyOn(platform,'importPdf').mockRejectedValueOnce(new Error('quota'));
  fireEvent.change(screen.getByLabelText('Import PDF file'),{target:{files:[file('second.pdf')]}});
@@ -112,15 +109,12 @@ it('reports library load, import, reader, save and delete failures',async()=>{
 
 it('respects deletion cancellation and deleting inactive documents from Library',async()=>{
  const {platform,rows}=fixture([{id:'other',title:'Other',progress:1},{id:'sha256:a',title:'Paper',progress:1}]);
- setupUrls();const confirm=vi.spyOn(window,'confirm').mockReturnValueOnce(false).mockReturnValue(true);
+ const confirm=vi.spyOn(window,'confirm').mockReturnValueOnce(false).mockReturnValue(true);
  render(<App platform={platform}/>);await screen.findByText('Other');
- fireEvent.click(screen.getByRole('button',{name:'Delete Other'}));
- expect(rows.has('other')).toBe(true);
- fireEvent.click(screen.getByRole('button',{name:'Delete Other'}));
- await waitFor(()=>expect(rows.has('other')).toBe(false));
- fireEvent.click(screen.getByRole('button',{name:'Paper'}));
- expect(confirm).toHaveBeenCalledTimes(2);
- expect(await screen.findByTitle('PDF document')).toBeTruthy();
+ fireEvent.click(screen.getByRole('button',{name:'Delete Other'}));expect(rows.has('other')).toBe(true);
+ fireEvent.click(screen.getByRole('button',{name:'Delete Other'}));await waitFor(()=>expect(rows.has('other')).toBe(false));
+ fireEvent.click(screen.getByRole('button',{name:'Paper'}));expect(confirm).toHaveBeenCalledTimes(2);
+ expect(await screen.findByRole('region',{name:'Structured paper reader'})).toBeTruthy();
 });
 
 it('ignores late library and reader responses after unmount, and surfaces file read failures', async () => {
@@ -137,15 +131,14 @@ it('ignores late library and reader responses after unmount, and surfaces file r
   expect(await screen.findByRole('alert')).toHaveProperty('textContent','PDF import failed. Check available browser storage.');
   second.unmount();
 });
-it('ignores a document read that settles after returning to Library',async()=>{
- const {platform}=fixture([{id:'one',title:'One',progress:1}]);
- let finish!:(bytes:Uint8Array)=>void;
+it('ignores a PDF read that settles after returning to Library',async()=>{
+ const {platform}=fixture([{id:'one',title:'One',progress:1}]);let finish!:(bytes:Uint8Array)=>void;
  vi.spyOn(platform,'readPdf').mockImplementationOnce(()=>new Promise(resolve=>{finish=resolve;}));
- setupUrls();render(<App platform={platform}/>);
+ render(<App platform={platform}/>);
  fireEvent.click(await screen.findByRole('button',{name:'One'}));
  expect(screen.getByText('Loading local PDF…')).toBeTruthy();
  fireEvent.click(screen.getByRole('button',{name:'Back to library'}));finish(valid);
- expect(screen.queryByTitle('PDF document')).toBeNull();
+ expect(screen.queryByRole('region',{name:'Structured paper reader'})).toBeNull();
 });
 
 it('imports EPUB through the shared picker and keeps PDF behavior intact', async () => {
@@ -264,49 +257,41 @@ it('adds DOI acquisition without a request on boot; saves, searches, opens and d
  view.unmount();
 });
 
-it('keeps metadata-only and OA full-text records separate after explicit DOI import',async()=>{
- const base=fixture(),doi='10.1234/oa',bytes=new Uint8Array([37,80,68,70,45,49]);
- const metadata={doi,title:'OA paper',creators:['Alice'],landingUrl:'https://doi.org/'+doi,source:'Crossref' as const,
-  oa:{source:'OpenAlex' as const,pdfUrl:'https://oa.example.org/a.pdf'}};
+it('keeps DOI reference and explicit OA PDF as separate entries',async()=>{
+ const base=fixture(),doi='10.1234/oa';
+ const metadata={doi,title:'OA paper',creators:['Alice'],landingUrl:'https://doi.org/'+doi,source:'Crossref' as const,oa:{source:'OpenAlex' as const,pdfUrl:'https://oa.example.org/a.pdf'}};
  const ref={id:'doi:'+doi,doi,title:'OA paper',progress:0,kind:'reference' as const,creators:['Alice']};
  const pdf={id:'sha256:oa',title:'OA paper',progress:1};
- const platform={...base.platform,
-  resolveDoi:vi.fn(async()=>metadata),saveReference:vi.fn(async()=>{base.rows.set(ref.id,ref);return ref;}),
-  readReference:vi.fn(async()=>({metadata})),importOpenPdf:vi.fn(async()=>{base.rows.set(pdf.id,pdf);return pdf;}),
-  readPdf:vi.fn(async()=>bytes)};
- setupUrls();render(<App platform={platform}/>);
+ const platform={...base.platform,resolveDoi:vi.fn(async()=>metadata),
+  saveReference:vi.fn(async()=>{base.rows.set(ref.id,ref);return ref;}),
+  readReference:vi.fn(async()=>({metadata})),importOpenPdf:vi.fn(async()=>{base.rows.set(pdf.id,pdf);return pdf;})};
+ render(<App platform={platform}/>);
  await screen.findByText('Your library is empty. Import a PDF to begin.');
  fireEvent.change(screen.getByLabelText('DOI'),{target:{value:doi}});
  fireEvent.click(screen.getByText('Resolve DOI'));await screen.findByText('OA paper');
  fireEvent.click(screen.getByText('Import open-access PDF'));
- await waitFor(()=>expect(platform.importOpenPdf).toHaveBeenCalledOnce());
- expect(await screen.findByTitle('PDF document')).toBeTruthy();
- expect(screen.getByRole('heading',{name:'OA paper'})).toBeTruthy();
+ expect(await screen.findByRole('region',{name:'Structured paper reader'})).toBeTruthy();
  fireEvent.click(screen.getByRole('button',{name:'Back to library'}));
  expect(screen.getAllByRole('button',{name:'OA paper'})).toHaveLength(2);
 });
 
-it('renders target-only PDF translation, saves a page-anchored draft and cleans the cache on deletion',async()=>{
- const f=fixture([{id:'sha256:a',title:'Paper',progress:2}]),deleteTranslations=vi.fn(async()=>{});
- const platform={...f.platform,getLanguages:vi.fn(async()=>({source:'en',target:'fr',recentTargets:['fr'],view:'bilingual' as const})),
-  setLanguages:vi.fn(async p=>p),findTranslation:vi.fn(async()=>undefined),
-  saveManualTranslation:vi.fn(async(x,text)=>({key:'local',identity:x,sourceHash:'h',translatedText:text,provenance:'manual' as const})),
-  translate:vi.fn(async()=>{throw Error('unavailable');}),deleteTranslations};
- setupUrls();vi.spyOn(window,'confirm').mockReturnValue(true);render(<App platform={platform}/>);
+it('keeps translated blocks in reader and deletes cached translation on document removal',async()=>{
+ const f=fixture([{id:'sha256:a',title:'Paper',progress:1}]),remove=vi.fn(async()=>{});
+ const p={...f.platform,getLanguages:vi.fn(async()=>({source:'en',target:'fr',recentTargets:['fr'],view:'bilingual' as const})),
+  setLanguages:vi.fn(async x=>x),findTranslation:vi.fn(async()=>undefined),
+  saveManualTranslation:vi.fn(async(x,text)=>({key:'x',identity:x,sourceHash:'hash',translatedText:text,provenance:'manual' as const})),
+  translate:vi.fn(async()=>{throw Error('no');}),deleteTranslations:remove};
+ vi.spyOn(window,'confirm').mockReturnValue(true);render(<App platform={p}/>);
  fireEvent.click(await screen.findByRole('button',{name:'Paper'}));
- const target=screen.getByRole('region',{name:'Target translation pane'});
- expect(await within(target).findByText(/No translation yet/)).toBeTruthy();
- expect(within(target).queryByTestId('translation-original')).toBeNull();
- fireEvent.click(within(target).getByText('Add source passage'));
- fireEvent.change(within(target).getByLabelText('PDF excerpt'),{target:{value:'Paper quote'}});
- fireEvent.change(within(target).getByLabelText('Manual translation'),{target:{value:'Citation'}});
- fireEvent.click(within(target).getByText('Save local translation'));
- await waitFor(()=>expect(platform.saveManualTranslation).toHaveBeenCalledWith(expect.objectContaining({
-  unit:{anchor:{kind:'pdf',page:2},unitIndex:0,text:'Paper quote'}}),'Citation'));
- expect(within(target).getByTestId('translation-result').textContent).toContain('Citation');
- fireEvent.click(screen.getByText('More'));
- fireEvent.click(screen.getByRole('button',{name:'Delete Paper'}));
- await waitFor(()=>expect(deleteTranslations).toHaveBeenCalledWith('sha256:a'));
+ const target=await screen.findByRole('region',{name:'Translated article'});
+ expect(within(target).getAllByText('Not translated').length).toBeGreaterThan(0);
+ fireEvent.click(within(target).getAllByText('Translate this block')[0]);
+ fireEvent.change(within(target).getByLabelText('Local translation p1-b1'),{target:{value:'Citation'}});
+ fireEvent.click(within(target).getAllByText('Save local translation')[0]);
+ await waitFor(()=>expect(p.saveManualTranslation).toHaveBeenCalledWith(expect.objectContaining({unit:expect.objectContaining({text:'Paper quote'})}),'Citation'));
+ expect(within(target).getByText('Citation')).toBeTruthy();
+ fireEvent.click(screen.getByText('More'));fireEvent.click(screen.getByRole('button',{name:'Delete Paper'}));
+ await waitFor(()=>expect(remove).toHaveBeenCalledWith('sha256:a'));
 });
 
 it('wires EPUB translation into the App without changing the PDF adapter',async()=>{
@@ -357,32 +342,28 @@ it('filters by stored document kind without promising full-text or collections',
  expect(screen.getByRole('button',{name:'Citation'})).toBeTruthy();
  expect(screen.queryByRole('button',{name:'Paper'})).toBeNull();
 });
-it('shows a focused original PDF and target area without an inspector',async()=>{
- const {platform}=fixture([{id:'pdf:one',title:'Paper',progress:4}]);setupUrls();
- render(<App platform={platform}/>);
+it('does not mount Library or Inspector in native structured PDF mode',async()=>{
+ const {platform}=fixture([{id:'pdf:one',title:'Paper',progress:1}]);render(<App platform={platform}/>);
  await screen.findByRole('button',{name:'Paper'});
  expect(screen.getByRole('complementary',{name:'Context inspector'})).toBeTruthy();
  fireEvent.click(screen.getByRole('button',{name:'Paper'}));
+ expect(await screen.findByRole('region',{name:'Structured paper reader'})).toBeTruthy();
  expect(screen.queryByRole('complementary',{name:'Context inspector'})).toBeNull();
  expect(screen.queryByRole('navigation',{name:'Library filters'})).toBeNull();
- expect(screen.getByRole('region',{name:'Original PDF'})).toBeTruthy();
- expect(screen.getByRole('region',{name:'Target translation pane'})).toBeTruthy();
  fireEvent.click(screen.getByRole('button',{name:'Back to library'}));
  expect(screen.getByRole('complementary',{name:'Context inspector'})).toBeTruthy();
 });
 
-it('keeps page-bound PDF translation inside its own right reading pane',async()=>{
- const f=fixture([{id:'pdf:one',title:'Paper',progress:2}]);setupUrls();
- const p={...f.platform,getLanguages:vi.fn(async()=>({source:'en',target:'ja',recentTargets:['ja'],view:'bilingual' as const})),
-  setLanguages:vi.fn(async x=>x),findTranslation:vi.fn(async()=>undefined),
-  saveManualTranslation:vi.fn(async(x,text)=>({key:'one',identity:x,translatedText:text,sourceHash:'hash',provenance:'manual' as const})),
-  translate:vi.fn(async()=>{throw Error('disabled');}),deleteTranslations:vi.fn(async()=>{})};
- render(<App platform={p}/>);
+it('displays source and translation from shared content blocks',async()=>{
+ const f=fixture([{id:'pdf:one',title:'Paper',progress:1}]);render(<App platform={f.platform}/>);
  fireEvent.click(await screen.findByRole('button',{name:'Paper'}));
- const target=screen.getByRole('region',{name:'Target translation pane'});
- expect(await within(target).findByLabelText('PDF excerpt')).toBeTruthy();
- expect(within(screen.getByRole('region',{name:'Original PDF'})).queryByLabelText('PDF excerpt')).toBeNull();
- expect(screen.getByRole('main',{name:'PDF reader'}).className).toContain('folio-pdf-focus');
+ const source=await screen.findByRole('region',{name:'Original article'});
+ expect(within(source).getByText('Paper quote')).toBeTruthy();
+ expect(screen.getByRole('region',{name:'Translated article'})).toBeTruthy();
+ fireEvent.click(screen.getByRole('button',{name:'Interleaved · 单栏'}));
+ const feed=screen.getByRole('region',{name:'Interleaved article'});
+ expect(within(feed).getAllByText('Not translated')).toHaveLength(2);
+ expect(screen.queryByTitle('PDF document')).toBeNull();
 });
 
 it('portals EPUB bilingual unit into inspector while keeping sandboxed chapter in reader',async()=>{
@@ -413,63 +394,51 @@ it('opens low-frequency provider settings only through the explicit toolbar acti
  expect(document.activeElement).toBe(screen.getByRole('button',{name:'Settings'}));
 });
 
-it('opens the PDF as two full-window source/target panes with no stacked Library',async()=>{
- const f=fixture([{id:'sha256:a',title:'Paper',progress:3,creators:['Researcher']}]);setupUrls();
- render(<App platform={f.platform}/>);
- await screen.findByRole('button',{name:'Paper'});
+it('opens native PDF in full-window Parallel without the stacked Library',async()=>{
+ const f=fixture([{id:'sha256:a',title:'Paper',progress:1}]);render(<App platform={f.platform}/>);
  expect(screen.getByText('Make room for understanding.')).toBeTruthy();
- expect(screen.getByRole('region',{name:'Import PDF'})).toBeTruthy();
- fireEvent.click(screen.getByRole('button',{name:'Paper'}));
- expect(await screen.findByTitle('PDF document')).toBeTruthy();
+ fireEvent.click(await screen.findByRole('button',{name:'Paper'}));
+ expect(await screen.findByRole('region',{name:'Structured paper reader'})).toBeTruthy();
  expect(screen.queryByText('Make room for understanding.')).toBeNull();
  expect(screen.queryByRole('region',{name:'Import PDF'})).toBeNull();
- expect(screen.getByRole('region',{name:'Original PDF'})).toBeTruthy();
- expect(screen.getByRole('region',{name:'Target translation pane'})).toBeTruthy();
- expect(screen.queryByRole('complementary',{name:'Context inspector'})).toBeNull();
- expect(screen.getByText('Translation unavailable')).toBeTruthy();
+ expect(screen.getByRole('region',{name:'Original article'})).toBeTruthy();
+ expect(screen.getByRole('region',{name:'Translated article'})).toBeTruthy();
  fireEvent.click(screen.getByRole('button',{name:'Back to library'}));
- expect(screen.queryByTitle('PDF document')).toBeNull();
  expect(screen.getByText('Make room for understanding.')).toBeTruthy();
- expect(screen.getByRole('button',{name:'Paper'})).toBeTruthy();
 });
 
-it('removes navigation and inspector chrome entirely while reading, keeping the PDF mounted',async()=>{
- const f=fixture([{id:'sha256:a',title:'Paper',progress:2}]);setupUrls();
- render(<App platform={f.platform}/>);
+it('keeps native PDF reader mounted without old chrome when changing layout',async()=>{
+ const f=fixture([{id:'sha256:a',title:'Paper',progress:1}]);render(<App platform={f.platform}/>);
  fireEvent.click(await screen.findByRole('button',{name:'Paper'}));
- expect(await screen.findByTitle('PDF document')).toBeTruthy();
+ expect(await screen.findByRole('region',{name:'Structured paper reader'})).toBeTruthy();
  expect(document.querySelector('.folio-app--pdf-focus')).toBeTruthy();
  expect(screen.queryByRole('button',{name:'Hide library'})).toBeNull();
  expect(screen.queryByRole('button',{name:'Hide details'})).toBeNull();
- expect(screen.queryByRole('navigation',{name:'Library filters'})).toBeNull();
- expect(screen.getByRole('region',{name:'Original PDF'})).toBeTruthy();
- expect(screen.getByRole('region',{name:'Target translation pane'})).toBeTruthy();
+ fireEvent.click(screen.getByRole('button',{name:'Interleaved · 单栏'}));
+ expect(screen.getByRole('region',{name:'Structured paper reader'})).toBeTruthy();
 });
 
-it('can add a document from the compact More menu without a stacked library',async()=>{
- const f=fixture([{id:'sha256:a',title:'Paper',progress:2}]);setupUrls();
- render(<App platform={f.platform}/>);
+it('imports through the More menu while preserving a native reader-only main area',async()=>{
+ const f=fixture([{id:'sha256:a',title:'Paper',progress:1}]);render(<App platform={f.platform}/>);
  fireEvent.click(await screen.findByRole('button',{name:'Paper'}));
- await screen.findByTitle('PDF document');
+ await screen.findByRole('region',{name:'Structured paper reader'});
  fireEvent.click(screen.getByText('More'));
  fireEvent.change(screen.getByLabelText('Import PDF file'),{target:{files:[file('Second.pdf')]}});
  expect(await screen.findByText('This PDF is already in your library.')).toBeTruthy();
  expect(screen.queryByRole('region',{name:'Import PDF'})).toBeNull();
- expect(screen.getByRole('region',{name:'Original PDF'})).toBeTruthy();
+ expect(screen.getByRole('region',{name:'Structured paper reader'})).toBeTruthy();
 });
 
-it('returns to Library navigation and inspector after leaving focused PDF',async()=>{
- const f=fixture([{id:'sha256:a',title:'Paper',progress:1}]);setupUrls();
- render(<App platform={f.platform}/>);
+it('restores Library after leaving a focused native PDF',async()=>{
+ const f=fixture([{id:'sha256:a',title:'Paper',progress:1}]);render(<App platform={f.platform}/>);
  fireEvent.click(await screen.findByRole('button',{name:'Paper'}));
- await screen.findByTitle('PDF document');
+ await screen.findByRole('region',{name:'Structured paper reader'});
  fireEvent.click(screen.getByRole('button',{name:'Back to library'}));
  expect(document.querySelector('.folio-app--pdf-focus')).toBeNull();
  expect(screen.getByText('Make room for understanding.')).toBeTruthy();
  expect(screen.getByRole('navigation',{name:'Library filters'})).toBeTruthy();
  expect(screen.getByRole('complementary',{name:'Context inspector'})).toBeTruthy();
 });
-
 
 it('preserves collapsible library and inspector on the existing EPUB path only',async()=>{
  const f=fixture([{id:'epub:sha256:a',title:'Book',kind:'epub',progress:1}]);
@@ -494,11 +463,10 @@ it('preserves collapsible library and inspector on the existing EPUB path only',
 });
 
 
-it('opens settings from the focused PDF header without adding a sidebar',async()=>{
- const f=fixture([{id:'pdf:one',title:'Paper',progress:1}]);setupUrls();
- const open=vi.fn();render(<App platform={f.platform} onOpenSettings={open}/>);
+it('opens native focused PDF settings without adding a sidebar',async()=>{
+ const f=fixture([{id:'pdf:one',title:'Paper',progress:1}]),open=vi.fn();render(<App platform={f.platform} onOpenSettings={open}/>);
  fireEvent.click(await screen.findByRole('button',{name:'Paper'}));
- expect(await screen.findByTitle('PDF document')).toBeTruthy();
+ expect(await screen.findByRole('region',{name:'Structured paper reader'})).toBeTruthy();
  fireEvent.click(screen.getByRole('button',{name:'Settings'}));
  expect(open).toHaveBeenCalledOnce();
  expect(document.activeElement).toBe(screen.getByRole('button',{name:'Settings'}));
