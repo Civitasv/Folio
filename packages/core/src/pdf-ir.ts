@@ -87,7 +87,10 @@ export function buildPdfIR(documentId:string,pages:PdfPageInput[]):PdfDocumentIR
    const compatible=last&&last.page===page.page&&last.kind==='paragraph'&&kind==='paragraph'&&
     Math.abs(last.rect.x-line.rect.x)<.08&&Math.abs(last.rect.width-line.rect.width)<.20&&
     line.rect.y>=last.rect.y&&line.rect.y-last.rect.y-last.rect.height<Math.max(.016,line.rect.height*.9);
-   if(compatible){
+   const captionContinuation=last&&last.page===page.page&&last.kind==='caption'&&kind==='paragraph'&&
+    Math.abs(last.rect.x-line.rect.x)<.04&&line.rect.y>=last.rect.y&&
+    line.rect.y-last.rect.y-last.rect.height<.011;
+   if(compatible||captionContinuation){
     last.text+=(/[-‐]$/.test(last.text)?'':' ')+t;
     if(/[-‐]$/.test(last.text.slice(0,-t.length)))last.text=last.text.replace(/[-‐]\s(?=[A-Za-z])/,'');
     last.rect=union(last.rect,line.rect);
@@ -102,6 +105,8 @@ export function buildPdfIR(documentId:string,pages:PdfPageInput[]):PdfDocumentIR
   const grouped=new Map<string,PdfRect>();
   let unpaired=0;
   for(const image of page.images??[]){
+   // An uncaptained top-of-page branding image is not article evidence.
+   if(image.y<.14&&!figures.length)continue;
    const candidate=figures.map(caption=>{
     const gap=image.y-(caption.rect.y+caption.rect.height);
     const overlap=Math.min(image.x+image.width,caption.rect.x+caption.rect.width)-Math.max(image.x,caption.rect.x);
