@@ -1,6 +1,6 @@
 import {beforeEach,afterEach,expect,it,vi} from 'vitest';
 import {parseLocalPdf,ensurePromiseTry,PdfParseFailure,pdfFailureMessage} from './pdf-extract';
-const destroy=vi.fn(async()=>{}),cleanup=vi.fn(),render=vi.fn(()=>({promise:Promise.resolve()}));
+const destroy=vi.fn(async()=>{}),cleanup=vi.fn(),cancelRender=vi.fn(),render=vi.fn(()=>({promise:Promise.resolve(),cancel:cancelRender}));
 let numPages=1,items:unknown[]=[{str:'First source line',fontName:'f',transform:[1,0,0,20,100,700],width:160}];
 let failRead=false,failGraphics=false;
 const getPage=vi.fn(async()=>({
@@ -199,4 +199,32 @@ it('reports an all-page failure even when an engine rejects without a cause',asy
   getOperatorList:async()=>({fnArray:[],argsArray:[]}),cleanup,render
  }));
  await expect(parseLocalPdf('invalid:error',new Uint8Array(1))).rejects.toThrow('No page text could be read');
+});
+
+it('integrates expressly installed local region predictions as source-only scientific crops',async()=>{
+ const context={getImageData:vi.fn(()=>({data:new Uint8ClampedArray(4),width:1,height:1}))};
+ vi.spyOn(HTMLCanvasElement.prototype,'getContext').mockReturnValue(context as unknown as CanvasRenderingContext2D);
+ const detector={modelId:'signed-local-test-model',recognize:vi.fn(async()=>[{
+  label:'table' as const,rect:{x:.1,y:.3,width:.65,height:.22},confidence:.94,order:1
+ }])};
+ const parsed=await parseLocalPdf('science:one',new Uint8Array(1),undefined,detector);
+ expect(detector.recognize).toHaveBeenCalledOnce();
+ expect(parsed.ir.blocks.some(b=>b.kind==='table'&&b.mediaRect?.width===.65)).toBe(true);
+ await parsed.destroy();
+});
+it('retains source reading after an installed local recognizer fails',async()=>{
+ const context={getImageData:vi.fn(()=>({data:new Uint8ClampedArray(4),width:1,height:1}))};
+ vi.spyOn(HTMLCanvasElement.prototype,'getContext').mockReturnValue(context as unknown as CanvasRenderingContext2D);
+ const detector={modelId:'absent',recognize:vi.fn(async()=>{throw Error('model unavailable');})};
+ const parsed=await parseLocalPdf('science:fallback',new Uint8Array(1),undefined,detector);
+ expect(parsed.ir.blocks[0].text).toBe('First source line');
+ expect(parsed.ir.warnings).toContain('Page 1: local layout detector unavailable; fallback source reading retained.');
+ await parsed.destroy();
+});
+it('does not swallow explicit cancellation during local detector inference',async()=>{
+ const controller=new AbortController();
+ const context={getImageData:vi.fn(()=>({data:new Uint8ClampedArray(4),width:1,height:1}))};
+ vi.spyOn(HTMLCanvasElement.prototype,'getContext').mockReturnValue(context as unknown as CanvasRenderingContext2D);
+ const detector={modelId:'local',recognize:vi.fn(async()=>{controller.abort();throw Error('stopped locally');})};
+ await expect(parseLocalPdf('science:abort',new Uint8Array(1),controller.signal,detector)).rejects.toThrow('PDF processing cancelled.');
 });
