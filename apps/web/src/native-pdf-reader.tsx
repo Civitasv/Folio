@@ -4,6 +4,7 @@ import { DEFAULT_LANGUAGE_PREFERENCES, LANGUAGE_OPTIONS, TRANSLATION_PROMPT_VERS
  type LanguagePreferences,type TranslationIdentity} from '@folio/core';
 import {browserReaderModeStore,type ReaderModeStore,type TranslationPlatform} from '@folio/platform';
 import {parseLocalPdf,pdfFailureMessage,type ParsedPdf} from './pdf-extract';
+import {PdfOriginalPane} from './pdf-original-pane';
 
 type ReaderTranslationPlatform=Pick<TranslationPlatform,'getLanguages'|'setLanguages'|'findTranslation'|'saveManualTranslation'|'translate'>;
 export function sourceIdentity(doc:DocumentSummary,block:PdfBlock,prefs:LanguagePreferences,provider?:TranslationProvider):TranslationIdentity{
@@ -152,8 +153,9 @@ export function NativePdfReader({doc,bytes,platform,provider,onLocation,modeStor
    {!pairs.length&&<div className="folio-native-empty"><p>No selectable text detected. Scanned documents need an explicit OCR engine.</p>
     <button type="button" onClick={()=>void reviewPage(1)}>Inspect original page</button></div>}
    {mode==='parallel'?<div className="folio-native-parallel">
-    <div className="folio-native-column" ref={source} role="region" aria-label="Original article"><div className="folio-native-column-title">ORIGINAL</div>
-     <article>{pairs.map(p=><div key={p.block.id} onClick={()=>focus(p.block,'source')}>{blockView(p.block)}</div>)}</article>
+    <div className="folio-native-column folio-native-original-column" ref={source} role="region" aria-label="Original article"><div className="folio-native-column-title">ORIGINAL · PDF</div>
+     {parsed?.originalDocument?<PdfOriginalPane document={parsed.originalDocument} page={doc.progress} onPageChange={onLocation} onError={setError}/>:
+      <article>{pairs.map(p=><div key={p.block.id} onClick={()=>focus(p.block,'source')}>{blockView(p.block)}</div>)}</article>}
     </div>
     <div className="folio-native-column" ref={target} role="region" aria-label="Translated article"><div className="folio-native-column-title">TRANSLATION</div>
      <article>{pairs.map(p=><div key={p.block.id} onClick={()=>focus(p.block,'target')}>{targetView(p.block,p.target)}</div>)}</article>

@@ -1,4 +1,6 @@
 import React from 'react';
+// The real PDF.js viewer requires browser layout globals; its own component is tested separately.
+vi.mock('./pdf-original-pane',()=>({PdfOriginalPane:()=>React.createElement('div',{role:'region','aria-label':'Original PDF pages'})}));
 import {afterEach,beforeEach,expect,it,vi} from 'vitest';
 import {cleanup,fireEvent,render,screen,waitFor,within} from '@testing-library/react';
 import {DEFAULT_LANGUAGE_PREFERENCES,type PdfDocumentIR,type DocumentSummary,type TranslationProvider} from '@folio/core';
@@ -348,4 +350,14 @@ it('exposes a local parse failure and retries the stored PDF without reimporting
  expect(vi.mocked(parseLocalPdf).mock.calls.every(([id,source])=>id===doc.id&&source===bytes)).toBe(true);
  expect(p.translate).not.toHaveBeenCalled();
  expect(log).toHaveBeenCalled();
+});
+
+it('uses the same live PDF.js source document for original Parallel pages when available',async()=>{
+ vi.mocked(parseLocalPdf).mockResolvedValueOnce({...parsed,originalDocument:{numPages:2} as never});
+ render(<NativePdfReader doc={doc} bytes={bytes}/>);
+ expect(await screen.findByRole('region',{name:'Original PDF pages'})).toBeTruthy();
+ expect(screen.getByRole('region',{name:'Translated article'})).toBeTruthy();
+ fireEvent.click(screen.getByRole('button',{name:'Interleaved · 单栏'}));
+ expect(screen.getByRole('region',{name:'Interleaved article'})).toBeTruthy();
+ expect(vi.mocked(parseLocalPdf)).toHaveBeenCalledTimes(1);
 });
