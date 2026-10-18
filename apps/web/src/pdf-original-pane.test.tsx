@@ -130,7 +130,7 @@ it('keeps text dragging/copy selection native, and ignores unrecognized page cli
  const host=screen.getByRole('region',{name:'Original PDF pages'}),area=host.querySelector('.pdfViewer')!;
  const page=document.createElement('div');page.className='page';page.dataset.pageNumber='1';area.append(page);
  vi.spyOn(page,'getBoundingClientRect').mockReturnValue({left:0,top:0,width:500,height:500,right:500,bottom:500,x:0,y:0,toJSON:()=>({})});
- const selection=vi.spyOn(window,'getSelection').mockReturnValue({isCollapsed:false,anchorNode:page} as Selection);
+ const selection=vi.spyOn(window,'getSelection').mockReturnValue({isCollapsed:false,anchorNode:page} as unknown as Selection);
  fireEvent.click(page,{clientX:100,clientY:110});expect(choose).not.toHaveBeenCalled();
  selection.mockReturnValue(null);
  fireEvent.click(page,{clientX:400,clientY:400});expect(choose).not.toHaveBeenCalled();
