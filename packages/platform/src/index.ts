@@ -85,3 +85,6 @@ export const universalPlatform = {
 
 export {createReaderModeStore,browserReaderModeStore} from './reader-mode';
 export type {ReaderModeStore} from './reader-mode';
+
+export {createReaderLayoutStore,browserReaderLayoutStore} from './reader-layout';
+export type {ReaderLayoutPreference,ReaderLayoutStore} from './reader-layout';
