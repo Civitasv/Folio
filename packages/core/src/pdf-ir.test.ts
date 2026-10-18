@@ -8,7 +8,7 @@ it('keeps immutable source blocks and joins only nearby paragraph lines',()=>{
  expect(ir.version).toBe(1);expect(ir.documentId).toBe('sha256:a');
  expect(ir.pages).toBe(1);
  expect(ir.blocks.map(b=>b.kind)).toEqual(['paragraph','heading','paragraph']);
- expect(ir.warnings).toContain('Conservative reflow: only caption-associated bitmap figures are restored. Vector overlays, table grids and equations need original-page fidelity review.');
+ expect(ir.warnings).toContain('Conservative reflow: only verified scientific regions are shown as original-page assets. Unidentified table grids, vectors and equations still require original-page fidelity review.');
  expect(ir.blocks[0].text).toBe('A long introduction that continues');
  expect(ir.blocks.map(b=>b.id)).toEqual(['p1-b1','p1-b2','p1-b3']);
  expect(ir.blocks[1].confidence).toBe(.65);
@@ -64,7 +64,7 @@ it('recognizes references as a section heading and treats whitespace-only pages 
   page(2,[span('    ',.1,.2)])]);
  expect(ir.blocks[0].kind).toBe('heading');
  expect(ir.blocks[1].text).toBe('Bibliography item');
- expect(ir.warnings).toContain('Page 2: no selectable text. Original page review required.');
+ expect(ir.warnings).toContain('Page 2: no selectable prose text. Original page review required.');
 });
 
 
@@ -111,4 +111,49 @@ it('keeps a wrapped three-line Figure 2 caption together as one translatable sou
  expect(caption.text).toContain('pathognomonic granular');
  expect(ir.blocks.filter(b=>b.kind==='figure')).toHaveLength(1);
  expect(ir.blocks.map(b=>b.kind)).toEqual(['figure','caption']);
+});
+
+it('uses observed layout regions for table and formula without flattening scientific text into prose',()=>{
+ const p={...page(6,[span('Table 7. Duration and type-II DM',.1,.17,.5),
+  span('0.001',.12,.32,.1),span('Narrative retains the original claim',.1,.65,.6)]),
+  layoutRegions:[
+   {label:'table' as const,rect:{x:.1,y:.25,width:.7,height:.25},confidence:.97,order:1},
+   {label:'display_formula' as const,rect:{x:.12,y:.54,width:.4,height:.06},confidence:.9,order:2}
+  ]};
+ const ir=buildPdfIR('science',[p]);
+ const table=ir.blocks.find(b=>b.kind==='table')!;
+ expect(table.sourceText).toBe('0.001');
+ expect(table.text).toBe('');
+ expect(table.mediaRect).toEqual(p.layoutRegions[0].rect);
+ expect(ir.blocks.some(b=>b.kind==='paragraph'&&b.text.includes('0.001'))).toBe(false);
+ expect(ir.blocks.some(b=>b.text.includes('Narrative retains'))).toBe(true);
+ expect(ir.blocks.indexOf(table)).toBeGreaterThan(ir.blocks.findIndex(b=>b.text.startsWith('Table 7.')));
+ expect(ir.blocks.find(b=>b.kind==='formula')?.mediaRect).toEqual(p.layoutRegions[1].rect);
+ expect(readingPairs(ir,new Map([[table.id,'invented numbers']])).find(pair=>pair.block.id===table.id)?.status).toBe('source-only');
+ expect(ir.warnings.some(w=>w.includes('PDF table grid'))).toBe(false);
+});
+it('preserves a visual-only page and keeps fallback bitmap figures from duplicating detected figures',()=>{
+ const region={label:'figure' as const,rect:{x:.2,y:.3,width:.6,height:.3},confidence:.95,order:1};
+ const p={...page(3,[]),layoutRegions:[region],images:[region.rect]};
+ const ir=buildPdfIR('visual',[p]);
+ expect(ir.blocks.map(b=>b.kind)).toEqual(['figure']);
+ expect(ir.blocks[0].id).toBe('p3-figure-2000-3000-6000-3000');
+ expect(ir.warnings.some(w=>w.includes('no selectable prose text'))).toBe(true);
+});
+it('anchors source-only chart before an adjacent caption below and retains unsupported image fallback',()=>{
+ const p={...page(2,[span('Figure 4. Chart captions can follow a panel',.1,.60,.62)]),
+ layoutRegions:[{label:'chart' as const,rect:{x:.1,y:.24,width:.63,height:.3},confidence:.94,order:1}],
+ images:[{x:.82,y:.65,width:.09,height:.14}]};
+ const ir=buildPdfIR('chart',[p]);
+ expect(ir.blocks[0].kind).toBe('chart');
+ expect(ir.blocks[1].kind).toBe('caption');
+ expect(ir.warnings.some(w=>w.includes('unpaired embedded image'))).toBe(true);
+ expect(readingPairs(ir,new Map()).map(p=>p.status)).toEqual(['source-only','missing']);
+});
+it('orders non-captioned scientific assets relative to nearby text and supports prior-page assets',()=>{
+ const p={...page(2,[span('Before',.1,.2),span('After',.1,.8)]),
+ layoutRegions:[{label:'algorithm' as const,rect:{x:.1,y:.45,width:.55,height:.15},confidence:.88,order:1}]};
+ const ir=buildPdfIR('algorithm',[page(1,[span('Earlier page',.1,.2)]),p]);
+ expect(ir.blocks.map(b=>b.kind)).toEqual(['paragraph','paragraph','algorithm','paragraph']);
+ expect(ir.blocks[2].id).toContain('p2-algorithm');
 });
