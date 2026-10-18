@@ -29,7 +29,7 @@ afterEach(()=>{cleanup();vi.restoreAllMocks()});
 it('derives an exact page/block translation identity independent of presentation',()=>{
  expect(sourceIdentity(doc,blocks[1],langs)).toMatchObject({documentId:doc.id,target:'zh-Hans',providerId:'manual',
   unit:{anchor:{kind:'pdf',page:1},unitIndex:2,text:'Source paragraph.'}});
- const provider={id:'codex',model:'test',supportsAutoSource:true};
+ const provider:TranslationProvider={id:'codex',model:'test',supportsAutoSource:true,translate:vi.fn(async()=> 'ok')};
  expect(sourceIdentity(doc,blocks[2],langs,provider)).toMatchObject({providerId:'codex',model:'test',unit:{unitIndex:1}});
 });
 it('renders two semantic article streams and a single alternating stream without requesting AI on switch',async()=>{
