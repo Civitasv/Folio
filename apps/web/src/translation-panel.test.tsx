@@ -192,3 +192,28 @@ it('disables blank custom language actions without persisting a spurious choice'
  expect(screen.getByText('Use target language')).toHaveProperty('disabled',true);
  expect(screen.getByText('Use source language')).toHaveProperty('disabled',true);
 });
+
+
+it('shows only translated target output in the focused PDF pane with advanced language options folded away',async()=>{
+ const f=fixture();
+ render(<TranslationPanel doc={doc} platform={f.platform} layout="target-pane"/>);
+ expect(await screen.findByText(/No translation yet/)).toBeTruthy();
+ expect(screen.getByRole('region',{name:'Target translation'})).toBeTruthy();
+ expect(screen.queryByTestId('translation-original')).toBeNull();
+ expect(screen.queryByLabelText('Translation view')).toBeNull();
+ expect(f.platform.translate).not.toHaveBeenCalled();
+ fireEvent.change(screen.getByLabelText('Target language'),{target:{value:'ja'}});
+ await waitFor(()=>expect(f.platform.setLanguages).toHaveBeenCalledWith(expect.objectContaining({target:'ja'})));
+ fireEvent.click(screen.getByText('Language options'));
+ expect(screen.getByLabelText('Source language')).toBeTruthy();
+ fireEvent.click(screen.getByText('Add source passage'));
+ fireEvent.change(screen.getByLabelText('PDF excerpt'),{target:{value:'Local PDF passage'}});
+ fireEvent.change(screen.getByLabelText('Manual translation'),{target:{value:'訳文'}});
+ fireEvent.click(screen.getByText('Save local translation'));
+ await waitFor(()=>expect(f.platform.saveManualTranslation).toHaveBeenCalledWith(expect.objectContaining({
+  target:'ja',unit:{anchor:{kind:'pdf',page:2},unitIndex:0,text:'Local PDF passage'}
+ }),'訳文'));
+ expect(screen.getByTestId('translation-result').textContent).toContain('訳文');
+ expect(screen.getByText('Local draft')).toBeTruthy();
+ expect(f.platform.translate).not.toHaveBeenCalled();
+});
